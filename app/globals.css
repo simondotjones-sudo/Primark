@@ -40,6 +40,7 @@ h2{font-size:1.45rem;line-height:1.2;font-weight:600;letter-spacing:-.025em}
 p{line-height:1.55}.shell{min-height:100vh;display:flex;flex-direction:column}
 .login-screen{background-color:#f7f9fb;background-image:linear-gradient(rgba(247,249,251,.94),rgba(247,249,251,.94)),url("/primark-background.jpg");background-position:center;background-size:cover;background-repeat:no-repeat}
 .topbar{height:82px;background:#fff;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;padding:0 max(28px,calc((100vw - 1340px)/2));gap:20px}
+.topbar-brand{display:flex;align-items:center;gap:24px;min-width:0}.topbar-brand nav{min-width:0}
 .brand{border:0;background:none;display:flex;align-items:center;gap:18px;color:var(--foreground);padding:0;white-space:nowrap}
 .brand strong,.pass-top strong{font-size:1.65rem;color:#008bc9;letter-spacing:.095em;font-weight:700;line-height:1}
 .brand span{font-size:1rem;font-weight:600;border-inline-start:1px solid #d3e0e8;padding-inline-start:18px;letter-spacing:-.015em}
@@ -226,6 +227,7 @@ footer strong{letter-spacing:.08em}
 @media(max-width:1050px){.report-grid{grid-template-columns:1fr}.metrics{grid-template-columns:repeat(2,1fr)}}
 @media(max-width:760px){
   .topbar{height:auto;padding:17px 20px;flex-wrap:wrap;gap:13px}.brand strong{font-size:1.3rem}.brand span{font-size:.9rem;padding-inline-start:12px}
+  .topbar-brand{gap:12px;max-width:100%}.topbar-brand nav button{white-space:normal;text-align:start}
   .top-controls{width:100%;justify-content:space-between;gap:8px}.topbar nav{height:auto;gap:3px}.topbar nav button{padding:9px 11px;font-size:.88rem}
   .language-picker select{max-width:125px;padding:7px 0;padding-inline:6px 18px;font-size:.85rem}.language-picker svg{display:none}
   .main{padding:27px 18px 55px}.entry{grid-template-columns:1fr;gap:15px;min-height:0}
@@ -309,6 +311,7 @@ footer strong{letter-spacing:.08em}
 .topbar:has(.profile-menu){height:82px;flex-wrap:nowrap}
 @media(max-width:760px){.topbar:has(.profile-menu){padding:16px 20px;gap:12px}.topbar:has(.profile-menu) .top-controls{width:auto;gap:12px;margin-inline-start:auto}.topbar:has(.profile-menu) .language-picker select{max-width:120px}.access-admin .topbar:has(.profile-menu){flex-direction:row;align-items:center}}
 @media(max-width:390px){.topbar:has(.profile-menu) .language-picker>svg{display:none}.topbar:has(.profile-menu) .language-picker select{max-width:106px}.topbar:has(.profile-menu) .top-controls{gap:8px}}
+@media(max-width:600px){.topbar:has(.topbar-brand nav){height:auto;flex-wrap:wrap}.topbar:has(.topbar-brand nav) .topbar-brand{flex:0 0 100%}.topbar:has(.topbar-brand nav) .top-controls{height:auto}}
 
 .auth-help{color:#007cb9;font-size:14px;text-align:center;padding:8px}.entry-form small{font-size:13px;color:#617988;font-weight:400}
 
