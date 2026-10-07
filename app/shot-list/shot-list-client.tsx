@@ -1,5 +1,5 @@
 "use client";
-import ProfileMenu from "@/components/profile-menu";
+import PageHeader from "@/components/page-header";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ArrowLeft, Camera, Check, CheckCircle2, ChevronLeft, ChevronRight, Download, ImagePlus, Images, LoaderCircle, RefreshCw, X } from "lucide-react";
 import { getShot, requiredShots, shotKey, shotModules, type ShotData, type ShotPhoto, type ShotState } from "@/lib/shot-list";
@@ -145,11 +145,9 @@ export default function ShotList() {
   const pendingForSlide = queue.some(p => p.module === moduleNumber && p.slide === slideNumber);
   const isReference = slide?.kind === "reuse" || slide?.kind === "screen";
   return <div className="shoot-shell" lang="en" dir="ltr">
-    <header className="shoot-top"><a className="shoot-brand" href="/"><strong>PRIMARK</strong></a><ProfileMenu view="shots"/></header>
-    <main className="shoot-main">
-      <div className="shoot-heading"><div><span className="shoot-kicker">STORE PHOTOGRAPHY</span><h1>Shot list</h1></div><button className={"shoot-secondary "+(gallery?"is-active":"")} onClick={gallery?openOverview:openGallery}><Images size={19}/>{gallery?"Modules":"View photos"}{!gallery&&data.photos.length>0&&<span>{data.photos.length}</span>}</button></div>
-      <p className="shoot-intro">Read the brief, add your photos, then mark the slide complete.</p>
-      <div className="shoot-progress-line"><span><strong>{completed} of {requiredShots.length}</strong> required slides complete{unavailable>0&&` · ${unavailable} unavailable`}</span></div>
+    <PageHeader title="Shot list" view="shots"/>
+    <main className="main">
+      <div className="shoot-heading"><div className="shoot-progress-line"><span><strong>{completed} of {requiredShots.length}</strong> required slides complete{unavailable>0&&` · ${unavailable} unavailable`}</span></div><button className={"shoot-secondary "+(gallery?"is-active":"")} onClick={gallery?openOverview:openGallery}><Images size={19}/>{gallery?"Modules":"View photos"}{!gallery&&data.photos.length>0&&<span>{data.photos.length}</span>}</button></div>
       <progress className="shoot-progress" max={requiredShots.length} value={completed} aria-label="Required slides complete"/>
       {offline&&<div className="shoot-warning" role="status">You’re offline. Reconnect to upload. Keep this page open for any photos waiting to save.</div>}
       {error&&<div className="shoot-error" role="alert"><span>{error} <a href="/admin/sign-in?returnTo=%2Fshot-list" target="_blank" rel="noreferrer">Sign in in a new tab</a></span><button onClick={()=>setError("")} aria-label="Dismiss error"><X size={18}/></button></div>}
