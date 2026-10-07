@@ -128,6 +128,7 @@ p{line-height:1.55}.shell{min-height:100vh;display:flex;flex-direction:column}
 /* The learner course catalogue has one heading and one segmented view switch. */
 .courses-layout{display:block;max-width:1010px;margin-inline:auto}
 .courses-layout .learner-main{max-width:none}
+.courses-layout .sidebar{display:none}
 .courses-page h1{margin:0 0 26px}
 .course-view-switch{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:4px;max-width:650px;padding:6px;margin-bottom:24px;background:#e9f1f4;border:1px solid #dce7eb;border-radius:999px}
 .course-view-switch button{border:0;border-radius:999px;background:transparent;color:#607582;min-height:49px;padding:10px 12px;text-align:center;font-weight:600;transition:background .15s,color .15s,box-shadow .15s}
