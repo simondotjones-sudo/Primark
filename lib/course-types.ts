@@ -1,6 +1,7 @@
 export type Audience = { countries: string[]; sites: string[]; users: string[] };
 export type Course = { id: string; title: string; description: string; status: 'draft' | 'published'; audience_json: string; package_id: string | null; revision: number; updated_at: string; created_at: string;
   english_title: string; category: string; language_code: string; source_course_id: string | null; legacy_assignment_count: number | null;
+  estimated_duration_minutes: number | null; lesson_count: number | null;
   available_countries_json: string; catalogue_scope: 'unconfigured' | 'countries' | 'global'; induction_role: 'none' | 'country' | 'default'; };
 export type Person = { id: string; name: string; email: string; country: string; store_id: string };
 export type Sco = { id: string; title: string; href: string; mastery: string; launchData: string };

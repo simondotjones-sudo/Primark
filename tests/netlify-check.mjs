@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import { registrationChecks } from './registration-checks.mjs';
+import { coursePanelChecks } from './course-panel-checks.mjs';
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { build } from 'esbuild';
@@ -30,6 +31,9 @@ export * as learnerAuth from '${process.cwd()}/lib/learner-auth.ts';
 export * as courseAccess from '${process.cwd()}/lib/course-access.ts';
 export * as catalogue from '${process.cwd()}/lib/course-catalogue.ts';
 export * as covers from '${process.cwd()}/lib/course-covers.ts';
+export * as panelDetails from '${process.cwd()}/lib/course-panel-details.ts';
+export {default as CourseMetadata} from '${process.cwd()}/components/course-metadata.tsx';
+export {default as CourseProgress} from '${process.cwd()}/components/course-progress.tsx';
 export * as manager from '${process.cwd()}/app/api/store/route.ts';
 export * as courses from '${process.cwd()}/app/api/courses/route.ts';
 export * as scorm from '${process.cwd()}/app/api/scorm/route.ts';
@@ -225,6 +229,7 @@ await check('Learner logout clears both old cookies and cannot resurrect an admi
 });
 await query('DELETE FROM auth_limits').run();
 await registrationChecks({m,check,query,invoke,loginAdmin,cookieFrom,store,uk,pg});
+await coursePanelChecks({m,check,query,invoke,loginAdmin});
 await query('DELETE FROM auth_limits').run();
 const commonLogin=(body,cookie='',extra={})=>invoke(m.prototype,'POST','/api/prototype',{action:'login',...body},cookie,extra);
 await check('Common Login recognises platform credentials, rotates sessions and returns a safe admin destination',async()=>{

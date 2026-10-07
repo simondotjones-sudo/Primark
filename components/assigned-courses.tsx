@@ -1,8 +1,11 @@
 'use client';
 import { useEffect, useState } from 'react';
+import CourseMetadata from '@/components/course-metadata';
+import CourseProgress from '@/components/course-progress';
+import type { CoursePanelDetails } from '@/lib/course-panel-details';
 import CourseCover from '@/components/course-cover';
 import type { CourseCoverKey } from '@/lib/course-covers';
-type AssignedCourse = {
+type AssignedCourse = CoursePanelDetails & {
   id: string; title: string; description: string; coverKey: CourseCoverKey;
   status: 'Not started' | 'In progress' | 'Completed';
   progressPercent: number | null;
@@ -30,11 +33,10 @@ export default function AssignedCourses() {
           <div className="assigned-course-cover"><CourseCover coverKey={c.coverKey}
             sizes="(max-width: 760px) calc(100vw - 36px), (max-width: 1340px) calc(50vw - 178px), 480px" /></div>
           <div className="assigned-course-details">
-          <span className={'status ' + (c.status === 'Completed' ? 'done' : '')}>
-            {c.status === 'In progress' && c.progressPercent != null ? `${c.progressPercent}% complete` : c.status}
-          </span>
           <h3>{c.title}</h3>
-          <p>{c.description || `${c.scos.length} lessons`}</p>
+          <CourseMetadata details={c}/>
+          {c.description && <p>{c.description}</p>}
+          <CourseProgress status={c.status} percent={c.progressPercent} title={c.title}/>
           <strong>{c.status === 'Completed' ? 'Review course' : c.status === 'In progress' ? 'Continue course' : 'Start course'}</strong>
           </div>
         </a>
