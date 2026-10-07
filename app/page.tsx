@@ -29,6 +29,7 @@ import { Progress } from "@/components/ui/progress";
 
 type Learner = {id:string;name:string;email:string;store_id:string;country:string;entered_at:string;started_at:string|null;completed_at:string|null;best_score:number|null;certificate_token:string|null;induction_enrolled:boolean};
 type Screen = "home"|"courses"|"module"|"quiz"|"result"|"pass";
+type CourseView = "all" | "todo" | "certs";
 const sampleCourses = [
   {title:"Manual Handling",image:"manual-handling",cover:manualHandlingCover,alt:"Colleagues moving stock on a trolley"},
   {title:"Security, loss prevention and personal safety",image:"security",cover:securityCover,alt:"Colleagues speaking on the shop floor"},
@@ -56,6 +57,7 @@ export default function Home() {
   const accessKey=useRef("");
   const [area,setArea]=useState<"learn"|"report">("learn");
   const [screen,setScreen]=useState<Screen>("home");
+  const [courseView,setCourseView]=useState<CourseView>("all");
   const [learner,setLearner]=useState<Learner|null>(null);
   const [viewed,setViewed]=useState<string[]>([]);
   const [legacyCompleted,setLegacyCompleted]=useState(false);
@@ -126,7 +128,7 @@ export default function Home() {
         <div className="entry-copy"><span className="eyebrow">{t("FOR NEW STORE COLLEAGUES")}</span><h1>{t("Start safe.")}<br/>{t("Feel ready for day one.")}</h1><p>{t("Your safety training, ready when you are.")}</p><div className="steps"><span><b>01</b> {t("Choose your store")}</span><span><b>02</b> {t("Learn at your pace")}</span><span><b>03</b> {t("Show your pass")}</span></div><div className="soft-note"><ShieldCheck/>{t("Your progress is saved so you can come back.")}</div></div>
         <AuthForm lang={lang} busy={busy} onAuthenticate={(action,fields)=>{void run(async()=>{const result=await post(action,{...fields,returnTo:new URLSearchParams(location.search).get("returnTo")});if(result.returnTo){location.assign(result.returnTo);return;}setArea("learn");setScreen("courses");await refreshMe();});}}/>
       </div> :
-      <div className="learn-layout"><aside className="sidebar"><small>{t("YOUR LEARNING")}</small><button className={screen==="courses"?"selected":""} onClick={()=>setScreen("courses")}><LayoutGrid/>{t("My Courses")}</button>{!learner.induction_enrolled&&<><hr className="course-divider"/><button className={screen==="home"?"selected":""} onClick={()=>setScreen("home")}><BookOpen/>{t("Safety Passport")}</button>{shownModules.map((m,i)=><button key={m.key} className={"chapter-nav "+(screen==="module"&&moduleIndex===i?"selected":"")} onClick={()=>{setModuleIndex(i);setScreen("module");}}><span className={"number "+(viewed.includes(m.key)?"checked":"")}>{viewed.includes(m.key)?<Check/>:i+1}</span>{m.short}</button>)}<button className={screen==="quiz"?"selected":""} onClick={()=>{setScreen("quiz");setQuestionIndex(0);}}><ClipboardCheck/>{t("Assessment")}</button>{complete&&<button className={screen==="pass"?"selected":""} onClick={()=>setScreen("pass")}><ShieldCheck/>{t("My Safety Passport")}</button>}</>}</aside>
+      <div className={"learn-layout"+(screen==="courses"?" courses-layout":"")}><aside className="sidebar"><small>{t("YOUR LEARNING")}</small><button className={screen==="courses"?"selected":""} onClick={()=>setScreen("courses")}><LayoutGrid/>{t("My Courses")}</button>{!learner.induction_enrolled&&<><hr className="course-divider"/><button className={screen==="home"?"selected":""} onClick={()=>setScreen("home")}><BookOpen/>{t("Safety Passport")}</button>{shownModules.map((m,i)=><button key={m.key} className={"chapter-nav "+(screen==="module"&&moduleIndex===i?"selected":"")} onClick={()=>{setModuleIndex(i);setScreen("module");}}><span className={"number "+(viewed.includes(m.key)?"checked":"")}>{viewed.includes(m.key)?<Check/>:i+1}</span>{m.short}</button>)}<button className={screen==="quiz"?"selected":""} onClick={()=>{setScreen("quiz");setQuestionIndex(0);}}><ClipboardCheck/>{t("Assessment")}</button>{complete&&<button className={screen==="pass"?"selected":""} onClick={()=>setScreen("pass")}><ShieldCheck/>{t("My Safety Passport")}</button>}</>}</aside>
         <div className="learner-main">
 
           {screen==="home"&&<section><div className="welcome"><h1>{t("Hello,")} {learner.name.split(" ")[0]}.</h1>{!complete&&<div className="progress-count"><strong>{viewed.length}<small>/6</small></strong><span>{t("chapters viewed")}</span></div>}</div>
@@ -136,12 +138,15 @@ export default function Home() {
             <div className="section-title"><h2>{t("Six short chapters")}</h2></div><div className="module-grid">{shownModules.map((m,i)=>{const isViewed=viewed.includes(m.key);return <button className="module-card lesson-tile" key={m.key} aria-label={`${m.title}. ${isViewed?t("Viewed")+". "+t("View again"):t("Open chapter")}`} onClick={()=>{setModuleIndex(i);setScreen("module");}}><img src={`/lesson-covers/chapter-${i+1}.webp`} width="1280" height="720" alt="" loading="lazy" decoding="async"/>{lang!=="en"&&<strong className="localized-lesson-title">{m.title}</strong>}<span className="lesson-tile-footer"><small>{isViewed?"✓ "+t("Viewed"):formatDuration(m.duration,lang)}</small><span>{isViewed?t("View again"):t("Open chapter")} <span aria-hidden="true">→</span></span></span></button>})}<button className="module-card assessment-tile" onClick={()=>{setScreen("quiz");setQuestionIndex(0);}}><ClipboardCheck/><strong>{t("Final assessment")}</strong><small>{(learner.best_score||0)>=18?t("Passed"):t("Open assessment")}</small></button></div>
           </section>}
           {screen==="courses"&&<section className="courses-page">
-            <span className="eyebrow">{t("YOUR LEARNING")}</span><h1>{t("My Courses")}</h1>
-            {!learner.induction_enrolled&&<button className="course-feature" onClick={()=>setScreen(complete?"pass":"home")}>
+            <h1>{t("My Courses")}</h1>
+            <div className="course-view-switch" role="group" aria-label={t("My Courses")}>
+              {(["all","todo","certs"] as const).map(view=><button key={view} type="button" aria-pressed={courseView===view} onClick={()=>setCourseView(view)}>{t(view==="all"?"All":view==="todo"?"To do":"Certs")}</button>)}
+            </div>
+            {!learner.induction_enrolled&&courseView!=="certs"&&(courseView!=="todo"||!complete)&&<button className="course-feature" onClick={()=>setScreen(complete?"pass":"home")}>
               <Image src={safetyPassCover} alt="" placeholder="blur" loading="eager" fetchPriority="high" sizes="(max-width: 760px) calc(100vw - 36px), (max-width: 1340px) calc(43vw - 135px), 420px" />
               <span className="course-feature-copy"><small>{complete?t("Completed"):t("Available now")}</small><strong>{t("Primark Safety Passport")}</strong><span>{complete?t("View my pass"):t("Continue learning")}</span></span>
             </button>}
-            <AssignedCourses/>{!learner.induction_enrolled&&<><div className="section-title"><h2>{t("More courses")}</h2><span>{t("Coming soon")}</span></div>
+            <AssignedCourses view={courseView}/>{courseView==="all"&&!learner.induction_enrolled&&<><div className="section-title"><h2>{t("More courses")}</h2><span>{t("Coming soon")}</span></div>
             <div className="course-catalog-grid">{sampleCourses.map((course,index)=><article className="course-tile" key={course.image}>
               <Image src={course.cover} alt="" placeholder="blur" loading={index<2?"eager":"lazy"} sizes="(max-width: 760px) calc(100vw - 36px), (max-width: 1340px) calc(50vw - 178px), 480px"/>
               <div><small>{t("Coming soon")}</small><h3>{t(course.title)}</h3>{course.image==="manual-handling"&&<p>{t("Includes a practical element")}</p>}</div>
