@@ -1,5 +1,7 @@
-import { allowLoginAttempt, ADMIN_COOKIE } from '@/lib/admin-auth';
+import { allowLoginAttempt, ADMIN_COOKIE, getAdminUser } from '@/lib/admin-auth';
 import { getReportingAccess, reportingAccessFor, reportingFilter } from '@/lib/reporting-access';
+import type { ReportingAccess } from "@/lib/reporting-types";
+import type { ProfileAccount } from "@/lib/profile";
 import type { PreparedStatement } from "@/lib/database";
 import { NextRequest, NextResponse } from "next/server";
 import stores from "@/lib/stores.json";
@@ -16,10 +18,17 @@ const emailAddress = (value: unknown) => typeof value === "string" && /^[^\s@]+@
 const privateHeaders = { "Cache-Control": "private, no-store" };
 async function learnerState(request: NextRequest) {
   const learner = await currentLearner(request);
-  const platformAdmin = await isPlatformAdmin();
-  const reportingAccess = platformAdmin ? { scope: 'organisation', country: null, siteId: null }
+  const admin = await getAdminUser();
+  const platformAdmin = !!admin;
+  const reportingAccess: ReportingAccess | null = platformAdmin ? { scope: 'organisation', country: null, siteId: null }
     : learner ? await reportingAccessFor(learner.id) : null;
-  const identity = { platformAdmin, reportingAccess };
+  const adminPerson = admin ? await db().prepare('SELECT name FROM learners WHERE email=?').bind(admin.email).first<{name:string}>() : null;
+  const account: ProfileAccount | null = learner ? {
+    name: learner.name, email: learner.email,
+    role: !reportingAccess ? 'Learner' : reportingAccess.scope === 'site' ? 'Site reporting admin' : reportingAccess.scope === 'country' ? 'Country reporting admin' : 'Primark reporting admin',
+    site: storeById.get(learner.store_id)?.name || learner.store_id, platformAdmin: false, reportingAccess,
+  } : admin ? { name: adminPerson?.name || admin.email, email: admin.email, role: 'Platform admin', site: 'All Primark', platformAdmin: true, reportingAccess } : null;
+  const identity = { platformAdmin, reportingAccess, account };
   if (!learner) return NextResponse.json({ learner: null, viewed: [], ...identity }, { headers: privateHeaders });
   const viewed = await progressFor(learner.id);
   const legacy = await db().prepare("SELECT completed FROM legacy_completions WHERE email=?").bind(learner.email).first<{completed:number}>();

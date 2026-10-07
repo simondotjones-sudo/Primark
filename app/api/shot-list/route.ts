@@ -1,12 +1,13 @@
+import { getAdminUser } from '@/lib/admin-auth';
 import { NextRequest, NextResponse } from "next/server";
-import { currentLearner, db, now } from "@/lib/server";
+import { db, now } from "@/lib/server";
 import { getShot } from "@/lib/shot-list";
 import { sameOrigin, shotData, shotFail } from "@/lib/shot-server";
 
 export const dynamic = "force-dynamic";
 export async function GET(request: NextRequest) {
   try {
-    if (!await currentLearner(request)) return shotFail("Sign in to open the shot list.", 401);
+    if (!await getAdminUser()) return shotFail("Platform admin sign-in is required.", 403);
     return NextResponse.json(await shotData(), { headers: { "Cache-Control": "private, no-store" } });
   } catch (error) {
     console.error("Shot list load failed", error);
@@ -16,8 +17,8 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     if (!sameOrigin(request)) return shotFail("Please save from the shot-list page.", 403);
-    const learner = await currentLearner(request);
-    if (!learner) return shotFail("Your session has ended. Sign in again to save.", 401);
+    const admin = await getAdminUser();
+    if (!admin) return shotFail("Platform admin sign-in is required.", 403);
     const raw = await request.text();
     if (raw.length > 4000) return shotFail("This note is too long.", 413);
     let body: Record<string, unknown>;
@@ -34,9 +35,9 @@ export async function POST(request: NextRequest) {
       if (!photo) return shotFail("Save at least one photo before marking this slide complete.");
     }
     const date = now();
-    await db().prepare(`INSERT INTO shot_states(module_number,slide_number,status,note,updated_by,updated_at) VALUES(?,?,?,?,?,?)
-      ON CONFLICT(module_number,slide_number) DO UPDATE SET status=excluded.status,note=excluded.note,updated_by=excluded.updated_by,updated_at=excluded.updated_at`)
-      .bind(module,slide,status,note,learner.id,date).run();
+    await db().prepare(`INSERT INTO shot_states(module_number,slide_number,status,note,updated_by_admin,updated_at) VALUES(?,?,?,?,?,?)
+      ON CONFLICT(module_number,slide_number) DO UPDATE SET status=excluded.status,note=excluded.note,updated_by=NULL,updated_by_admin=excluded.updated_by_admin,updated_at=excluded.updated_at`)
+      .bind(module,slide,status,note,admin.email,date).run();
     return NextResponse.json({ state: { module_number: module, slide_number: slide, status, note, updated_at: date } }, { headers: { "Cache-Control": "private, no-store" } });
   } catch (error) {
     console.error("Shot status save failed", error);

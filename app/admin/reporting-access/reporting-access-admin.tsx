@@ -1,4 +1,5 @@
 'use client';
+import ProfileMenu from '@/components/profile-menu';
 import { useCallback, useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -48,9 +49,7 @@ export default function ReportingAccessAdmin() {
   }
   const shown = people.filter(p => `${p.name} ${p.email} ${storeName(p.store_id)}`.toLowerCase().includes(query.toLowerCase()));
   return <div className="shell course-admin access-admin">
-    <header className="topbar"><a href="/" className="brand"><strong>PRIMARK</strong><span>Safety Passport</span></a>
-      <nav className="admin-id" aria-label="Admin navigation"><span>Platform admin</span><a href="/admin/courses">Manage courses</a><a href="/">Reporting & learning</a></nav>
-    </header>
+    <header className="topbar"><a href="/" className="brand"><strong>PRIMARK</strong></a><ProfileMenu view="access"/></header>
     <main className="main">
       <div className="admin-heading"><div><span className="eyebrow">PLATFORM ADMIN</span><h1>Reporting access</h1>
         <p>Choose an account and the reports it can see.</p></div></div>

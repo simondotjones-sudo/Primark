@@ -1,12 +1,13 @@
+import { getAdminUser } from '@/lib/admin-auth';
 import { NextRequest } from "next/server";
-import { currentLearner, db } from "@/lib/server";
+import { db } from "@/lib/server";
 import { getShot } from "@/lib/shot-list";
 import { photoBucket, shotFail } from "@/lib/shot-server";
 
 export const dynamic = "force-dynamic";
 export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
-    if (!await currentLearner(request)) return shotFail("Sign in to view this photo.", 401);
+    if (!await getAdminUser()) return shotFail("Platform admin sign-in is required.", 403);
     const { id } = await params;
     const photo = await db().prepare("SELECT object_key,thumbnail_key,filename,mime_type,module_number,slide_number FROM shot_photos WHERE id=?").bind(id)
       .first<{object_key:string;thumbnail_key:string|null;filename:string;mime_type:string;module_number:number;slide_number:number}>();

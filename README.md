@@ -17,7 +17,7 @@ Primark Safety Passport migrated from the current prototype (version 15, source
    - `PRIMARK_ADMIN_PASSWORD`: a unique password of at least 16 characters. Mark it secret.
    Set different credentials for deploy previews if you enable them.
 4. Deploy. `@netlify/database` provisions Netlify Database and applies the SQL in
-   `netlify/database/migrations/001_initial-schema/migration.sql`. Netlify Blobs
+   `netlify/database/migrations/` in order. Netlify Blobs
    stores uploaded course files and photos automatically.
 5. Open `/admin/sign-in`, create a course, upload a SCORM 1.2 ZIP, select its audience
    and publish. Learners join from the home page and retain their personal pass code.
@@ -54,12 +54,17 @@ Platform admins assign reporting roles at `/admin/reporting-access`. Select an e
 learner account, choose Site, Country or Primark reporting admin, then save. Reporting
 admins use their existing learner email and pass code and can view/export only the assigned
 scope. Only platform admins can manage courses, import historical completions, load sample
-records or assign/revoke reporting access. Choose Learner only to remove reporting access.
+records, use the shot list or assign/revoke reporting access. Choose Learner only to remove reporting access.
 
 Signing into a learner account revokes the current platform session; platform sign-in
 revokes the current learner session. Browsers with both old cookies default to learner
 permissions until the user signs into the platform account again. Reporting grants and
 revocations are checked on each request; refresh or revisit the tab to update the menu.
+
+The top-right profile icon contains name, role, site, sign out and permitted views.
+Reporting admins can switch between the reporting levels and sites within their assigned
+scope. Platform admins can also reach course management, reporting access and the shot list
+from this menu. The header displays the Primark logo; Safety Passport stays in learning.
 
 Production uploads survive deployments. Preview branches write to separate blob stores;
 they may read immutable production files referenced by their copied database. Build-time
@@ -71,7 +76,9 @@ same-origin frame support is retained because many SCORM 1.2 players require it.
 Email pass-code recovery and approved final learning content remain separate launch tasks.
 Only chapter one currently has a video; the other chapters retain their existing sample
 content. Reporting permissions are enforced for site, country and organisation scopes.
-The photo collection workspace retains its existing shared access for signed-in learners.
+The photo collection workspace, upload endpoints and direct photo links are platform-admin
+only. Existing photos retain their original attribution; new uploads and status updates
+record the platform admin email.
 
 ## Develop and verify
 
@@ -87,10 +94,11 @@ pnpm build
 to `.env` for local admin access. Never commit `.env`.
 
 Tests use an isolated in-memory PostgreSQL engine (PGlite) and simulated blob storage.
-The 40 checks cover course publication/assignment, SCORM saving/resume, transaction rollback,
+The 44 checks cover course publication/assignment, SCORM saving/resume, transaction rollback,
 admin authentication, learner registration/completion, multipart photos and streamed reads.
 They also cover public-host validation behind Netlify, account switching, navigation,
-reporting boundaries (including CSV, historical records and trends), and role revocation.
+reporting boundaries (including CSV, historical records and trends), profile scope controls,
+shot-list access for every role, photo attribution and role revocation.
 The Next.js production build and serverless packaging passed. Local Edge configuration
 inspection could not reach Netlify’s type endpoint from this environment; the Edge source
 was compiled locally and its file-delivery handler passed the integration checks.

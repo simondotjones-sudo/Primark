@@ -63,6 +63,6 @@ export const shotModules: ShotModule[] = [
 export const shotKey = (module: number, slide: number) => `${module}-${slide}`;
 export const getShot = (module: number, number: number) => shotModules.find(m => m.number === module)?.slides.find(s => s.number === number);
 export const requiredShots = shotModules.flatMap(m => m.slides.filter(s => s.kind === "photo").map(s => shotKey(m.number, s.number)));
-export type ShotPhoto = { id: string; module_number: number; slide_number: number; filename: string; mime_type: string; size: number; has_thumbnail: number; uploaded_at: string; uploaded_by: string; uploader_name: string };
+export type ShotPhoto = { id: string; module_number: number; slide_number: number; filename: string; mime_type: string; size: number; has_thumbnail: number; uploaded_at: string; uploaded_by: string | null; uploaded_by_admin: string | null; uploader_name: string };
 export type ShotState = { module_number: number; slide_number: number; status: "todo" | "complete" | "unavailable"; note: string; updated_at: string };
 export type ShotData = { photos: ShotPhoto[]; states: ShotState[] };

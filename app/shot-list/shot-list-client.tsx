@@ -1,4 +1,5 @@
 "use client";
+import ProfileMenu from "@/components/profile-menu";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ArrowLeft, Camera, Check, CheckCircle2, ChevronLeft, ChevronRight, Download, ImagePlus, Images, LoaderCircle, RefreshCw, X } from "lucide-react";
 import { getShot, requiredShots, shotKey, shotModules, type ShotData, type ShotPhoto, type ShotState } from "@/lib/shot-list";
@@ -52,7 +53,7 @@ async function uploadPhoto(item: Pending, progress: (value: number) => void): Pr
   throw new Error('The save could not be confirmed. Please retry.');
 }
 
-export default function ShotList({ name }: { name: string }) {
+export default function ShotList() {
   const [data, setData] = useState<ShotData>({ photos: [], states: [] });
   const [loading, setLoading] = useState(true), [error, setError] = useState("");
   const [moduleNumber, setModuleNumber] = useState<number | null>(null), [slideNumber, setSlideNumber] = useState(1);
@@ -144,18 +145,18 @@ export default function ShotList({ name }: { name: string }) {
   const pendingForSlide = queue.some(p => p.module === moduleNumber && p.slide === slideNumber);
   const isReference = slide?.kind === "reuse" || slide?.kind === "screen";
   return <div className="shoot-shell" lang="en" dir="ltr">
-    <header className="shoot-top"><a className="shoot-brand" href="/"><strong>PRIMARK</strong><span>Safety Passport</span></a><a href="/">Back to prototype</a></header>
+    <header className="shoot-top"><a className="shoot-brand" href="/"><strong>PRIMARK</strong></a><ProfileMenu view="shots"/></header>
     <main className="shoot-main">
       <div className="shoot-heading"><div><span className="shoot-kicker">STORE PHOTOGRAPHY</span><h1>Shot list</h1></div><button className={"shoot-secondary "+(gallery?"is-active":"")} onClick={gallery?openOverview:openGallery}><Images size={19}/>{gallery?"Modules":"View photos"}{!gallery&&data.photos.length>0&&<span>{data.photos.length}</span>}</button></div>
       <p className="shoot-intro">Read the brief, add your photos, then mark the slide complete.</p>
-      <div className="shoot-progress-line"><span><strong>{completed} of {requiredShots.length}</strong> required slides complete{unavailable>0&&` · ${unavailable} unavailable`}</span><span>Signed in as {name}</span></div>
+      <div className="shoot-progress-line"><span><strong>{completed} of {requiredShots.length}</strong> required slides complete{unavailable>0&&` · ${unavailable} unavailable`}</span></div>
       <progress className="shoot-progress" max={requiredShots.length} value={completed} aria-label="Required slides complete"/>
       {offline&&<div className="shoot-warning" role="status">You’re offline. Reconnect to upload. Keep this page open for any photos waiting to save.</div>}
-      {error&&<div className="shoot-error" role="alert"><span>{error} <a href="/?returnTo=shot-list" target="_blank" rel="noreferrer">Sign in in a new tab</a></span><button onClick={()=>setError("")} aria-label="Dismiss error"><X size={18}/></button></div>}
+      {error&&<div className="shoot-error" role="alert"><span>{error} <a href="/admin/sign-in?returnTo=%2Fshot-list" target="_blank" rel="noreferrer">Sign in in a new tab</a></span><button onClick={()=>setError("")} aria-label="Dismiss error"><X size={18}/></button></div>}
       {queue.length>0&&<section className="shoot-queue" aria-label="Photos waiting to save"><h2>{uploading?"Saving photos…":"Photos waiting to save"}</h2><p>Keep this page open until every photo is saved.</p>{queue.map(item=><div className="shoot-queue-item" key={item.id}><div><strong>Module {item.module} · Slide {item.slide}</strong><span>{item.file.name}</span>{item.status==="uploading"?<span role="status">{item.progress<100?`Uploading ${item.progress}%` : "Confirming save…"}</span>:item.status==="failed"?<span className="shoot-failed" role="alert">{item.error}</span>:<span>Waiting…</span>}</div>{item.status==="failed"&&<div className="shoot-queue-actions"><button className="shoot-secondary" disabled={uploading||offline} onClick={()=>void process([item])}>Retry</button><button className="shoot-text" disabled={uploading} onClick={()=>{if(confirm("Remove this unsaved photo from the upload queue?"))setQueue(q=>q.filter(p=>p.id!==item.id));}}>Discard</button></div>}</div>)}</section>}
       {loading?<div className="shoot-empty" role="status"><LoaderCircle className="shoot-spin"/>Loading shot list…</div>:<>
         {!gallery&&!module&&<>
-          <details className="shoot-tips"><summary>Before you start</summary><ul><li>Take a wider context shot and a close-up. Capture portrait and landscape options.</li><li>Most content slides use a tall image on the right. Cover photos need title space on the left.</li><li>Use colleagues in normal store clothing and ask the safety lead to check demonstrations.</li><li>Photograph controls without operating alarms or emergency stops. Do not create live hazards.</li><li>Wait for “Photo saved” before leaving the page. Saved originals are shared with everyone signed into this prototype.</li></ul></details>
+          <details className="shoot-tips"><summary>Before you start</summary><ul><li>Take a wider context shot and a close-up. Capture portrait and landscape options.</li><li>Most content slides use a tall image on the right. Cover photos need title space on the left.</li><li>Use colleagues in normal store clothing and ask the safety lead to check demonstrations.</li><li>Photograph controls without operating alarms or emergency stops. Do not create live hazards.</li><li>Wait for “Photo saved” before leaving the page. Saved originals are available to platform admins.</li></ul></details>
           <div className="shoot-modules">{shotModules.map(m=>{
             const required=m.slides.filter(s=>s.kind==="photo");
             const done=required.filter(s=>stateMap.get(shotKey(m.number,s.number))?.status==="complete").length;

@@ -4,17 +4,17 @@ import { db } from "@/lib/server";
 import type { ShotPhoto, ShotState } from "@/lib/shot-list";
 
 export const shotFail = (error: string, status = 400) => NextResponse.json({ error }, { status, headers: { "Cache-Control": "private, no-store" } });
-export const photoColumns = "p.id,p.module_number,p.slide_number,p.filename,p.mime_type,p.size,CASE WHEN p.thumbnail_key IS NOT NULL THEN 1 ELSE 0 END AS has_thumbnail,p.uploaded_at,p.uploaded_by,l.name AS uploader_name";
+export const photoColumns = "p.id,p.module_number,p.slide_number,p.filename,p.mime_type,p.size,CASE WHEN p.thumbnail_key IS NOT NULL THEN 1 ELSE 0 END AS has_thumbnail,p.uploaded_at,p.uploaded_by,p.uploaded_by_admin,COALESCE(l.name,p.uploaded_by_admin) AS uploader_name";
 export { sameOrigin } from '@/lib/request-origin';
 export async function shotData() {
   const [photos, states] = await Promise.all([
-    db().prepare(`SELECT ${photoColumns} FROM shot_photos p JOIN learners l ON l.id=p.uploaded_by ORDER BY p.uploaded_at DESC`).all<ShotPhoto>(),
+    db().prepare(`SELECT ${photoColumns} FROM shot_photos p LEFT JOIN learners l ON l.id=p.uploaded_by ORDER BY p.uploaded_at DESC`).all<ShotPhoto>(),
     db().prepare("SELECT module_number,slide_number,status,note,updated_at FROM shot_states").all<ShotState>(),
   ]);
   return { photos: photos.results, states: states.results };
 }
 export async function getPhoto(id: string) {
-  return db().prepare(`SELECT ${photoColumns} FROM shot_photos p JOIN learners l ON l.id=p.uploaded_by WHERE p.id=?`).bind(id).first<ShotPhoto>();
+  return db().prepare(`SELECT ${photoColumns} FROM shot_photos p LEFT JOIN learners l ON l.id=p.uploaded_by WHERE p.id=?`).bind(id).first<ShotPhoto>();
 }
 export async function imageType(file: File): Promise<{mime: string; ext: string} | null> {
   const b = new Uint8Array(await file.slice(0, 64).arrayBuffer());
