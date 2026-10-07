@@ -1,3 +1,4 @@
+import { certificateChecks } from './certificate-checks.mjs';
 import assert from 'node:assert/strict';
 import { readFileSync, readdirSync, mkdtempSync, writeFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -16,11 +17,17 @@ const context=new AsyncLocalStorage();
 const pool={async query(sql,values=[]){const result=await pg.query(sql,values);return {rows:result.rows,rowCount:result.affectedRows};},async connect(){return {...this,release(){}};}};
 const blobs=new Map();
 const store={async set(key,value){blobs.set(key,await new Response(value).arrayBuffer());},async setJSON(key,value){blobs.set(key,structuredClone(value));},async get(key,options){const value=blobs.get(key);if(value===undefined)return null;return options?.type==='json'?structuredClone(value):value.slice(0);}};
-globalThis.__courseTest={pool,store,user:()=>context.getStore()?.admin?{email:'admin@example.test'}:null};
+globalThis.__courseTest={pool,store,cookie:()=>context.getStore()?.user,user:()=>context.getStore()?.admin?{email:'admin@example.test'}:null};
 async function query(sql,...values){let n=0;return pool.query(sql.replace(/\?/g,()=>'$'+(++n)),values);}
 async function first(sql,...values){return (await query(sql,...values)).rows[0];}
 const entry=join(dir,'entry.ts');
-writeFileSync(entry,`export * as admin from '${process.cwd()}/app/api/admin/courses/route.ts';
+writeFileSync(entry,`export {default as certificatePage} from '${process.cwd()}/app/certificates/[token]/page.tsx';
+export * as certificates from '${process.cwd()}/app/api/certificates/route.ts';
+export * as certificateServer from '${process.cwd()}/lib/certificate-server.ts';
+export * as certificateTypes from '${process.cwd()}/lib/certificates.ts';
+export * as training from '${process.cwd()}/lib/training-report.ts';
+export * as reportTypes from '${process.cwd()}/lib/training-report-types.ts';
+export * as admin from '${process.cwd()}/app/api/admin/courses/route.ts';
 export * as packages from '${process.cwd()}/app/api/admin/packages/route.ts';
 export * as upload from '${process.cwd()}/app/api/admin/packages/[id]/files/route.ts';
 export * as courses from '${process.cwd()}/app/api/courses/route.ts';
@@ -32,12 +39,15 @@ export * as types from '${process.cwd()}/lib/course-types.ts';
 export * as rise from '${process.cwd()}/lib/rise-progress.ts';
 export {hash} from '${process.cwd()}/lib/server.ts';
 export {default as stores} from '${process.cwd()}/lib/stores.json';`);
-await build({entryPoints:[entry],outfile:join(dir,'bundle.mjs'),bundle:true,platform:'node',format:'esm',packages:'bundle',tsconfig:'tsconfig.json',plugins:[{name:'local-test-bindings',setup(b){
+await build({entryPoints:[entry],outfile:join(dir,'bundle.mjs'),bundle:true,platform:'node',format:'esm',packages:'bundle',tsconfig:'tsconfig.json',loader:{'.css':'empty'},plugins:[{name:'local-test-bindings',setup(b){
+ b.onResolve({filter:/^qrcode$/},()=>({path:require.resolve('qrcode'),external:true}));
  b.onResolve({filter:/^@netlify\/database$/},()=>({path:'db',namespace:'test'}));
  b.onResolve({filter:/^@netlify\/blobs$/},()=>({path:'blobs',namespace:'test'}));
  b.onResolve({filter:/^@\/lib\/admin-auth$/},()=>({path:'auth',namespace:'test'}));
+ b.onResolve({filter:/^next\/headers$/},()=>({path:'headers',namespace:'test'}));
+ b.onResolve({filter:/^next\/navigation$/},()=>({path:'navigation',namespace:'test'}));
  b.onResolve({filter:/^next\/server$/},()=>({path:'next',namespace:'test'}));
- b.onLoad({filter:/.*/,namespace:'test'},a=>({contents:a.path==='db'?'export const getDatabase=()=>({pool:globalThis.__courseTest.pool});':a.path==='blobs'?'export const getStore=()=>globalThis.__courseTest.store;':a.path==='auth'?'export const getAdminUser=async()=>globalThis.__courseTest.user();':`export class NextRequest extends Request{};export const NextResponse=Response;`,loader:'js'}));
+ b.onLoad({filter:/.*/,namespace:'test'},a=>({contents:a.path==='headers'?`export const cookies=async()=>({get:()=>globalThis.__courseTest.cookie()?{value:globalThis.__courseTest.cookie()}:undefined});`:a.path==='navigation'?`export const redirect=()=>{throw new Error('redirect')};export const notFound=()=>{throw new Error('not-found')};`:a.path==='db'?'export const getDatabase=()=>({pool:globalThis.__courseTest.pool});':a.path==='blobs'?'export const getStore=()=>globalThis.__courseTest.store;':a.path==='auth'?'export const getAdminUser=async()=>globalThis.__courseTest.user();':`export class NextRequest extends Request{};export const NextResponse=Response;`,loader:'js'}));
 }}]});
 const m=await import(join(dir,'bundle.mjs'));
 let tests=0;
@@ -113,6 +123,7 @@ await check('saved Rise percentage is returned on the tile and survives launch w
 });
 await check('admin preview never records learner progress',async()=>{const before=Number((await first('SELECT COUNT(*) n FROM scorm_progress')).n);const r=await call(m.runtime,'POST',{action:'launch',courseId:course.id,preview:true},{admin:true});assert.equal(r.status,200);assert.equal((await call(m.runtime,'POST',{action:'save',token:r.data.token,sequence:1,data},{admin:true})).status,200);assert.equal(Number((await first('SELECT COUNT(*) n FROM scorm_progress')).n),before);});
 await check('concurrent edits rejected and pausing removes course without deleting records',async()=>{assert.equal((await call(m.admin,'POST',{...course,revision:0,audience:JSON.parse(course.audience_json),status:'draft'},{admin:true})).status,409);const r=await call(m.admin,'POST',{...course,audience:JSON.parse(course.audience_json),status:'draft'},{admin:true});assert.equal(r.status,200);assert.equal((await call(m.courses,'GET',undefined,{user:'irish-user'})).data.courses.length,0);assert.equal(Number((await first('SELECT COUNT(*) n FROM scorm_progress')).n),1);});
+await certificateChecks({m,check,query,first,call,learner,ireland,course,pack,context});
 console.log(`${tests} course checks passed. All test data stayed in an in-memory PostgreSQL database.`);
 rmSync(dir,{recursive:true,force:true});
 

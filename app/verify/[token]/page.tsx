@@ -1,14 +1,17 @@
-import { db, storeById } from "@/lib/server";
-import { Check, ShieldCheck } from "lucide-react";
-import { contentLanguage, languageDirection, languageOptions, type Language } from "@/lib/i18n";
-import { tr, formatDate, countryName } from "@/lib/ui-copy";
-
-export const dynamic = "force-dynamic";
-export default async function Verify({params,searchParams}:{params:Promise<{token:string}>;searchParams:Promise<{lang?:string}>}) {
-  const {token}=await params;
-  const requested=(await searchParams).lang;
-  const lang:Language=languageOptions.some(option=>option.code===requested)?requested as Language:"en";
-  const t=(value:string)=>tr(lang,value);
-  const record = token.length <= 100 ? await db().prepare("SELECT name,store_id,country,completed_at,best_score FROM learners WHERE certificate_token=? AND completed_at IS NOT NULL").bind(token).first<{name:string;store_id:string;country:string;completed_at:string;best_score:number}>() : null;
-  return <main className="verify-page" lang={contentLanguage(lang)} dir={languageDirection(lang)}><div className="verify-card"><div className="verify-brand">PRIMARK <span>{t("Safety Passport")}</span></div>{record?<><div className="verify-tick"><Check size={45}/></div><span className="eyebrow">{t("LIVE CERTIFICATE RECORD")}</span><h1>{t("Safety Passport verified")}</h1><p>{t("This person completed the Primark induction in this prototype.")}</p><dl><div><dt>{t("Name")}</dt><dd dir="auto">{record.name}</dd></div><div><dt>{t("Store")}</dt><dd>{storeById.get(record.store_id)?.name || record.store_id}, {countryName(record.country,lang)}</dd></div><div><dt>{t("Passed")}</dt><dd>{formatDate(record.completed_at,lang)}</dd></div><div><dt>{t("Assessment")}</dt><dd><bdi dir="ltr">{record.best_score}/20</bdi></dd></div></dl></>:<><ShieldCheck size={48}/><h1>{t("Pass not found")}</h1><p>{t("We could not verify a completed pass with this code.")}</p></>}<small>{t("Private prototype · Sample learning and demo records")}</small></div></main>;
+import { certificateForToken } from '@/lib/certificate-server';
+import { certificateDate,certificateStatus,certificateId } from '@/lib/certificates';
+import { Check,ShieldCheck,Clock3 } from 'lucide-react';
+import '../../certificates/certificates.css';
+export const dynamic='force-dynamic';
+export const metadata={title:'Verify certificate | Primark',robots:{index:false,follow:false}};
+export default async function Verify({params}:{params:Promise<{token:string}>}) {
+  const record=await certificateForToken((await params).token);
+  const status=record?certificateStatus(record.expires_at):null;
+  return <main className="verify-page"><div className="verify-card"><div className="verify-brand">PRIMARK <span>Certificate verification</span></div>{record?<>
+    <div className={'verify-tick is-'+status?.toLowerCase().replaceAll(' ','-')}>{status==='Valid'?<Check size={45}/>:<Clock3 size={45}/>}</div>
+    <span className="eyebrow">LIVE CERTIFICATE RECORD</span><h1>{status==='Expired'?'Certificate expired':'Certificate verified'}</h1>
+    <span className={'certificate-status is-'+status?.toLowerCase().replaceAll(' ','-')}>{status}</span>
+    <dl><div><dt>Certificate ID</dt><dd>{certificateId(record.certificate_number)}</dd></div><div><dt>Name</dt><dd dir="auto">{record.learner_name}</dd></div><div><dt>Course</dt><dd dir="auto">{record.course_title}</dd></div><div><dt>Completed</dt><dd>{certificateDate(record.completed_at)}</dd></div><div><dt>Expires</dt><dd>{certificateDate(record.expires_at)}</dd></div></dl>
+    <p>{status==='Expired'?'This records a past completion. Renewal is required.':'This certificate matches a recorded course completion.'}</p>
+  </>:<><ShieldCheck size={48}/><h1>Certificate not found</h1><p>We could not verify a certificate with this code.</p></>}</div></main>;
 }

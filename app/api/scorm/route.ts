@@ -1,3 +1,4 @@
+import { issueCourseCertificate } from '@/lib/certificate-server';
 import { NextRequest } from 'next/server';
 import { currentLearner, db, now, randomToken } from '@/lib/server';
 import { sameOrigin } from '@/lib/shot-server';
@@ -46,11 +47,13 @@ export async function POST(request:NextRequest) {try {
  const raw=data['cmi.core.score.raw']||'';if(raw!==''&&!Number.isFinite(Number(raw)))throw new CourseError('The course sent an invalid score.');
  const duration=data['cmi.core.session_time']||'0000:00:00.00';if(!/^\d{2,4}:[0-5]\d:[0-5]\d(?:\.\d{1,2})?$/.test(duration))throw new CourseError('Invalid session duration.');
  const result=await db().batch([
+  db().prepare("SELECT id FROM learners WHERE id=? FOR UPDATE").bind(learner.id),
   db().prepare("SELECT token FROM scorm_launches WHERE token=? FOR UPDATE").bind(b.token),
   db().prepare(`UPDATE scorm_progress SET data_json=?,status=?,score=?,total_centiseconds=?,updated_at=?,completed_at=CASE WHEN ? IN ('passed','completed') THEN COALESCE(completed_at,?) ELSE completed_at END WHERE learner_id=? AND package_id=? AND sco_id=? AND active_launch=? AND EXISTS(SELECT 1 FROM scorm_launches WHERE token=? AND sequence<?)`)
   .bind(JSON.stringify(data),status,raw||null,launch.base_time+timeCentiseconds(duration),now(),status,now(),learner.id,launch.package_id,launch.sco_id,b.token,b.token,b.sequence),
-  db().prepare('UPDATE scorm_launches SET sequence=? WHERE token=? AND sequence<?').bind(b.sequence,b.token,b.sequence)
+  db().prepare('UPDATE scorm_launches SET sequence=? WHERE token=? AND sequence<?').bind(b.sequence,b.token,b.sequence),
+  issueCourseCertificate(learner.id,launch.package_id)
  ]);
- if(!result[1].meta.changes)throw new CourseError('This lesson was opened in another tab. Reopen it here to continue saving.',409);
+ if(!result[2].meta.changes)throw new CourseError('This lesson was opened in another tab. Reopen it here to continue saving.',409);
  return json({saved:true,status});
 }catch(e){return failed(e);} }

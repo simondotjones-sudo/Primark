@@ -15,6 +15,8 @@ import AuthForm from "@/components/auth-form";
 import ProfileMenu from "@/components/profile-menu";
 import { profileHref, profileScope, type ProfileAccount, type ReportFilter } from "@/lib/profile";
 import TrainingReporting from "@/components/training-report";
+import CertificatePaper from "@/components/certificate-paper";
+import type { Certificate } from "@/lib/certificates";
 import AssignedCourses from "@/components/assigned-courses";
 import { ArrowLeft, BookOpen, Check, CheckCircle2, ClipboardCheck, Globe2, LayoutGrid, Play, Printer, ShieldCheck, Video } from "lucide-react";
 import stores from "@/lib/stores.json";
@@ -159,4 +161,8 @@ export default function Home() {
   </div>;
 }
 
-function Pass({learner,qr,lang}:{learner:Learner;qr:string;lang:Language}){const t=(value:string)=>tr(lang,value);return <section className="pass-view"><button className="back no-print" onClick={()=>window.print()}><Printer/>{t("Print or save PDF")}</button><div className="pass-paper"><div className="pass-top"><strong>PRIMARK</strong><span>{t("HEALTH, SAFETY & ENVIRONMENT")}</span></div><div className="pass-body"><div className="big-tick"><Check/></div><span className="eyebrow">{t("CERTIFICATE OF COMPLETION")}</span><h1>{t("Primark Safety Passport")}</h1><p>{t("Ready to show your site manager on day one.")}</p><div className="pass-person"><span>{t("AWARDED TO")}</span><strong dir="auto">{learner.name}</strong><p>{storeName(learner.store_id)} · {countryName(learner.country,lang)}</p></div><div className="pass-facts"><div><span>{t("DATE PASSED")}</span><strong>{formatDate(learner.completed_at,lang)}</strong></div><div><span>{t("ASSESSMENT")}</span><strong><bdi dir="ltr">{learner.best_score}/20</bdi> · {t("Passed")}</strong></div></div><div className="pass-verify">{qr&&<img src={qr} alt={t("QR code to verify the Safety Passport")}/>}<div><strong>{t("Scan to verify")}</strong><p>{t("Scan to view this live certificate record.")}</p><small>{t("Certificate ID")} · <bdi dir="ltr">{learner.certificate_token?.slice(0,12).toUpperCase()}</bdi></small></div></div></div></div><div className="pass-actions no-print"><Button className="blue-button" onClick={()=>window.print()}><Printer/>{t("Print / Save PDF")}</Button><p>{t("Keep this pass ready for your first day.")}</p></div></section>;}
+function Pass({learner}:{learner:Learner;qr:string;lang:Language}){
+  const [record,setRecord]=useState<Certificate|null>(null),[error,setError]=useState('');
+  useEffect(()=>{let active=true;fetch('/api/certificates',{cache:'no-store'}).then(async response=>{const data=await response.json();if(!response.ok)throw new Error(data.error);const certificate=data.certificates.find((c:Certificate)=>c.token===learner.certificate_token);if(!certificate)throw new Error('Your certificate could not be found. Please reload and try again.');if(active)setRecord(certificate);}).catch(e=>{if(active)setError(e.message);});return ()=>{active=false;};},[learner.certificate_token]);
+  return error?<p role="alert">{error}</p>:record?<CertificatePaper record={record}/>:<p role="status">Loading your certificate…</p>;
+}

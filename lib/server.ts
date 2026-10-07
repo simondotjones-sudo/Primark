@@ -1,3 +1,4 @@
+import { issuePassportCertificate } from "@/lib/certificate-server";
 import { db } from "@/lib/database";
 export { db } from "@/lib/database";
 import { NextRequest, NextResponse } from "next/server";
@@ -66,7 +67,7 @@ export async function completeIfReady(learner: Learner, viewed: string[]) {
   if (!learner.completed_at && (learner.best_score ?? 0) >= 18 && viewed.length >= 6) {
     const date = now();
     const token = randomToken();
-    await db().prepare("UPDATE learners SET completed_at=?,certificate_token=? WHERE id=? AND completed_at IS NULL")
-      .bind(date, token, learner.id).run();
+    await db().batch([db().prepare("UPDATE learners SET completed_at=?,certificate_token=? WHERE id=? AND completed_at IS NULL")
+      .bind(date, token, learner.id),issuePassportCertificate(learner.id)]);
   }
 }
