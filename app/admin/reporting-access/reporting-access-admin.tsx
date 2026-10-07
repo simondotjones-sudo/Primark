@@ -1,6 +1,7 @@
 'use client';
 import type {LocalizedText} from '@/lib/ui-copy';
 import {useLanguage} from '@/components/language-provider';
+import ManageUsers from '@/components/manage-users';
 import PageHeader from '@/components/page-header';
 import { useCallback, useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
@@ -13,7 +14,7 @@ type Person = { id: string; name: string; email: string; country: string; store_
   manager_store_id:string|null; scope: ReportingAccess['scope'] | null; reporting_country: string | null; reporting_site_id: string | null };
 
 
-export default function ReportingAccessAdmin() {
+function AccessContent() {
  const stores=useStores();
 const countries = [...new Set(stores.map(s => s.country))].sort();
 const storeName = (id: string | null) => stores.find(s => s.id === id)?.name || id || '';
@@ -54,9 +55,7 @@ const scopeLabel = (person: Person) => person.manager_store_id ? `Store Manager 
     finally { setBusy(false); }
   }
   const shown = people.filter(p => `${p.name} ${p.email} ${storeName(p.store_id)}`.toLowerCase().includes(query.toLowerCase()));
-  return <div className="shell course-admin access-admin app-page">
-    <PageHeader title={t("Manage Users")} view="access"/>
-    <main className="main">
+  return <div className="access-admin">
       {error && <p className="error" role="alert">{t(error)}</p>}
       {message && <p className="admin-success" role="status">{t(message)}</p>}
       {selected ? <section className="paper access-editor">
@@ -83,12 +82,9 @@ const scopeLabel = (person: Person) => person.manager_store_id ? `Store Manager 
       </section> : <section className="paper access-people">
         <label className="access-search">{t("Find an account")}<Input type="search" value={query} onChange={e => setQuery(e.target.value)} placeholder={t("Name, email or site")} /></label>
         {loading ? <p className="empty">{t("Loading accounts…")}</p> : !shown.length ? <p className="empty">{t(people.length ? 'No accounts match your search.' : 'Accounts appear here after a learner registers.')}</p> :
-          <div className="table-scroll"><table><thead><tr><th>{t("Account")}</th><th>{t("Home site")}</th><th>{t("Access")}</th><th><span className="sr-only">{t("Action")}</span></th></tr></thead>
-            <tbody>{shown.map(person => <tr key={person.id}><td><strong>{person.name}</strong><small>{person.email}</small></td>
-              <td>{storeName(person.store_id)}<small>{countryLabel(person.country)}</small></td>
-              <td><span className={person.scope ? 'access-badge' : 'access-none'}>{person.manager_store_id?`${t('Store Manager')} · ${storeName(person.manager_store_id)}`:person.scope==='country'?countryLabel(person.reporting_country||''):person.scope==='site'?`${storeName(person.reporting_site_id)} · ${countryLabel(person.reporting_country||'')}`:t(scopeLabel(person)||'')}</span></td>
-              <td><Button variant="outline" onClick={() => edit(person)} aria-label={t("Edit access for {name}",{name:person.name})}>{t("Edit access")}</Button></td></tr>)}</tbody></table></div>}
+          <div className="employee-cards">{shown.map(person => <article className="employee-card" key={person.id}><div><strong>{person.name}</strong><small>{person.email}</small><small>{storeName(person.store_id)} · {countryLabel(person.country)}</small><small>{person.manager_store_id?`${t('Store Manager')} · ${storeName(person.manager_store_id)}`:person.scope==='country'?countryLabel(person.reporting_country||''):person.scope==='site'?`${storeName(person.reporting_site_id)} · ${countryLabel(person.reporting_country||'')}`:t(scopeLabel(person)||'')}</small></div><Button variant="outline" onClick={()=>edit(person)} aria-label={t("Edit access for {name}",{name:person.name})}>{t('Edit access')}</Button></article>)}</div>}
       </section>}
-    </main>
   </div>;
 }
+
+export default function ReportingAccessAdmin(){const {t}=useLanguage();return <div className="shell course-admin access-admin app-page"><PageHeader title={t('Manage Users')} view="access"/><main className="main"><ManageUsers access={<AccessContent/>}/></main></div>;}

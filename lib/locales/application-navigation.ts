@@ -1,5 +1,8 @@
 // es | fr | de | it | nl | pt | pl | ro | cs | sk | sl | hu | ar
 export const navigation:Record<string,string>={
+'No matching courses.':'No hay cursos coincidentes.|Aucun cours correspondant.|Keine passenden Kurse.|Nessun corso corrispondente.|Geen overeenkomende cursussen.|Nenhum curso correspondente.|Brak pasujących kursów.|Niciun curs corespunzător.|Žádné odpovídající kurzy.|Žiadne zodpovedajúce kurzy.|Ni ustreznih tečajev.|Nincs megfelelő kurzus.|لا توجد دورات مطابقة.',
+'Choose a store to assign courses.':'Elige una tienda para asignar cursos.|Choisissez un magasin pour attribuer des cours.|Wählen Sie eine Filiale, um Kurse zuzuweisen.|Scegli un negozio per assegnare i corsi.|Kies een winkel om cursussen toe te wijzen.|Escolha uma loja para atribuir cursos.|Wybierz sklep, aby przypisać kursy.|Alege un magazin pentru a atribui cursuri.|Vyberte prodejnu pro přiřazení kurzů.|Vyberte predajňu na priradenie kurzov.|Izberite trgovino za dodelitev tečajev.|Válasszon üzletet a kurzusok hozzárendeléséhez.|اختر متجرًا لتعيين الدورات.',
+
 'Stores':'Tiendas|Magasins|Filialen|Negozi|Winkels|Lojas|Sklepy|Magazine|Prodejny|Predajne|Trgovine|Üzletek|المتاجر',
 'Active':'Activo|Actif|Aktiv|Attivo|Actief|Ativo|Aktywny|Activ|Aktivní|Aktívne|Aktivno|Aktív|نشط',
 'Choose a store.':'Elige una tienda.|Choisissez un magasin.|Wählen Sie eine Filiale.|Scegli un negozio.|Kies een winkel.|Escolha uma loja.|Wybierz sklep.|Alege un magazin.|Vyberte prodejnu.|Vyberte predajňu.|Izberite trgovino.|Válasszon üzletet.|اختر متجرًا.',

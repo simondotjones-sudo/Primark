@@ -133,6 +133,21 @@ export async function registrationChecks({m,check,query,invoke,loginAdmin,cookie
     assert.equal(Number((await query('SELECT COUNT(*) AS n FROM course_assignments WHERE course_id=?','legacy-2509').first()).n),expected);
     assert.equal(await query('SELECT * FROM course_assignments WHERE learner_id=?',germanId).first(),null);
   });
+  await check('Manage Users assigns within the selected store for admins and rejects manager store spoofing',async()=>{
+    assert.equal((await invoke(m.manager,'GET','/api/store?storeId='+uk.id,undefined,managerCookie)).status,403);
+    assert.equal((await invoke(m.manager,'POST','/api/store',{storeId:uk.id,courseIds:['legacy-154'],allUsers:true},managerCookie)).status,403);
+    const global=await (await invoke(m.manager,'GET','/api/store',undefined,admin)).json();assert.equal(global.store,null);assert(global.people.some(p=>p.id===germanId));assert.equal(global.courses.length,0);
+    const local=await (await invoke(m.manager,'GET','/api/store?storeId='+store.id,undefined,admin)).json();assert(local.people.every(p=>p.store_id===store.id));assert(local.courses.some(c=>c.id==='legacy-2509'));
+    assert.equal((await invoke(m.manager,'POST','/api/store',{courseIds:['legacy-154'],allUsers:true},admin)).status,400);
+    assert.equal((await invoke(m.manager,'POST','/api/store',{storeId:store.id,courseIds:['legacy-154'],allUsers:true},admin,{origin:'https://evil.invalid'})).status,403);
+    assert.equal((await invoke(m.manager,'POST','/api/store',{storeId:store.id,courseIds:['legacy-154'],userIds:[germanId]},admin)).status,403);
+    assert.equal((await invoke(m.manager,'POST','/api/store',{storeId:store.id,courseIds:['legacy-264'],userIds:[irishId]},admin)).status,403);
+    const german=await query('SELECT store_id FROM learners WHERE id=?',germanId).first();
+    const body={storeId:german.store_id,courseIds:['legacy-154'],userIds:[germanId]};
+    for(let i=0;i<2;i++)assert.equal((await invoke(m.manager,'POST','/api/store',body,admin)).status,200);
+    assert.equal(Number((await query('SELECT COUNT(*) AS n FROM course_assignments WHERE learner_id=? AND course_id=?',germanId,'legacy-154').first()).n),1);
+    assert.equal((await query('SELECT assigned_by FROM course_assignments WHERE learner_id=? AND course_id=?',germanId,'legacy-154').first()).assigned_by,process.env.PRIMARK_ADMIN_EMAIL);
+  });
   await check('Revoking Store Manager access takes effect on the existing session immediately',async()=>{
     const person=await query('SELECT id FROM learners WHERE email=?','assigned-manager@example.test').first();
     assert.equal((await invoke(m.access,'POST','/api/admin/reporting-access',{learnerId:person.id,scope:'site',siteId:store.id,managerStoreId:null},admin)).status,200);
