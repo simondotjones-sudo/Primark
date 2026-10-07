@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { reportingChecks } from './reporting-checks.mjs';
 import { registrationChecks } from './registration-checks.mjs';
 import { coursePanelChecks } from './course-panel-checks.mjs';
 import { createElement } from 'react';
@@ -25,6 +26,8 @@ export * as database from '${process.cwd()}/lib/database.ts';
 export * as auth from '${process.cwd()}/lib/admin-auth.ts';
 export * as origin from '${process.cwd()}/lib/request-origin.ts';
 export * as session from '${process.cwd()}/app/api/admin/session/route.ts';
+export * as reporting from '${process.cwd()}/app/api/reporting/route.ts';
+export * as reportTypes from '${process.cwd()}/lib/training-report-types.ts';
 export * as prototype from '${process.cwd()}/app/api/prototype/route.ts';
 export * as access from '${process.cwd()}/app/api/admin/reporting-access/route.ts';
 export * as learnerAuth from '${process.cwd()}/lib/learner-auth.ts';
@@ -271,4 +274,5 @@ await check('Common Login preserves long configured admin passwords and old logi
  for(const value of ['https://evil.invalid','//evil.invalid','/\\evil.invalid','/admin/sign-in','/?login=1'])assert.equal(m.auth.safeReturnTo(value),'/admin/courses');
  await assert.rejects(context.run({cookie:''},()=>m.auth.requireAdminUser('/admin/courses')),/\/\?login=1&returnTo=%2Fadmin%2Fcourses/);
 });
+await reportingChecks({m,check,query,invoke,loginAdmin,store,uk});
 console.log(`${passed} Netlify migration checks passed.`);await pg.close();rmSync(dir,{recursive:true,force:true});
