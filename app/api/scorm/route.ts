@@ -1,19 +1,26 @@
 import { NextRequest } from 'next/server';
 import { currentLearner, db, now, randomToken } from '@/lib/server';
 import { sameOrigin } from '@/lib/shot-server';
-import { bodyJson, failed, getCourse, getPackage, isPlatformAdmin, json, CourseError } from '@/lib/course-admin';
-import { matchesAudience, type Sco } from '@/lib/course-types';
+import { bodyJson, failed, getCourse, isPlatformAdmin, json, CourseError } from '@/lib/course-admin';
+import { matchesAudience, type Course, type Sco } from '@/lib/course-types';
 import { initialData, timeCentiseconds, timeString } from '@/lib/scorm-runtime';
 export const dynamic='force-dynamic';
 export async function POST(request:NextRequest) {try {
  if(!sameOrigin(request))throw new CourseError('Open the course from My Courses.',403);
- const b=await bodyJson(request,100000);const learner=await currentLearner(request);
+ const b=await bodyJson(request,100000);
  if(b.action==='launch') {
-  const preview=b.preview===true; if(preview?!await isPlatformAdmin():!learner)throw new CourseError('Sign in to launch this course.',401);
-  const course=await getCourse(b.courseId);if(!course?.package_id)throw new CourseError('Course not available.',404);
+  const preview=b.preview===true;
+  // Independent reads run together; fetch package details with the course.
+  const [learner,admin,course]=await Promise.all([
+   currentLearner(request),preview?isPlatformAdmin():Promise.resolve(false),
+   db().prepare('SELECT c.*,p.scos_json,p.status AS package_status FROM courses c LEFT JOIN course_packages p ON p.id=c.package_id WHERE c.id=?').bind(b.courseId).first<Course&{scos_json:string;package_status:string}>(),
+  ]);
+  if(preview?!admin:!learner)throw new CourseError('Sign in to launch this course.',401);
+  if(!course?.package_id)throw new CourseError('Course not available.',404);
   if(!preview&&(course.status!=='published'||!matchesAudience(JSON.parse(course.audience_json),learner!)))throw new CourseError('This course is not assigned to you.',403);
-  const pack=await getPackage(course.package_id);if(!pack||pack.status!=='ready')throw new CourseError('This package is not ready.');
-  const scos=JSON.parse(pack.scos_json) as Sco[];const sco=scos.find(s=>s.id===b.scoId)||scos[0];
+  if(course.package_status!=='ready')throw new CourseError('This package is not ready.');
+  const pack={id:course.package_id};
+  const scos=JSON.parse(course.scos_json) as Sco[];const sco=scos.find(s=>s.id===b.scoId)||scos[0];
   const old=preview?null:await db().prepare('SELECT * FROM scorm_progress WHERE learner_id=? AND package_id=? AND sco_id=?').bind(learner!.id,pack.id,sco.id).first<any>();
   const token=randomToken(),expires=new Date(Date.now()+8*3600000).toISOString();
   const data=initialData(preview?'preview':learner!.id,preview?'Course preview':learner!.name,sco.mastery,sco.launchData,old?JSON.parse(old.data_json):{},timeString(old?.total_centiseconds||0));
@@ -24,6 +31,7 @@ export async function POST(request:NextRequest) {try {
   return json({token,title:course.title,scos,scoId:sco.id,preview,url:`/scorm-content/${token}/${path.split('/').map(encodeURIComponent).join('/')}${suffix}`});
  }
  if(b.action!=='save')throw new CourseError('Unknown action.');
+ const learner=await currentLearner(request);
  const launch=await db().prepare('SELECT * FROM scorm_launches WHERE token=? AND expires_at>?').bind(b.token,now()).first<any>();
  if(!launch)throw new CourseError('Your course session expired. Reopen the course to continue.',401);
  if(launch.preview){if(!await isPlatformAdmin())throw new CourseError('Admin sign-in required.',403);return json({saved:true,preview:true});}

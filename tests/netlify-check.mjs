@@ -91,6 +91,12 @@ await check('Photo larger than request ceiling uploads in parts and downloads un
 await check('Unauthorised photo reads are rejected before any file access',async()=>{const res=await m.photoRead.GET(req('/api/shot-list/photos/'+photoId),{params:Promise.resolve({id:photoId})});assert.equal(res.status,403);});
 await check('Byte ranges cross chunk boundaries and invalid ranges are rejected',async()=>{const object=await m.storage.photoBucket().get(photoKey,{range:new Headers({Range:'bytes=2097150-2097160'})});assert.equal((await object.arrayBuffer()).byteLength,11);await assert.rejects(m.storage.photoBucket().get(photoKey,{range:new Headers({Range:'bytes=999999999-'})}),m.storage.InvalidRange);});
 await check('Incomplete uploads cannot become readable files',async()=>{const b=m.storage.photoBucket();await b.writeChunk('unfinished',0,new ArrayBuffer(m.storage.CHUNK_SIZE));await assert.rejects(b.complete('unfinished',m.storage.CHUNK_SIZE+1));assert.equal(await b.get('unfinished'),null);});
+await check('reading course HTML or a buffer fetches each file chunk only once',async()=>{
+ let reads=0;const bytes=new TextEncoder().encode('<html>Course</html>').buffer;
+ const bucket=m.storage.createBucket({async get(key){if(key.startsWith('objects/'))return {size:bytes.byteLength,chunks:1};if(key.startsWith('parts/')){reads++;return bytes;}return null;}});
+ const html=await bucket.get('scorm/immutable/index.html');assert.equal(await html.text(),'<html>Course</html>');assert.equal(reads,1);
+ const binary=await bucket.get('scorm/immutable/bundle.js');assert.equal((await binary.arrayBuffer()).byteLength,bytes.byteLength);assert.equal(reads,2);
+});
 await check('Edge delivery checks app permission and streams files larger than 20 MB',async()=>{const bytes=new Uint8Array(22*1024*1024+3).fill(42);await m.storage.photoBucket().put('large-file',bytes);const res=await m.edge(req('/scorm-content/session/video.mp4'),{next:async r=>{assert.equal(r.headers.get('x-primark-storage-descriptor'),'1');return Response.json({key:'large-file',headers:{'Content-Type':'video/mp4'}});}});assert.equal(res.status,200);assert.equal((await res.arrayBuffer()).byteLength,bytes.length);const denied=await m.edge(req('/scorm-content/session/video.mp4'),{next:async()=>new Response('Denied',{status:401})});assert.equal(denied.status,401);});
 
 // Exercise the real permission endpoints with independent learner/admin sessions.

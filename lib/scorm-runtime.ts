@@ -1,5 +1,11 @@
 // Self-contained: this function is injected before the course's own scripts.
 export function installScormRuntime(config: {seed:Record<string,string>;token:string}) {
+  // Let the outer player reveal the package at DOM readiness, instead of waiting
+  // for every image, video and nested frame to finish the window load event.
+  if(typeof document!=='undefined'){
+    const ready=()=>window.parent.postMessage({type:'primark-scorm-ready',token:config.token},'*');
+    if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',ready,{once:true});else ready();
+  }
   // Nested driver/content documents share one synchronous SCORM API and state.
   // Separate adapters in each helper frame can overwrite the learner's real progress.
   try {
@@ -41,7 +47,12 @@ export function installScormRuntime(config: {seed:Record<string,string>;token:st
   };
   (window as any).API=api;
   (window as any).__primarkScormRuntime={token:config.token,api};
-  window.addEventListener('message',e=>{if(e.source===window.parent&&e.data?.type==='primark-scorm-flush'&&e.data?.token===config.token){if(initialized&&!finished){suspend();send();}for(let i=0;i<window.frames.length;i++)window.frames[i].postMessage(e.data,'*');}});
+  window.addEventListener('message',e=>{if(e.source===window.parent&&e.data?.type==='primark-scorm-flush'&&e.data?.token===config.token){
+    if(initialized&&!finished)suspend();
+    // All nested frames share this API. Acknowledge one authoritative snapshot;
+    // the player waits for its server save before leaving or changing lessons.
+    window.parent.postMessage({type:'primark-scorm-flushed',token:config.token,requestId:e.data.requestId,data:initialized?{...data}:null},'*');
+  }});
   window.addEventListener('pagehide',()=>{if(initialized&&!finished){suspend();send();}});
   setInterval(()=>{if(initialized&&!finished)send();},15000);
 }

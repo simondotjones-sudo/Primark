@@ -69,7 +69,10 @@ export function createBucket(current: Store, fallback?: Store) {
           },
         });
       }
-      return {size:meta.size,range:range??undefined,body:stream(),text:()=>new Response(stream()).text(),arrayBuffer:()=>new Response(stream()).arrayBuffer()};
+      // A ReadableStream starts pulling immediately. Reuse it for text/buffer reads
+      // so opening HTML does not fetch the first storage chunk twice.
+      const body=stream();
+      return {size:meta.size,range:range??undefined,body,text:()=>new Response(body).text(),arrayBuffer:()=>new Response(body).arrayBuffer()};
     },
   };
 }

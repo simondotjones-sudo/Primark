@@ -22,6 +22,10 @@ export default function Player({ courseId, preview }: { courseId: string; previe
   const queue = useRef<Promise<void>>(Promise.resolve());
   const sequence = useRef(0);
   const failed = useRef(false);
+  const pendingSaves = useRef(0);
+  const approvedExit = useRef(false);
+  const flushFailed = useRef(false);
+  const pendingFlush = useRef<{ id: string; resolve: (saved: boolean) => void } | null>(null);
   const latest = useRef<Record<string, string> | null>(null);
 
   const send = useCallback((data: Record<string, string>) => {
@@ -29,6 +33,7 @@ export default function Player({ courseId, preview }: { courseId: string; previe
     const current = active.current;
     if (!current) return;
     const seq = ++sequence.current;
+    pendingSaves.current++;
     setSaving('saving');
     queue.current = queue.current.then(async () => {
       const r = await fetch('/api/scorm', {
@@ -45,7 +50,7 @@ export default function Player({ courseId, preview }: { courseId: string; previe
       failed.current = true;
       setError(e.message || 'Progress could not be saved. Keep this page open and retry.');
       setSaving('error');
-    });
+    }).finally(() => { pendingSaves.current--; });
   }, []);
 
   const start = useCallback(async (scoId?: string) => {
@@ -63,6 +68,7 @@ export default function Player({ courseId, preview }: { courseId: string; previe
       sequence.current = 0;
       latest.current = null;
       failed.current = false;
+      flushFailed.current = false;
       setLaunch(d);
       setSaving('idle');
     } catch (e) {
@@ -76,7 +82,21 @@ export default function Player({ courseId, preview }: { courseId: string; previe
   useEffect(() => { void start(); }, [start]);
   useEffect(() => {
     const receive = (e: MessageEvent) => {
-      if (e.source !== frame.current?.contentWindow || e.data?.type !== 'primark-scorm-save' || e.data.token !== active.current?.token) return;
+      if (e.source !== frame.current?.contentWindow || e.data?.token !== active.current?.token) return;
+      if (e.data.type === 'primark-scorm-ready') { setFrameLoading(false); return; }
+      if (e.data.type === 'primark-scorm-flushed') {
+        const waiting = pendingFlush.current;
+        if (!waiting || waiting.id !== e.data.requestId) return;
+        if (e.data.data) send(e.data.data);
+        void (async () => {
+          // A package may commit again while the final snapshot is saving.
+          while (pendingSaves.current) await queue.current;
+          flushFailed.current = false;
+          waiting.resolve(!failed.current);
+        })();
+        return;
+      }
+      if (e.data.type !== 'primark-scorm-save' || approvedExit.current) return;
       // Some packages commit before all their media has finished loading.
       setFrameLoading(false);
       send(e.data.data);
@@ -86,11 +106,13 @@ export default function Player({ courseId, preview }: { courseId: string; previe
   }, [send]);
   useEffect(() => {
     const warn = (e: BeforeUnloadEvent) => {
-      if (failed.current || saving === 'saving') { e.preventDefault(); e.returnValue = ''; }
+      // Refs reflect the completed save immediately; React's displayed status
+      // may still say "Saving…" in the navigation event's render cycle.
+      if (!approvedExit.current && (failed.current || flushFailed.current || pendingSaves.current > 0)) { e.preventDefault(); e.returnValue = ''; }
     };
     window.addEventListener('beforeunload', warn);
     return () => window.removeEventListener('beforeunload', warn);
-  }, [saving]);
+  }, []);
   useEffect(() => {
     setFullscreenAvailable(Boolean(document.fullscreenEnabled));
     const update = () => setFullscreen(document.fullscreenElement === player.current);
@@ -99,15 +121,32 @@ export default function Player({ courseId, preview }: { courseId: string; previe
   }, []);
 
   async function flush() {
-    frame.current?.contentWindow?.postMessage({ type: 'primark-scorm-flush', token: active.current?.token }, '*');
-    await new Promise(resolve => setTimeout(resolve, 250));
-    await queue.current;
-    return !failed.current;
+    if (!active.current) return true;
+    const requestId = crypto.randomUUID();
+    return new Promise<boolean>(resolve => {
+      const timer = window.setTimeout(() => {
+        if (pendingFlush.current?.id !== requestId) return;
+        pendingFlush.current = null;
+        flushFailed.current = true;
+        setError('The course has not confirmed its progress yet. Keep this page open and try Save & exit again.');
+        resolve(false);
+      }, 12000);
+      pendingFlush.current = { id: requestId, resolve: saved => {
+        window.clearTimeout(timer);
+        if (pendingFlush.current?.id !== requestId) return;
+        pendingFlush.current = null;
+        resolve(saved);
+      }};
+      frame.current?.contentWindow?.postMessage({ type: 'primark-scorm-flush', token: active.current?.token, requestId }, '*');
+    });
   }
   async function exit() {
     if (busy) return;
     setBusy(true);
-    if (await flush()) location.assign(preview ? '/admin/courses/' : '/?courses=1');
+    if (await flush()) {
+      approvedExit.current = true;
+      location.assign(preview ? '/admin/courses/' : '/?courses=1');
+    }
     else setBusy(false);
   }
   async function toggleFullscreen() {
