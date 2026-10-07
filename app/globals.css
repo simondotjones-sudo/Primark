@@ -134,7 +134,7 @@ p{line-height:1.55}.shell{min-height:100vh;display:flex;flex-direction:column}
 .course-feature-copy>span{color:#007fb3;font-weight:600}
 .course-catalog-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:17px}
 .course-tile{overflow:hidden;background:white;border:1px solid var(--border);border-radius:20px}
-.course-tile img{display:block;width:100%;aspect-ratio:16/9;object-fit:cover}
+.course-tile img{display:block;width:100%;height:auto;aspect-ratio:16/9;object-fit:cover}
 .course-tile>div{padding:19px 22px 23px}
 .course-tile small{color:#64808e;font-size:.78rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase}
 .course-tile h3{font-size:1.2rem;line-height:1.23;letter-spacing:-.02em;font-weight:600;margin:9px 0 0}
@@ -233,6 +233,7 @@ footer strong{letter-spacing:.08em}
   .steps,.soft-note{display:none}.entry-form{padding:24px;box-shadow:0 12px 35px #17455e0e}
   .learn-layout{display:block}.sidebar{min-height:0;display:flex;flex-direction:row;overflow-x:auto;padding:2px 0 13px;border-inline-end:0;border-bottom:1px solid var(--border);margin-bottom:26px}
   .sidebar>small,.sidebar hr,.sidebar .chapter-nav{display:none}.sidebar>button{width:auto;white-space:nowrap;flex:none}
+  .sidebar hr.course-divider{display:block;width:1px;height:28px;flex:none;align-self:center;margin:0 8px;border:0;background:var(--border)}
   .sidebar .account{display:flex;align-items:center;margin:0;margin-inline-start:auto;padding:0;border:0;flex:none}.sidebar .account strong,.sidebar .account small{display:none}
   .sidebar .account button{padding:10px}.sidebar .account button span{display:none}.sidebar .account .signout-icon{display:block;width:18px;height:18px}
   .welcome{align-items:start}.welcome h1{font-size:2.3rem}.welcome p{font-size:1rem}

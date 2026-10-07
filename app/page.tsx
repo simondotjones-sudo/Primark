@@ -1,6 +1,15 @@
 "use client";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import QRCode from "qrcode";
+import Image from "next/image";
+import safetyPassCover from "@/public/course-images/safety-pass.png";
+import manualHandlingCover from "@/public/course-images/manual-handling.png";
+import securityCover from "@/public/course-images/security.png";
+import speakUpCover from "@/public/course-images/speak-up.png";
+import dignityCover from "@/public/course-images/dignity.png";
+import dataProtectionCover from "@/public/course-images/data-protection.png";
+import accessibilityCover from "@/public/course-images/accessibility.png";
+import safeguardingCover from "@/public/course-images/safeguarding.png";
 import type { ReportingAccess } from "@/lib/reporting-types";
 import ProfileMenu from "@/components/profile-menu";
 import { profileHref, profileScope, type ProfileAccount, type ReportFilter } from "@/lib/profile";
@@ -24,13 +33,13 @@ type Screen = "home"|"courses"|"module"|"quiz"|"result"|"pass";
 const countries = [...new Set(stores.map(s => s.country))].sort((a,b) => a.localeCompare(b));
 const storeName = (id:string) => stores.find(s => s.id === id)?.name || id;
 const sampleCourses = [
-  {title:"Manual Handling",image:"manual-handling",alt:"Colleagues moving stock on a trolley"},
-  {title:"Security, loss prevention and personal safety",image:"security",alt:"Colleagues speaking on the shop floor"},
-  {title:"Code of Conduct and Speak Up",image:"speak-up",alt:"Colleagues having a private conversation"},
-  {title:"Dignity at Work",image:"dignity",alt:"Colleagues talking together in store"},
-  {title:"Data protection",image:"data-protection",alt:"Colleague helping a customer at a till"},
-  {title:"Customer service and accessibility",image:"accessibility",alt:"Colleague assisting a customer"},
-  {title:"Safeguarding and emergency procedures",image:"safeguarding",alt:"Colleagues helping a parent and child"},
+  {title:"Manual Handling",image:"manual-handling",cover:manualHandlingCover,alt:"Colleagues moving stock on a trolley"},
+  {title:"Security, loss prevention and personal safety",image:"security",cover:securityCover,alt:"Colleagues speaking on the shop floor"},
+  {title:"Code of Conduct and Speak Up",image:"speak-up",cover:speakUpCover,alt:"Colleagues having a private conversation"},
+  {title:"Dignity at Work",image:"dignity",cover:dignityCover,alt:"Colleagues talking together in store"},
+  {title:"Data protection",image:"data-protection",cover:dataProtectionCover,alt:"Colleague helping a customer at a till"},
+  {title:"Customer service and accessibility",image:"accessibility",cover:accessibilityCover,alt:"Colleague assisting a customer"},
+  {title:"Safeguarding and emergency procedures",image:"safeguarding",cover:safeguardingCover,alt:"Colleagues helping a parent and child"},
 ] as const;
 async function api(url:string, options?:RequestInit) {
   const response = await fetch("/api/prototype"+url,{cache:"no-store",...options});
@@ -153,7 +162,7 @@ export default function Home() {
           <TabsContent value="return"><h2>{t("Welcome back")}</h2><p>{t("Use the code you saved when you first joined.")}</p><form onSubmit={e=>{e.preventDefault();run(async()=>{await post("login",{email:loginEmail,code:loginCode});setArea("learn");await refreshMe();});}}><label>{t("Email address")}<Input required type="email" dir="ltr" value={loginEmail} onChange={e=>setLoginEmail(e.target.value)}/></label><label>{t("Pass code")}<Input required dir="ltr" value={loginCode} onChange={e=>setLoginCode(e.target.value)} placeholder="PR-XXXXXXXXXX"/></label><Button className="blue-button" size="lg" disabled={busy}>{t("Continue learning")}</Button><small>{t("Keep your pass code safe. Email code recovery is not yet available.")}</small></form></TabsContent>
         </Tabs></div>
       </div> :
-      <div className="learn-layout"><aside className="sidebar"><small>{t("YOUR LEARNING")}</small><button className={screen==="courses"?"selected":""} onClick={()=>setScreen("courses")}><LayoutGrid/>{t("My Courses")}</button><button className={screen==="home"?"selected":""} onClick={()=>setScreen("home")}><BookOpen/>{t("Safety Passport")}</button><hr/>{shownModules.map((m,i)=><button key={m.key} className={"chapter-nav "+(screen==="module"&&moduleIndex===i?"selected":"")} onClick={()=>{setModuleIndex(i);setScreen("module");}}><span className={"number "+(viewed.includes(m.key)?"checked":"")}>{viewed.includes(m.key)?<Check/>:i+1}</span>{m.short}</button>)}<hr/><button className={screen==="quiz"?"selected":""} onClick={()=>{setScreen("quiz");setQuestionIndex(0);}}><ClipboardCheck/>{t("Assessment")}</button>{complete&&<button className={screen==="pass"?"selected":""} onClick={()=>setScreen("pass")}><ShieldCheck/>{t("My Safety Passport")}</button>}</aside>
+      <div className="learn-layout"><aside className="sidebar"><small>{t("YOUR LEARNING")}</small><button className={screen==="courses"?"selected":""} onClick={()=>setScreen("courses")}><LayoutGrid/>{t("My Courses")}</button><hr className="course-divider"/><button className={screen==="home"?"selected":""} onClick={()=>setScreen("home")}><BookOpen/>{t("Safety Passport")}</button>{shownModules.map((m,i)=><button key={m.key} className={"chapter-nav "+(screen==="module"&&moduleIndex===i?"selected":"")} onClick={()=>{setModuleIndex(i);setScreen("module");}}><span className={"number "+(viewed.includes(m.key)?"checked":"")}>{viewed.includes(m.key)?<Check/>:i+1}</span>{m.short}</button>)}<button className={screen==="quiz"?"selected":""} onClick={()=>{setScreen("quiz");setQuestionIndex(0);}}><ClipboardCheck/>{t("Assessment")}</button>{complete&&<button className={screen==="pass"?"selected":""} onClick={()=>setScreen("pass")}><ShieldCheck/>{t("My Safety Passport")}</button>}</aside>
         <div className="learner-main">
           {code&&<div className="code-banner"><div><strong>{t("Your pass code:")} <bdi dir="ltr">{code}</bdi></strong><span>{t("Save it to sign in on another device.")}</span></div><Button variant="outline" onClick={()=>navigator.clipboard.writeText(code)}>{t("Copy code")}</Button><button onClick={()=>setCode("")}>×</button></div>}
           {screen==="home"&&<section><div className="welcome"><h1>{t("Hello,")} {learner.name.split(" ")[0]}.</h1>{!complete&&<div className="progress-count"><strong>{viewed.length}<small>/6</small></strong><span>{t("chapters viewed")}</span></div>}</div>
@@ -165,12 +174,12 @@ export default function Home() {
           {screen==="courses"&&<section className="courses-page">
             <span className="eyebrow">{t("YOUR LEARNING")}</span><h1>{t("My Courses")}</h1>
             <button className="course-feature" onClick={()=>setScreen(complete?"pass":"home")}>
-              <img src="/course-images/safety-pass.png" alt="" />
+              <Image src={safetyPassCover} alt="" placeholder="blur" loading="eager" fetchPriority="high" sizes="(max-width: 760px) calc(100vw - 36px), (max-width: 1340px) calc(43vw - 135px), 420px" />
               <span className="course-feature-copy"><small>{complete?t("Completed"):t("Available now")}</small><strong>{t("Primark Safety Passport")}</strong><span>{complete?t("View my pass"):t("Continue learning")}</span></span>
             </button>
             <AssignedCourses/><div className="section-title"><h2>{t("More courses")}</h2><span>{t("Coming soon")}</span></div>
-            <div className="course-catalog-grid">{sampleCourses.map(course=><article className="course-tile" key={course.image}>
-              <img src={`/course-images/${course.image}.png`} alt="" loading="lazy"/>
+            <div className="course-catalog-grid">{sampleCourses.map((course,index)=><article className="course-tile" key={course.image}>
+              <Image src={course.cover} alt="" placeholder="blur" loading={index<2?"eager":"lazy"} sizes="(max-width: 760px) calc(100vw - 36px), (max-width: 1340px) calc(50vw - 178px), 480px"/>
               <div><small>{t("Coming soon")}</small><h3>{t(course.title)}</h3>{course.image==="manual-handling"&&<p>{t("Includes a practical element")}</p>}</div>
             </article>)}</div>
           </section>}
