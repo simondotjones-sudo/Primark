@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation';
 import { createHash, timingSafeEqual } from 'node:crypto';
 import { db } from '@/lib/database';
 import { runtimeEnv } from '@/lib/runtime-env';
+import { verifyPassword } from '@/lib/learner-auth';
 
 export const ADMIN_COOKIE = 'primark_admin';
 export function credentials() {
@@ -14,9 +15,21 @@ export function credentialFingerprint() {
   const value = credentials();
   return value ? createHash('sha256').update(JSON.stringify(value)).digest('hex') : '';
 }
-export function passwordMatches(email: string, password: string) {
+export async function adminPassword() {
+  const configured = credentials();
+  if (!configured) return null;
+  return db().prepare('SELECT password_hash FROM admin_passwords WHERE email=? AND bootstrap_hash=?')
+    .bind(configured.email, credentialFingerprint()).first<{password_hash:string}>();
+}
+export async function sessionCredentialFingerprint() {
+  const override = await adminPassword();
+  return override ? createHash('sha256').update(credentialFingerprint() + ':' + override.password_hash).digest('hex') : credentialFingerprint();
+}
+export async function passwordMatches(email: string, password: string) {
   const configured = credentials();
   if (!configured) return false;
+  const override = await adminPassword();
+  if (override) return email.toLowerCase() === configured.email && await verifyPassword(password, override.password_hash);
   const hash = (value: string) => createHash('sha256').update(value).digest();
   const correctPassword = timingSafeEqual(hash(password), hash(configured.password));
   return email.toLowerCase() === configured.email && correctPassword;
@@ -28,7 +41,7 @@ export async function getAdminUser() {
   const token = jar.get(ADMIN_COOKIE)?.value;
   if (!token || !credentials()) return null;
   const row = await db().prepare('SELECT email FROM admin_sessions WHERE token_hash=? AND credential_hash=? AND expires_at>?')
-    .bind(createHash('sha256').update(token).digest('hex'), credentialFingerprint(), new Date().toISOString()).first<{ email: string }>();
+    .bind(createHash('sha256').update(token).digest('hex'), await sessionCredentialFingerprint(), new Date().toISOString()).first<{ email: string }>();
   return row && row.email === credentials()!.email ? row : null;
 }
 export async function requireAdminUser(returnTo: string) {

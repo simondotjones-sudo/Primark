@@ -15,7 +15,7 @@ export async function POST(request: NextRequest) {
     }
     if (!credentials()) return NextResponse.json({ error: 'Set PRIMARK_ADMIN_EMAIL and PRIMARK_ADMIN_PASSWORD (at least 16 characters) in Netlify, make them available to Functions, then redeploy.' }, { status: 503 });
     if (!await allowLoginAttempt('platform-admin')) return NextResponse.json({ error: 'Too many attempts. Try again in 15 minutes.' }, { status: 429 });
-    if (typeof body.email !== 'string' || typeof body.password !== 'string' || body.password.length > 1024 || !passwordMatches(body.email.trim(), body.password))
+    if (typeof body.email !== 'string' || typeof body.password !== 'string' || body.password.length > 1024 || !await passwordMatches(body.email.trim(), body.password))
       return NextResponse.json({ error: 'Those sign-in details did not match.' }, { status: 401 });
     return await createAdminSession(request, body.returnTo);
   } catch (error) { console.error('Admin sign-in failed', error); return NextResponse.json({ error: 'Sign-in is temporarily unavailable.' }, { status: 503 }); }

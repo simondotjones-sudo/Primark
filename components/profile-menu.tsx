@@ -1,6 +1,7 @@
 'use client';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { LogOut, MapPin, UserRound } from 'lucide-react';
+import { APP_VERSION } from '@/lib/app-version';
 import { profileHref, profileScope, profileViews, type ProfileAccount, type ProfileView, type ReportFilter } from '@/lib/profile';
 
 type ContentProps = {
@@ -37,6 +38,7 @@ export function ProfileContent({ account, view, filter, onView, onFilter, onSign
       </select></label>}
     </div>}
     <button type="button" className="profile-signout" disabled={busy} onClick={onSignOut}><LogOut size={17}/>{busy ? 'Signing out…' : 'Sign out'}</button>
+    <div className="profile-version">Primark Version <bdi>{APP_VERSION}</bdi></div>
   </>;
 }
 

@@ -73,7 +73,24 @@ context is embedded by `scripts/build-context.mjs`; it contains no secrets.
 SCORM packages execute JavaScript. Only upload trusted authoring-tool exports. The existing
 same-origin frame support is retained because many SCORM 1.2 players require it.
 
-Password recovery by email and approved final learning content remain separate launch tasks.
+Password recovery uses Postmark. Before release, set `POSTMARK_SERVER_TOKEN` (secret),
+`POSTMARK_FROM_EMAIL` (a verified sender), `POSTMARK_MESSAGE_STREAM` (default `outbound`)
+and `PRIMARK_APP_URL` (the HTTPS origin for this deploy context), in Functions scope.
+Redeploy after changing them. Do not use production sender credentials on untrusted previews.
+The Login tab links to `/forgot-password/`; reset emails open `/reset-password/`.
+Links expire after 30 minutes, are stored only as hashes, work once, and changing a password
+invalidates other outstanding links and existing sessions. Learning records and permissions
+are preserved. Unknown and existing emails receive the same confirmation. Delivery errors
+are logged without email addresses or links. An unconfigured sender shows an availability error.
+Platform admin resets require 16 characters and store a scrypt hash separately from learner
+passwords. If one email has both identities, its email contains separately labelled links.
+Changing the hosting admin credentials revokes admin sessions and reset links and overrides
+the recovered admin password, providing a hosting-level recovery path.
+
+The profile footer displays `Primark Version major.DD.MM.YY.build`, matching TapTick.
+Update `lib/app-version.ts` (including the build number) for each release.
+
+Approved final learning content remains a separate launch task.
 Only chapter one currently has a video; the other chapters retain their existing sample
 content. Reporting permissions are enforced for site, country and organisation scopes.
 The photo collection workspace, upload endpoints and direct photo links are platform-admin

@@ -307,6 +307,10 @@ footer strong{letter-spacing:.08em}
 .profile-scope{padding-top:4px}
 .profile-signout{display:flex;gap:10px;align-items:center;padding:14px 0 0;margin-top:6px;border:0;border-top:1px solid #e7eef2;background:none;color:#007dab;font-weight:600;width:100%;text-align:start}
 .profile-signout:disabled{opacity:.6;cursor:wait}
+.profile-version{margin-top:20px;padding-top:14px;border-top:1px solid #e7eef2;color:#6b8290;font-size:11px;line-height:1.5;font-weight:400}
+.password-recovery{max-width:480px;margin:32px auto;width:100%}
+.password-recovery .auth-help{display:block;text-align:center;margin-top:20px}
+.auth-notice{padding:16px;border-radius:12px;background:#edf8f4;color:#245e49;line-height:1.5;margin:16px 0}
 .profile-error{font-size:13px;color:#9a3244;margin:14px 0 0}
 .topbar:has(.profile-menu){height:82px;flex-wrap:nowrap}
 @media(max-width:760px){.topbar:has(.profile-menu){padding:16px 20px;gap:12px}.topbar:has(.profile-menu) .top-controls{width:auto;gap:12px;margin-inline-start:auto}.topbar:has(.profile-menu) .language-picker select{max-width:120px}.access-admin .topbar:has(.profile-menu){flex-direction:row;align-items:center}}
