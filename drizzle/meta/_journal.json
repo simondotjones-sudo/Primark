@@ -1,0 +1,27 @@
+{
+  "version": "7",
+  "dialect": "sqlite",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "6",
+      "when": 1790691082056,
+      "tag": "0000_exotic_gamora",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "6",
+      "when": 1790938294967,
+      "tag": "0001_goofy_skaar",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1791295743597,
+      "tag": "0002_unique_plazm",
+      "breakpoints": true
+    }
+  ]
+}

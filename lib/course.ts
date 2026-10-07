@@ -1,0 +1,31 @@
+export const modules = [
+  { key: "welcome", title: "Welcome and your part in safety", short: "Your part in safety", description: "Start with the everyday habits that help everyone work safely.", points: ["Know where to find help and how to raise a concern.", "Follow local instructions and ask when unsure.", "Look out for yourself, colleagues and customers."], duration: "2 min" },
+  { key: "shop-floor", title: "Safe on the shop floor", short: "Shop floor", description: "Notice hazards early and keep shared spaces clear.", points: ["Keep walkways and exits clear.", "Deal with spills using your store’s process.", "Report hazards promptly."], duration: "5 min" },
+  { key: "stockroom", title: "Safe in the stockroom", short: "Stockroom", description: "Move and store goods with care in busy back-of-house areas.", points: ["Use the correct equipment for the task.", "Keep routes and storage areas tidy.", "Ask for help with awkward loads."], duration: "6 min" },
+  { key: "fire", title: "Fire safety", short: "Fire safety", description: "Know how to act if an alarm sounds.", points: ["Learn your store’s alarm and evacuation arrangements.", "Keep fire exits clear.", "Follow the instructions of trained colleagues."], duration: "5 min" },
+  { key: "manual", title: "Manual handling", short: "Manual handling", description: "Plan the move before you lift or carry.", points: ["Check the load and route first.", "Use handling aids when available.", "Stop and ask for help if a move feels unsafe."], duration: "6 min" },
+  { key: "environment", title: "Environment and energy", short: "Environment", description: "Small decisions across the store can reduce waste.", points: ["Use the right waste and recycling streams.", "Avoid wasting water and energy.", "Follow the store’s environmental processes."], duration: "4 min" },
+] as const;
+
+export const questions = [
+  { q: "If you are unsure how to carry out a task safely, what should you do?", a: ["Guess and continue", "Ask for guidance", "Leave it for someone else"], correct: 1 },
+  { q: "When you notice a hazard on the shop floor, what is the best first step?", a: ["Ignore it", "Follow the store process and alert someone", "Wait until the end of your shift"], correct: 1 },
+  { q: "Which area must remain clear?", a: ["Fire exits", "Only display tables", "Only the till area"], correct: 0 },
+  { q: "A spill is found in a customer walkway. What should you do?", a: ["Walk past", "Use the store’s spill process", "Cover it with stock"], correct: 1 },
+  { q: "Before moving a load, you should check…", a: ["The route and the load", "Only the time", "Only the label colour"], correct: 0 },
+  { q: "An awkward load is too difficult to move safely. What next?", a: ["Move it quickly", "Ask for help or use suitable equipment", "Leave it in a walkway"], correct: 1 },
+  { q: "What should you do when the fire alarm sounds?", a: ["Follow local evacuation instructions", "Finish your task first", "Wait for a second alarm"], correct: 0 },
+  { q: "Who should you follow during an evacuation?", a: ["Trained colleagues and local instructions", "Anyone running", "Social media"], correct: 0 },
+  { q: "Where can you find the arrangements for your own store?", a: ["Local induction and store guidance", "A different store’s map", "A customer leaflet"], correct: 0 },
+  { q: "When should a safety concern be raised?", a: ["Promptly", "Only at the next annual review", "Never"], correct: 0 },
+  { q: "Which is a safer approach in the stockroom?", a: ["Keep routes tidy", "Stack items in exits", "Leave equipment in aisles"], correct: 0 },
+  { q: "What should you use for a task that needs handling equipment?", a: ["The suitable equipment and training", "Any improvised tool", "No equipment"], correct: 0 },
+  { q: "What should you do if a process is unclear?", a: ["Ask your manager or a trained colleague", "Make up a new process", "Skip the task without telling anyone"], correct: 0 },
+  { q: "Which action helps reduce waste?", a: ["Use the correct waste stream", "Mix all waste together", "Ignore local guidance"], correct: 0 },
+  { q: "Which action helps conserve energy?", a: ["Follow store energy procedures", "Leave unused equipment running", "Ignore faults"], correct: 0 },
+  { q: "What should you do if you see an obstructed exit?", a: ["Report and address it through the store process", "Leave it", "Add another box"], correct: 0 },
+  { q: "What is a good habit before starting an unfamiliar job?", a: ["Check the instructions and available support", "Start without guidance", "Assume every store is the same"], correct: 0 },
+  { q: "Who shares responsibility for a safer workplace?", a: ["Everyone", "Only the manager", "Only the newest colleague"], correct: 0 },
+  { q: "If a move begins to feel unsafe, what should you do?", a: ["Stop and reassess", "Rush to finish", "Ignore the difficulty"], correct: 0 },
+  { q: "What should you do after completing the induction?", a: ["Keep following local guidance and ask questions", "Assume you need no further help", "Ignore store procedures"], correct: 0 },
+] as const;

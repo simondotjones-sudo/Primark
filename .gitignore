@@ -1,0 +1,11 @@
+node_modules/
+.next/
+.netlify/
+.env*
+!.env.example
+*.tsbuildinfo
+*.log
+coverage/
+.DS_Store
+public/videos/chapter-1.mp4
+netlify/edge-functions/*.mjs

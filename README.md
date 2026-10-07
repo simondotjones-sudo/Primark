@@ -41,7 +41,7 @@ Netlify detects and installs its Next.js adapter automatically.
 
 This is a source migration. The initial Netlify database is empty. The existing prototype,
 its database and uploaded SCORM packages/photos remain unchanged. Source assets such as the
-chapter-one video are included, but prototype learner records, credentials, assignments,
+chapter-one video are included (the build reassembles its checksum-verified parts), but prototype learner records, credentials, assignments,
 progress and dynamically uploaded files are not committed. Transfer those privately after
 the Netlify project is available, if required; never put database exports into this public repo.
 
@@ -78,6 +78,9 @@ to `.env` for local admin access. Never commit `.env`.
 Tests use an isolated in-memory PostgreSQL engine (PGlite) and simulated blob storage.
 The 27 checks cover course publication/assignment, SCORM saving/resume, transaction rollback,
 admin authentication, learner registration/completion, multipart photos and streamed reads.
-The build and these checks do not substitute for a smoke test on the first Netlify deploy:
+The Next.js production build and serverless packaging passed. Local Edge configuration
+inspection could not reach Netlify’s type endpoint from this environment; the Edge source
+was compiled locally and its file-delivery handler passed the integration checks.
+A smoke test on the first Netlify deploy is still required:
 register a test learner, publish a small test SCORM course, save/reopen it, check reporting,
 and upload/download a photo. No Netlify deployment was created by the source migration.

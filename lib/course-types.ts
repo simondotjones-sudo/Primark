@@ -1,0 +1,12 @@
+export type Audience = { countries: string[]; sites: string[]; users: string[] };
+export type Course = { id: string; title: string; description: string; status: 'draft' | 'published'; audience_json: string; package_id: string | null; revision: number; updated_at: string; created_at: string };
+export type Person = { id: string; name: string; email: string; country: string; store_id: string };
+export type Sco = { id: string; title: string; href: string; mastery: string; launchData: string };
+export type Package = { id: string; course_id: string; filename: string; status: string; scos_json: string; created_at: string; file_count: number; total_bytes: number };
+export const emptyAudience = (): Audience => ({countries: [], sites: [], users: []});
+export function matchesAudience(a: Audience, p: Person) { return a.countries.includes(p.country) || a.sites.includes(p.store_id) || a.users.includes(p.id); }
+export function courseStatus(statuses: string[], count: number) { return statuses.length === count && count > 0 && statuses.every(s => s === 'completed' || s === 'passed') ? 'Completed' : statuses.length ? 'In progress' : 'Not started'; }
+export const MAX_ZIP = 250 * 1024 * 1024;
+export const MAX_FILE = 100 * 1024 * 1024;
+export const MAX_TOTAL = 750 * 1024 * 1024;
+export function validPath(path: string) { return !!path && path.length <= 500 && !/[\\\x00-\x1f:#?%]/.test(path) && !path.startsWith('/') && path.split('/').every(p => p && p !== '.' && p !== '..'); }

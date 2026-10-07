@@ -1,0 +1,12 @@
+[build]
+  command = "pnpm build"
+  publish = ".next"
+
+[build.environment]
+  NODE_VERSION = "22"
+
+[dev]
+  command = "pnpm dev:next"
+  targetPort = 3000
+  port = 8888
+  framework = "#custom"

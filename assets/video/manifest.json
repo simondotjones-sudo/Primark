@@ -1,0 +1,8 @@
+{
+  "output": "public/videos/chapter-1.mp4",
+  "sha256": "6d299f124bca60c9384b78d7534e9311426f16382096ce74d67cb7edb20bff6c",
+  "parts": [
+    "assets/video/chapter-1.mp4.part01",
+    "assets/video/chapter-1.mp4.part02"
+  ]
+}

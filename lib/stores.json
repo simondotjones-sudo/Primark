@@ -1,0 +1,2447 @@
+[
+  {
+    "id": "gerasdorf-vienna-7db91dd",
+    "country": "Austria",
+    "name": "Gerasdorf (Vienna)"
+  },
+  {
+    "id": "graz-37700a2",
+    "country": "Austria",
+    "name": "Graz"
+  },
+  {
+    "id": "innsbrusk-4804bad",
+    "country": "Austria",
+    "name": "Innsbrusk"
+  },
+  {
+    "id": "linz-pasching-c0f5f43",
+    "country": "Austria",
+    "name": "Linz / Pasching"
+  },
+  {
+    "id": "vienna-scs-1d7441c",
+    "country": "Austria",
+    "name": "Vienna SCS"
+  },
+  {
+    "id": "city-centre-bahrain-8eb7964",
+    "country": "Bahrain",
+    "name": "City Centre Bahrain"
+  },
+  {
+    "id": "antwerp-953223e",
+    "country": "Belgium",
+    "name": "Antwerp"
+  },
+  {
+    "id": "brussels-rue-nueve-8e85672",
+    "country": "Belgium",
+    "name": "Brussels - Rue Nueve"
+  },
+  {
+    "id": "charleroi-3daf3c6",
+    "country": "Belgium",
+    "name": "Charleroi"
+  },
+  {
+    "id": "chaussee-d-ixelles-a701f14",
+    "country": "Belgium",
+    "name": "Chaussee D'Ixelles"
+  },
+  {
+    "id": "ghent-92acb1c",
+    "country": "Belgium",
+    "name": "Ghent"
+  },
+  {
+    "id": "hasselt-5114ae0",
+    "country": "Belgium",
+    "name": "Hasselt"
+  },
+  {
+    "id": "mons-ca4fd49",
+    "country": "Belgium",
+    "name": "Mons"
+  },
+  {
+    "id": "prague-metropole-zlicin-fa8f2e0",
+    "country": "Czech Republic",
+    "name": "Prague, Metropole Zlicin"
+  },
+  {
+    "id": "primark-olympia-brno-modrice-24a74a4",
+    "country": "Czech Republic",
+    "name": "Primark Olympia Brno, Modrice"
+  },
+  {
+    "id": "primark-ostrava-3c59c67",
+    "country": "Czech Republic",
+    "name": "Primark Ostrava"
+  },
+  {
+    "id": "primark-wenceslas-square-prague-2ec1a4c",
+    "country": "Czech Republic",
+    "name": "Primark Wenceslas Square, Prague"
+  },
+  {
+    "id": "angers-b0a417c",
+    "country": "France",
+    "name": "Angers"
+  },
+  {
+    "id": "bordeaux-e7ac871",
+    "country": "France",
+    "name": "Bordeaux"
+  },
+  {
+    "id": "brest-f1a5053",
+    "country": "France",
+    "name": "Brest"
+  },
+  {
+    "id": "caen-mondeville-4819f39",
+    "country": "France",
+    "name": "Caen Mondeville"
+  },
+  {
+    "id": "cagnes-sur-mer-nice-f36e18a",
+    "country": "France",
+    "name": "Cagnes-sur-Mer (Nice)"
+  },
+  {
+    "id": "coquelles-c8ffb03",
+    "country": "France",
+    "name": "Coquelles"
+  },
+  {
+    "id": "creteil-76c4605",
+    "country": "France",
+    "name": "Creteil"
+  },
+  {
+    "id": "dijon-65eced4",
+    "country": "France",
+    "name": "Dijon"
+  },
+  {
+    "id": "evry-77baae1",
+    "country": "France",
+    "name": "Évry"
+  },
+  {
+    "id": "grenoble-6bdca8c",
+    "country": "France",
+    "name": "Grenoble"
+  },
+  {
+    "id": "la-valette-du-var-toulon-79ab651",
+    "country": "France",
+    "name": "La Valette du Var (Toulon)"
+  },
+  {
+    "id": "le-havre-4d35e85",
+    "country": "France",
+    "name": "Le Havre"
+  },
+  {
+    "id": "lille-cd0ade5",
+    "country": "France",
+    "name": "Lille"
+  },
+  {
+    "id": "lyon-e57a12d",
+    "country": "France",
+    "name": "Lyon"
+  },
+  {
+    "id": "marseille-grand-littoral-cc6ee52",
+    "country": "France",
+    "name": "Marseille - Grand Littoral"
+  },
+  {
+    "id": "metz-c377ef5",
+    "country": "France",
+    "name": "Metz"
+  },
+  {
+    "id": "montpellier-c91471b",
+    "country": "France",
+    "name": "Montpellier"
+  },
+  {
+    "id": "mulhouse-porte-jeune-08b4a65",
+    "country": "France",
+    "name": "Mulhouse, Porte Jeune"
+  },
+  {
+    "id": "nantes-f509dc1",
+    "country": "France",
+    "name": "Nantes"
+  },
+  {
+    "id": "noyelles-88c7719",
+    "country": "France",
+    "name": "Noyelles"
+  },
+  {
+    "id": "o-parinor-cd227da",
+    "country": "France",
+    "name": "O'Parinor"
+  },
+  {
+    "id": "plaisir-e001491",
+    "country": "France",
+    "name": "Plaisir"
+  },
+  {
+    "id": "primark-belle-epine-25aa6fd",
+    "country": "France",
+    "name": "Primark Belle Epine"
+  },
+  {
+    "id": "rouen-saint-sever-shopping-centre-31c402b",
+    "country": "France",
+    "name": "Rouen, Saint-Sever Shopping Centre"
+  },
+  {
+    "id": "st-etienne-fe26eb1",
+    "country": "France",
+    "name": "St-Etienne"
+  },
+  {
+    "id": "strasbourg-b2461fe",
+    "country": "France",
+    "name": "Strasbourg"
+  },
+  {
+    "id": "toulouse-77a42fc",
+    "country": "France",
+    "name": "Toulouse"
+  },
+  {
+    "id": "tours-l-heure-tranquille-shopping-c-5770e1d",
+    "country": "France",
+    "name": "Tours, L'Heure Tranquille Shopping Centre"
+  },
+  {
+    "id": "val-d-europe-36636b4",
+    "country": "France",
+    "name": "Val d'Europe"
+  },
+  {
+    "id": "villeneuve-la-garenne-6e408aa",
+    "country": "France",
+    "name": "Villeneuve La Garenne"
+  },
+  {
+    "id": "berlin-ap-d7ace81",
+    "country": "Germany",
+    "name": "Berlin AP"
+  },
+  {
+    "id": "berlin-gropius-c477443",
+    "country": "Germany",
+    "name": "Berlin Gropius"
+  },
+  {
+    "id": "berlin-zoom-22d8bbc",
+    "country": "Germany",
+    "name": "Berlin ZOOM"
+  },
+  {
+    "id": "bielefeld-5deb715",
+    "country": "Germany",
+    "name": "Bielefeld"
+  },
+  {
+    "id": "bonn-2b60c1b",
+    "country": "Germany",
+    "name": "Bonn"
+  },
+  {
+    "id": "braunschweig-a662c50",
+    "country": "Germany",
+    "name": "Braunschweig"
+  },
+  {
+    "id": "bremen-7b30615",
+    "country": "Germany",
+    "name": "Bremen"
+  },
+  {
+    "id": "cologne-392d96b",
+    "country": "Germany",
+    "name": "Cologne"
+  },
+  {
+    "id": "dortmund-077d235",
+    "country": "Germany",
+    "name": "Dortmund"
+  },
+  {
+    "id": "dresden-34d4887",
+    "country": "Germany",
+    "name": "Dresden"
+  },
+  {
+    "id": "essen-3f976c6",
+    "country": "Germany",
+    "name": "Essen"
+  },
+  {
+    "id": "frankfurt-nwz-b9d6036",
+    "country": "Germany",
+    "name": "Frankfurt NWZ"
+  },
+  {
+    "id": "frankfurt-zeil-3c1460f",
+    "country": "Germany",
+    "name": "Frankfurt Zeil"
+  },
+  {
+    "id": "hamburg-dcde4f7",
+    "country": "Germany",
+    "name": "Hamburg"
+  },
+  {
+    "id": "hannover-e268386",
+    "country": "Germany",
+    "name": "Hannover"
+  },
+  {
+    "id": "ingolstadt-c464a6e",
+    "country": "Germany",
+    "name": "Ingolstadt"
+  },
+  {
+    "id": "karlsruhe-16311ce",
+    "country": "Germany",
+    "name": "Karlsruhe"
+  },
+  {
+    "id": "kiel-ab26a85",
+    "country": "Germany",
+    "name": "Kiel"
+  },
+  {
+    "id": "leipzig-c2de614",
+    "country": "Germany",
+    "name": "Leipzig"
+  },
+  {
+    "id": "mannheim-3db8862",
+    "country": "Germany",
+    "name": "Mannheim"
+  },
+  {
+    "id": "munich-3fd5cce",
+    "country": "Germany",
+    "name": "Munich"
+  },
+  {
+    "id": "munster-8862862",
+    "country": "Germany",
+    "name": "Münster"
+  },
+  {
+    "id": "regensburg-8d00595",
+    "country": "Germany",
+    "name": "Regensburg"
+  },
+  {
+    "id": "rostock-ostsee-park-5aff780",
+    "country": "Germany",
+    "name": "Rostock (Ostsee Park)"
+  },
+  {
+    "id": "saarbrucken-73812ca",
+    "country": "Germany",
+    "name": "Saarbrucken"
+  },
+  {
+    "id": "stuttgart-konigstrasse-1310941",
+    "country": "Germany",
+    "name": "Stuttgart Konigstrasse"
+  },
+  {
+    "id": "stuttgart-milaneo-eafba9e",
+    "country": "Germany",
+    "name": "Stuttgart Milaneo"
+  },
+  {
+    "id": "wuppertal-b2a9c0a",
+    "country": "Germany",
+    "name": "Wuppertal"
+  },
+  {
+    "id": "arena-mall-budapest-east-bcadb4f",
+    "country": "Hungary",
+    "name": "Arena Mall, Budapest East"
+  },
+  {
+    "id": "arese-35c1ca4",
+    "country": "Italy",
+    "name": "Arese"
+  },
+  {
+    "id": "bari-casamassima-717d335",
+    "country": "Italy",
+    "name": "Bari Casamassima"
+  },
+  {
+    "id": "biella-gli-orsi-31277c5",
+    "country": "Italy",
+    "name": "Biella, Gli Orsi"
+  },
+  {
+    "id": "bologna-7b11190",
+    "country": "Italy",
+    "name": "Bologna"
+  },
+  {
+    "id": "brescia-aecf918",
+    "country": "Italy",
+    "name": "Brescia"
+  },
+  {
+    "id": "campi-bisenzio-florence-7a26297",
+    "country": "Italy",
+    "name": "Campi Bisenzio / Florence"
+  },
+  {
+    "id": "caserta-campania-0e92058",
+    "country": "Italy",
+    "name": "Caserta Campania"
+  },
+  {
+    "id": "catania-centro-900219d",
+    "country": "Italy",
+    "name": "Catania Centro"
+  },
+  {
+    "id": "chieti-megalo-435ccd6",
+    "country": "Italy",
+    "name": "Chieti - Megalò"
+  },
+  {
+    "id": "cosenza-82a51d4",
+    "country": "Italy",
+    "name": "Cosenza"
+  },
+  {
+    "id": "cremona-po-c3cb830",
+    "country": "Italy",
+    "name": "Cremona Po"
+  },
+  {
+    "id": "fiordaliso-ba16126",
+    "country": "Italy",
+    "name": "Fiordaliso"
+  },
+  {
+    "id": "livorno-porto-a-mare-486c63a",
+    "country": "Italy",
+    "name": "Livorno, Porto a Mare"
+  },
+  {
+    "id": "milan-via-torino-1f4c1c6",
+    "country": "Italy",
+    "name": "Milan via Torino"
+  },
+  {
+    "id": "naples-grande-sud-fdac0e4",
+    "country": "Italy",
+    "name": "Naples Grande Sud"
+  },
+  {
+    "id": "naples-la-cartiera-836027b",
+    "country": "Italy",
+    "name": "Naples La Cartiera"
+  },
+  {
+    "id": "parma-promenade-5145cd0",
+    "country": "Italy",
+    "name": "Parma Promenade"
+  },
+  {
+    "id": "pontecagnano-salerno-45012d3",
+    "country": "Italy",
+    "name": "Pontecagnano, Salerno"
+  },
+  {
+    "id": "roma-est-218cc6e",
+    "country": "Italy",
+    "name": "Roma Est"
+  },
+  {
+    "id": "roma-maximo-7328484",
+    "country": "Italy",
+    "name": "Roma Maximo"
+  },
+  {
+    "id": "turin-le-gru-a7adb73",
+    "country": "Italy",
+    "name": "Turin Le Gru"
+  },
+  {
+    "id": "turin-to-dream-b14aa06",
+    "country": "Italy",
+    "name": "Turin to Dream"
+  },
+  {
+    "id": "venice-576f8c1",
+    "country": "Italy",
+    "name": "Venice"
+  },
+  {
+    "id": "verona-0045308",
+    "country": "Italy",
+    "name": "Verona"
+  },
+  {
+    "id": "the-avenues-kuwait-47893c0",
+    "country": "Kuwait",
+    "name": "The Avenues Kuwait"
+  },
+  {
+    "id": "almere-e2a95aa",
+    "country": "Netherlands",
+    "name": "Almere"
+  },
+  {
+    "id": "amsterdam-damrak-f37510e",
+    "country": "Netherlands",
+    "name": "Amsterdam Damrak"
+  },
+  {
+    "id": "arnhem-2e6a2e1",
+    "country": "Netherlands",
+    "name": "Arnhem"
+  },
+  {
+    "id": "eindhoven-5ec9757",
+    "country": "Netherlands",
+    "name": "Eindhoven"
+  },
+  {
+    "id": "enschede-92556f0",
+    "country": "Netherlands",
+    "name": "Enschede"
+  },
+  {
+    "id": "groningen-577a490",
+    "country": "Netherlands",
+    "name": "Groningen"
+  },
+  {
+    "id": "hilversum-f491244",
+    "country": "Netherlands",
+    "name": "Hilversum"
+  },
+  {
+    "id": "hoofddorp-0d8550e",
+    "country": "Netherlands",
+    "name": "Hoofddorp"
+  },
+  {
+    "id": "nijmegen-8e7b848",
+    "country": "Netherlands",
+    "name": "Nijmegen"
+  },
+  {
+    "id": "rotterdam-401fdfa",
+    "country": "Netherlands",
+    "name": "Rotterdam"
+  },
+  {
+    "id": "rotterdam-forum-2942026",
+    "country": "Netherlands",
+    "name": "Rotterdam Forum"
+  },
+  {
+    "id": "rotterdam-zuid-d5bf61f",
+    "country": "Netherlands",
+    "name": "Rotterdam Zuid"
+  },
+  {
+    "id": "the-hague-654bf7b",
+    "country": "Netherlands",
+    "name": "The Hague"
+  },
+  {
+    "id": "tilburg-83eedc9",
+    "country": "Netherlands",
+    "name": "Tilburg"
+  },
+  {
+    "id": "utrecht-dba5d96",
+    "country": "Netherlands",
+    "name": "Utrecht"
+  },
+  {
+    "id": "venlo-3588d8f",
+    "country": "Netherlands",
+    "name": "Venlo"
+  },
+  {
+    "id": "zaandam-a91e51e",
+    "country": "Netherlands",
+    "name": "Zaandam"
+  },
+  {
+    "id": "zoetermeer-3cbcb1c",
+    "country": "Netherlands",
+    "name": "Zoetermeer"
+  },
+  {
+    "id": "zwolle-48c1bc9",
+    "country": "Netherlands",
+    "name": "Zwolle"
+  },
+  {
+    "id": "bydgoszcz-zielone-arkady-8601a54",
+    "country": "Poland",
+    "name": "Bydgoszcz – Zielone Arkady"
+  },
+  {
+    "id": "katowice-c1e5fad",
+    "country": "Poland",
+    "name": "Katowice"
+  },
+  {
+    "id": "koszalin-forum-s-c-8e76135",
+    "country": "Poland",
+    "name": "Koszalin Forum S.C"
+  },
+  {
+    "id": "krakow-bonarka-6525460",
+    "country": "Poland",
+    "name": "Krakow Bonarka"
+  },
+  {
+    "id": "lublin-felicity-850f98d",
+    "country": "Poland",
+    "name": "Lublin, Felicity"
+  },
+  {
+    "id": "manufaktura-shopping-centre-lodz-6f98558",
+    "country": "Poland",
+    "name": "Manufaktura Shopping Centre, Lodz"
+  },
+  {
+    "id": "primark-galeria-mociny-warsaw-2af694b",
+    "country": "Poland",
+    "name": "Primark Galeria Młociny, Warsaw"
+  },
+  {
+    "id": "primark-magnolia-park-sc-wroclaw-d03d4bc",
+    "country": "Poland",
+    "name": "Primark Magnolia Park SC, Wroclaw"
+  },
+  {
+    "id": "primark-posnania-mall-poznan-115fe4d",
+    "country": "Poland",
+    "name": "Primark Posnania Mall, Poznan"
+  },
+  {
+    "id": "almada-forum-lisbon-81a1a92",
+    "country": "Portugal",
+    "name": "Almada Forum Lisbon"
+  },
+  {
+    "id": "braga-parque-52e0da8",
+    "country": "Portugal",
+    "name": "Braga Parque"
+  },
+  {
+    "id": "castelo-branco-7f266f4",
+    "country": "Portugal",
+    "name": "Castelo Branco"
+  },
+  {
+    "id": "coimbra-77d1455",
+    "country": "Portugal",
+    "name": "Coimbra"
+  },
+  {
+    "id": "colombo-d55a962",
+    "country": "Portugal",
+    "name": "Colombo"
+  },
+  {
+    "id": "guimaraes-4277484",
+    "country": "Portugal",
+    "name": "Guimaraes"
+  },
+  {
+    "id": "lisbon-dolce-vita-ubbo-cd3e24d",
+    "country": "Portugal",
+    "name": "Lisbon Dolce Vita / UBBO"
+  },
+  {
+    "id": "loule-centro-comercial-mar-shopping-713eff4",
+    "country": "Portugal",
+    "name": "Loule / Centro Comercial MAR Shopping"
+  },
+  {
+    "id": "montijo-98d1de9",
+    "country": "Portugal",
+    "name": "Montijo"
+  },
+  {
+    "id": "portimao-aqua-45af91b",
+    "country": "Portugal",
+    "name": "Portimao (Aqua)"
+  },
+  {
+    "id": "porto-norteshopping-05f55d7",
+    "country": "Portugal",
+    "name": "Porto Norteshopping"
+  },
+  {
+    "id": "porto-parque-nascente-aafd613",
+    "country": "Portugal",
+    "name": "Porto Parque Nascente"
+  },
+  {
+    "id": "setubal-86fa585",
+    "country": "Portugal",
+    "name": "Setúbal"
+  },
+  {
+    "id": "sintra-lisbon-bc15447",
+    "country": "Portugal",
+    "name": "Sintra (Lisbon)"
+  },
+  {
+    "id": "viseu-418e6f6",
+    "country": "Portugal",
+    "name": "Viseu"
+  },
+  {
+    "id": "artane-0d4559d",
+    "country": "Ireland",
+    "name": "Artane"
+  },
+  {
+    "id": "athlone-b48226f",
+    "country": "Ireland",
+    "name": "Athlone"
+  },
+  {
+    "id": "ballina-aed7e0c",
+    "country": "Ireland",
+    "name": "Ballina"
+  },
+  {
+    "id": "blanchardstown-087d73a",
+    "country": "Ireland",
+    "name": "Blanchardstown"
+  },
+  {
+    "id": "bray-706fab7",
+    "country": "Ireland",
+    "name": "Bray"
+  },
+  {
+    "id": "carlow-fd01297",
+    "country": "Ireland",
+    "name": "Carlow"
+  },
+  {
+    "id": "castlebar-6369767",
+    "country": "Ireland",
+    "name": "Castlebar"
+  },
+  {
+    "id": "clonmel-8a60462",
+    "country": "Ireland",
+    "name": "Clonmel"
+  },
+  {
+    "id": "cork-patrick-st-8be0902",
+    "country": "Ireland",
+    "name": "Cork - Patrick St"
+  },
+  {
+    "id": "cork-wilton-3d0e5ac",
+    "country": "Ireland",
+    "name": "Cork - Wilton"
+  },
+  {
+    "id": "dooradoyle-d6af39e",
+    "country": "Ireland",
+    "name": "Dooradoyle"
+  },
+  {
+    "id": "drogheda-3b5a9ba",
+    "country": "Ireland",
+    "name": "Drogheda"
+  },
+  {
+    "id": "dun-laoghaire-bb7fdab",
+    "country": "Ireland",
+    "name": "Dun Laoghaire"
+  },
+  {
+    "id": "dundrum-99af11f",
+    "country": "Ireland",
+    "name": "Dundrum"
+  },
+  {
+    "id": "ennis-95b1466",
+    "country": "Ireland",
+    "name": "Ennis"
+  },
+  {
+    "id": "galway-95f588f",
+    "country": "Ireland",
+    "name": "Galway"
+  },
+  {
+    "id": "galway-eyre-square-0c30797",
+    "country": "Ireland",
+    "name": "Galway - Eyre Square"
+  },
+  {
+    "id": "kilkenny-b0c36f1",
+    "country": "Ireland",
+    "name": "Kilkenny"
+  },
+  {
+    "id": "killarney-9d79413",
+    "country": "Ireland",
+    "name": "Killarney"
+  },
+  {
+    "id": "letterkenny-b081159",
+    "country": "Ireland",
+    "name": "Letterkenny"
+  },
+  {
+    "id": "liffey-valley-14d8928",
+    "country": "Ireland",
+    "name": "Liffey Valley"
+  },
+  {
+    "id": "limerick-ab06bcd",
+    "country": "Ireland",
+    "name": "Limerick"
+  },
+  {
+    "id": "longford-71d1ecf",
+    "country": "Ireland",
+    "name": "Longford"
+  },
+  {
+    "id": "mary-st-973407b",
+    "country": "Ireland",
+    "name": "Mary St"
+  },
+  {
+    "id": "mullingar-686b614",
+    "country": "Ireland",
+    "name": "Mullingar"
+  },
+  {
+    "id": "navan-9606ede",
+    "country": "Ireland",
+    "name": "Navan"
+  },
+  {
+    "id": "newbridge-d23e7ed",
+    "country": "Ireland",
+    "name": "Newbridge"
+  },
+  {
+    "id": "nutgrove-d1b2542",
+    "country": "Ireland",
+    "name": "Nutgrove"
+  },
+  {
+    "id": "o-connell-st-15f3b41",
+    "country": "Ireland",
+    "name": "O'Connell St"
+  },
+  {
+    "id": "portlaoise-108f11b",
+    "country": "Ireland",
+    "name": "Portlaoise"
+  },
+  {
+    "id": "santry-2a08553",
+    "country": "Ireland",
+    "name": "Santry"
+  },
+  {
+    "id": "sligo-1386475",
+    "country": "Ireland",
+    "name": "Sligo"
+  },
+  {
+    "id": "swords-d25d2a4",
+    "country": "Ireland",
+    "name": "Swords"
+  },
+  {
+    "id": "tallaght-070a459",
+    "country": "Ireland",
+    "name": "Tallaght"
+  },
+  {
+    "id": "tralee-aac7033",
+    "country": "Ireland",
+    "name": "Tralee"
+  },
+  {
+    "id": "waterford-5606f98",
+    "country": "Ireland",
+    "name": "Waterford"
+  },
+  {
+    "id": "wexford-b785abc",
+    "country": "Ireland",
+    "name": "Wexford"
+  },
+  {
+    "id": "bucharest-afi-8d16eb1",
+    "country": "Romania",
+    "name": "Bucharest AFI"
+  },
+  {
+    "id": "cluj-napoca-a87fdb8",
+    "country": "Romania",
+    "name": "Cluj-Napoca"
+  },
+  {
+    "id": "craiova-electroputere-mall-445b53c",
+    "country": "Romania",
+    "name": "Craiova - Electroputere Mall"
+  },
+  {
+    "id": "iasi-palas-cf2385b",
+    "country": "Romania",
+    "name": "Iasi, Palas"
+  },
+  {
+    "id": "park-lake-65c90a0",
+    "country": "Romania",
+    "name": "Park Lake"
+  },
+  {
+    "id": "sibiu-shopping-centre-1bed359",
+    "country": "Romania",
+    "name": "Sibiu Shopping Centre"
+  },
+  {
+    "id": "timisoara-255a7c1",
+    "country": "Romania",
+    "name": "Timisoara"
+  },
+  {
+    "id": "bratislava-7039738",
+    "country": "Slovakia",
+    "name": "Bratislava"
+  },
+  {
+    "id": "ljubljana-5cc9fb5",
+    "country": "Slovenia",
+    "name": "Ljubljana"
+  },
+  {
+    "id": "albacete-0582734",
+    "country": "Spain",
+    "name": "Albacete"
+  },
+  {
+    "id": "alcala-magna-89cbb51",
+    "country": "Spain",
+    "name": "Alcalá Magna"
+  },
+  {
+    "id": "alicante-d51528f",
+    "country": "Spain",
+    "name": "Alicante"
+  },
+  {
+    "id": "algeciras-4145386",
+    "country": "Spain",
+    "name": "Algeciras"
+  },
+  {
+    "id": "almeria-torrecardenas-e0c2893",
+    "country": "Spain",
+    "name": "Almeria Torrecardenas"
+  },
+  {
+    "id": "badajoz-53d2a28",
+    "country": "Spain",
+    "name": "Badajoz"
+  },
+  {
+    "id": "barcelona-l-illa-422f9be",
+    "country": "Spain",
+    "name": "Barcelona L'Illa"
+  },
+  {
+    "id": "barcelona-plaza-catalunya-79694ab",
+    "country": "Spain",
+    "name": "Barcelona Plaza Catalunya"
+  },
+  {
+    "id": "barcelona-sant-cugat-4974a08",
+    "country": "Spain",
+    "name": "Barcelona Sant Cugat"
+  },
+  {
+    "id": "bilbao-ballonti-b537796",
+    "country": "Spain",
+    "name": "Bilbao Ballonti"
+  },
+  {
+    "id": "bilbao-gran-via-4157431",
+    "country": "Spain",
+    "name": "Bilbao Gran Via"
+  },
+  {
+    "id": "cartagena-espacio-med-a02d54e",
+    "country": "Spain",
+    "name": "Cartagena Espacio Med"
+  },
+  {
+    "id": "castellon-178463a",
+    "country": "Spain",
+    "name": "Castellon"
+  },
+  {
+    "id": "conde-de-penalver-madrid-50bfcb0",
+    "country": "Spain",
+    "name": "Conde de Peñalver, Madrid"
+  },
+  {
+    "id": "cordoba-el-arcangel-8c080bf",
+    "country": "Spain",
+    "name": "Cordoba (El Arcangel)"
+  },
+  {
+    "id": "cornella-c20c985",
+    "country": "Spain",
+    "name": "Cornella"
+  },
+  {
+    "id": "diagonal-mar-barcelona-3bf6a3b",
+    "country": "Spain",
+    "name": "Diagonal Mar - Barcelona"
+  },
+  {
+    "id": "elche-249d1b6",
+    "country": "Spain",
+    "name": "Elche"
+  },
+  {
+    "id": "espacio-leon-c3bb5d0",
+    "country": "Spain",
+    "name": "Espacio Leon"
+  },
+  {
+    "id": "fuengirola-parque-miramar-d9d8e24",
+    "country": "Spain",
+    "name": "Fuengirola Parque Miramar"
+  },
+  {
+    "id": "girona-espai-girones-a98d5fb",
+    "country": "Spain",
+    "name": "Girona - Espai Girones"
+  },
+  {
+    "id": "gran-via-89f4896",
+    "country": "Spain",
+    "name": "Gran Via"
+  },
+  {
+    "id": "granada-dd30045",
+    "country": "Spain",
+    "name": "Granada"
+  },
+  {
+    "id": "huelva-holea-0cfa1ff",
+    "country": "Spain",
+    "name": "Huelva Holea"
+  },
+  {
+    "id": "islazul-d16fafd",
+    "country": "Spain",
+    "name": "Islazul"
+  },
+  {
+    "id": "jaen-plaza-ea6e4b0",
+    "country": "Spain",
+    "name": "Jaen Plaza"
+  },
+  {
+    "id": "jerez-c20c9a6",
+    "country": "Spain",
+    "name": "Jerez"
+  },
+  {
+    "id": "la-vaguada-16ef910",
+    "country": "Spain",
+    "name": "La Vaguada"
+  },
+  {
+    "id": "lanzarote-7147e7e",
+    "country": "Spain",
+    "name": "Lanzarote"
+  },
+  {
+    "id": "logrono-el-berceo-d5cb31d",
+    "country": "Spain",
+    "name": "Logrono - El Berceo"
+  },
+  {
+    "id": "lorca-4769379",
+    "country": "Spain",
+    "name": "Lorca"
+  },
+  {
+    "id": "lugo-d0eddaf",
+    "country": "Spain",
+    "name": "Lugo"
+  },
+  {
+    "id": "madrid-la-gavia-d16a375",
+    "country": "Spain",
+    "name": "Madrid La Gavia"
+  },
+  {
+    "id": "madrid-rivas-6598e5a",
+    "country": "Spain",
+    "name": "Madrid Rivas"
+  },
+  {
+    "id": "majadahonda-ec66205",
+    "country": "Spain",
+    "name": "Majadahonda"
+  },
+  {
+    "id": "malaga-larios-5aa0288",
+    "country": "Spain",
+    "name": "Malaga / Larios"
+  },
+  {
+    "id": "marbella-la-canada-1eaec29",
+    "country": "Spain",
+    "name": "Marbella La Cañada"
+  },
+  {
+    "id": "marineda-la-coruna-a5fddd7",
+    "country": "Spain",
+    "name": "Marineda (La Coruna)"
+  },
+  {
+    "id": "melilla-d67697c",
+    "country": "Spain",
+    "name": "Melilla"
+  },
+  {
+    "id": "murcia-fbfb6ae",
+    "country": "Spain",
+    "name": "Murcia"
+  },
+  {
+    "id": "orihuela-la-zenia-0c720f8",
+    "country": "Spain",
+    "name": "Orihuela La Zenia"
+  },
+  {
+    "id": "oviedo-parque-principado-c880007",
+    "country": "Spain",
+    "name": "Oviedo - Parque Principado"
+  },
+  {
+    "id": "palma-fan-mallorca-194ffec",
+    "country": "Spain",
+    "name": "Palma FAN Mallorca"
+  },
+  {
+    "id": "pamplona-la-morea-df1e9fd",
+    "country": "Spain",
+    "name": "Pamplona La Morea"
+  },
+  {
+    "id": "parque-corredor-af249c1",
+    "country": "Spain",
+    "name": "Parque Corredor"
+  },
+  {
+    "id": "parque-sur-d7f7cb0",
+    "country": "Spain",
+    "name": "Parque Sur"
+  },
+  {
+    "id": "plenilunio-4ac33c5",
+    "country": "Spain",
+    "name": "Plenilunio"
+  },
+  {
+    "id": "roquetas-de-mar-2f9dc16",
+    "country": "Spain",
+    "name": "Roquetas de Mar"
+  },
+  {
+    "id": "san-fernando-bahia-sur-22d5a27",
+    "country": "Spain",
+    "name": "San Fernando - Bahia Sur"
+  },
+  {
+    "id": "san-sebastian-donostia-garbera-ca34f9a",
+    "country": "Spain",
+    "name": "San Sebastian Donostia - Garbera"
+  },
+  {
+    "id": "santander-valle-real-c4b9b42",
+    "country": "Spain",
+    "name": "Santander Valle Real"
+  },
+  {
+    "id": "santiago-de-compostela-e7f25b6",
+    "country": "Spain",
+    "name": "Santiago de Compostela"
+  },
+  {
+    "id": "sevilla-lagoh-5db6e0d",
+    "country": "Spain",
+    "name": "Sevilla - Lagoh"
+  },
+  {
+    "id": "sevilla-torre-sevilla-39d2b10",
+    "country": "Spain",
+    "name": "Sevilla - Torre Sevilla"
+  },
+  {
+    "id": "talavera-bf0866e",
+    "country": "Spain",
+    "name": "Talavera"
+  },
+  {
+    "id": "tarragona-70db3ef",
+    "country": "Spain",
+    "name": "Tarragona"
+  },
+  {
+    "id": "tenerife-meridiano-67f9246",
+    "country": "Spain",
+    "name": "Tenerife Meridiano"
+  },
+  {
+    "id": "toledo-d826cc5",
+    "country": "Spain",
+    "name": "Toledo"
+  },
+  {
+    "id": "valencia-bonaire-790dc64",
+    "country": "Spain",
+    "name": "Valencia - Bonaire"
+  },
+  {
+    "id": "valencia-ruzafa-0f1b66c",
+    "country": "Spain",
+    "name": "Valencia - Ruzafa"
+  },
+  {
+    "id": "valladolid-rio-shopping-6215258",
+    "country": "Spain",
+    "name": "Valladolid Rio Shopping"
+  },
+  {
+    "id": "vigo-vialia-5c45928",
+    "country": "Spain",
+    "name": "Vigo Vialia"
+  },
+  {
+    "id": "vitoria-ef4a29a",
+    "country": "Spain",
+    "name": "Vitoria"
+  },
+  {
+    "id": "xanadu-madrid-3afa742",
+    "country": "Spain",
+    "name": "Xanadu (Madrid)"
+  },
+  {
+    "id": "zaragoza-gran-casa-9476adb",
+    "country": "Spain",
+    "name": "Zaragoza Gran Casa"
+  },
+  {
+    "id": "zaragoza-puerto-venecia-434c0ed",
+    "country": "Spain",
+    "name": "Zaragoza Puerto Venecia"
+  },
+  {
+    "id": "dubai-mall-336e8f8",
+    "country": "UAE",
+    "name": "Dubai Mall"
+  },
+  {
+    "id": "dubai-mirdif-6789c5e",
+    "country": "UAE",
+    "name": "Dubai Mirdif"
+  },
+  {
+    "id": "mall-of-emirates-8ff2bb9",
+    "country": "UAE",
+    "name": "Mall of Emirates"
+  },
+  {
+    "id": "aberdeen-17d7ae2",
+    "country": "United Kingdom",
+    "name": "Aberdeen"
+  },
+  {
+    "id": "argyle-street-glasgow-f6d5fc6",
+    "country": "United Kingdom",
+    "name": "Argyle Street Glasgow"
+  },
+  {
+    "id": "ayr-cbc4969",
+    "country": "United Kingdom",
+    "name": "AYR"
+  },
+  {
+    "id": "banbury-3967a3f",
+    "country": "United Kingdom",
+    "name": "Banbury"
+  },
+  {
+    "id": "barnsley-5e15717",
+    "country": "United Kingdom",
+    "name": "Barnsley"
+  },
+  {
+    "id": "barnstaple-eba0034",
+    "country": "United Kingdom",
+    "name": "Barnstaple"
+  },
+  {
+    "id": "basildon-4f02a00",
+    "country": "United Kingdom",
+    "name": "Basildon"
+  },
+  {
+    "id": "bath-d54a476",
+    "country": "United Kingdom",
+    "name": "Bath"
+  },
+  {
+    "id": "basingstoke-47033b5",
+    "country": "United Kingdom",
+    "name": "Basingstoke"
+  },
+  {
+    "id": "bedford-716f10d",
+    "country": "United Kingdom",
+    "name": "Bedford"
+  },
+  {
+    "id": "belfast-2c6b1e2",
+    "country": "United Kingdom",
+    "name": "Belfast"
+  },
+  {
+    "id": "belfast-bank-buildings-6053f7b",
+    "country": "United Kingdom",
+    "name": "Belfast Bank Buildings"
+  },
+  {
+    "id": "bexleyheath-10f6150",
+    "country": "United Kingdom",
+    "name": "Bexleyheath"
+  },
+  {
+    "id": "birmingham-3fd2060",
+    "country": "United Kingdom",
+    "name": "Birmingham"
+  },
+  {
+    "id": "birmingham-fort-1ff8926",
+    "country": "United Kingdom",
+    "name": "Birmingham Fort"
+  },
+  {
+    "id": "birkenhead-f6b5cc5",
+    "country": "United Kingdom",
+    "name": "Birkenhead"
+  },
+  {
+    "id": "blackburn-50c0b09",
+    "country": "United Kingdom",
+    "name": "Blackburn"
+  },
+  {
+    "id": "blackpool-df69beb",
+    "country": "United Kingdom",
+    "name": "Blackpool"
+  },
+  {
+    "id": "bluewater-4f43f22",
+    "country": "United Kingdom",
+    "name": "Bluewater"
+  },
+  {
+    "id": "bolton-47117cd",
+    "country": "United Kingdom",
+    "name": "Bolton"
+  },
+  {
+    "id": "bournemouth-8228d84",
+    "country": "United Kingdom",
+    "name": "Bournemouth"
+  },
+  {
+    "id": "boscombe-a69e126",
+    "country": "United Kingdom",
+    "name": "Boscombe"
+  },
+  {
+    "id": "bradford-7774737",
+    "country": "United Kingdom",
+    "name": "Bradford"
+  },
+  {
+    "id": "bracknell-fbe98a4",
+    "country": "United Kingdom",
+    "name": "Bracknell"
+  },
+  {
+    "id": "bristol-416e169",
+    "country": "United Kingdom",
+    "name": "Bristol"
+  },
+  {
+    "id": "broughton-park-eb0aba6",
+    "country": "United Kingdom",
+    "name": "Broughton Park"
+  },
+  {
+    "id": "burnley-44fbe86",
+    "country": "United Kingdom",
+    "name": "Burnley"
+  },
+  {
+    "id": "bury-6234f38",
+    "country": "United Kingdom",
+    "name": "Bury"
+  },
+  {
+    "id": "bury-st-edmunds-2b6e65b",
+    "country": "United Kingdom",
+    "name": "Bury St Edmunds"
+  },
+  {
+    "id": "camberley-ee09cd3",
+    "country": "United Kingdom",
+    "name": "Camberley"
+  },
+  {
+    "id": "cambridge-cee48c6",
+    "country": "United Kingdom",
+    "name": "Cambridge"
+  },
+  {
+    "id": "canterbury-1300e88",
+    "country": "United Kingdom",
+    "name": "Canterbury"
+  },
+  {
+    "id": "cardiff-4931ead",
+    "country": "United Kingdom",
+    "name": "Cardiff"
+  },
+  {
+    "id": "carlisle-a5fca49",
+    "country": "United Kingdom",
+    "name": "Carlisle"
+  },
+  {
+    "id": "charlton-brocklebank-fcd5c5c",
+    "country": "United Kingdom",
+    "name": "Charlton / Brocklebank"
+  },
+  {
+    "id": "chelmsford-d005673",
+    "country": "United Kingdom",
+    "name": "Chelmsford"
+  },
+  {
+    "id": "cheltenham-d8868e1",
+    "country": "United Kingdom",
+    "name": "Cheltenham"
+  },
+  {
+    "id": "chester-abb9ca4",
+    "country": "United Kingdom",
+    "name": "Chester"
+  },
+  {
+    "id": "chesterfield-f7af827",
+    "country": "United Kingdom",
+    "name": "Chesterfield"
+  },
+  {
+    "id": "chatham-18098ae",
+    "country": "United Kingdom",
+    "name": "Chatham"
+  },
+  {
+    "id": "colchester-5b6ef7d",
+    "country": "United Kingdom",
+    "name": "Colchester"
+  },
+  {
+    "id": "corby-878d7dc",
+    "country": "United Kingdom",
+    "name": "Corby"
+  },
+  {
+    "id": "coventry-34350e1",
+    "country": "United Kingdom",
+    "name": "Coventry"
+  },
+  {
+    "id": "craigavon-910f705",
+    "country": "United Kingdom",
+    "name": "Craigavon"
+  },
+  {
+    "id": "crawley-cd4b0dc",
+    "country": "United Kingdom",
+    "name": "Crawley"
+  },
+  {
+    "id": "croydon-543b06b",
+    "country": "United Kingdom",
+    "name": "Croydon"
+  },
+  {
+    "id": "cwmbran-36a50e4",
+    "country": "United Kingdom",
+    "name": "Cwmbran"
+  },
+  {
+    "id": "darlington-549297f",
+    "country": "United Kingdom",
+    "name": "Darlington"
+  },
+  {
+    "id": "derby-932be2a",
+    "country": "United Kingdom",
+    "name": "Derby"
+  },
+  {
+    "id": "derry-781449e",
+    "country": "United Kingdom",
+    "name": "Derry"
+  },
+  {
+    "id": "doncaster-bf9c724",
+    "country": "United Kingdom",
+    "name": "Doncaster"
+  },
+  {
+    "id": "dundee-cbe8368",
+    "country": "United Kingdom",
+    "name": "Dundee"
+  },
+  {
+    "id": "dunfermline-126985b",
+    "country": "United Kingdom",
+    "name": "Dunfermline"
+  },
+  {
+    "id": "ealing-54d3dc0",
+    "country": "United Kingdom",
+    "name": "Ealing"
+  },
+  {
+    "id": "east-ham-d5e5f8b",
+    "country": "United Kingdom",
+    "name": "East Ham"
+  },
+  {
+    "id": "east-kilbride-5211d7a",
+    "country": "United Kingdom",
+    "name": "East Kilbride"
+  },
+  {
+    "id": "eastbourne-841938f",
+    "country": "United Kingdom",
+    "name": "Eastbourne"
+  },
+  {
+    "id": "edinburgh-3919405",
+    "country": "United Kingdom",
+    "name": "Edinburgh"
+  },
+  {
+    "id": "epsom-8a26861",
+    "country": "United Kingdom",
+    "name": "Epsom"
+  },
+  {
+    "id": "exeter-c03aca6",
+    "country": "United Kingdom",
+    "name": "Exeter"
+  },
+  {
+    "id": "folkestone-b1445a0",
+    "country": "United Kingdom",
+    "name": "Folkestone"
+  },
+  {
+    "id": "fort-kinnaird-b617bd8",
+    "country": "United Kingdom",
+    "name": "Fort Kinnaird"
+  },
+  {
+    "id": "fosse-park-93d2ca7",
+    "country": "United Kingdom",
+    "name": "Fosse Park"
+  },
+  {
+    "id": "glasgow-fort-a04d1f8",
+    "country": "United Kingdom",
+    "name": "Glasgow Fort"
+  },
+  {
+    "id": "gloucester-2acc2f2",
+    "country": "United Kingdom",
+    "name": "Gloucester"
+  },
+  {
+    "id": "gravesend-d538049",
+    "country": "United Kingdom",
+    "name": "Gravesend"
+  },
+  {
+    "id": "greenock-6a64784",
+    "country": "United Kingdom",
+    "name": "Greenock"
+  },
+  {
+    "id": "grimsby-c1f05b5",
+    "country": "United Kingdom",
+    "name": "Grimsby"
+  },
+  {
+    "id": "guildford-ed9af1b",
+    "country": "United Kingdom",
+    "name": "Guildford"
+  },
+  {
+    "id": "hackney-d6e34f4",
+    "country": "United Kingdom",
+    "name": "Hackney"
+  },
+  {
+    "id": "hamilton-ee91ef0",
+    "country": "United Kingdom",
+    "name": "Hamilton"
+  },
+  {
+    "id": "hanley-e413ece",
+    "country": "United Kingdom",
+    "name": "Hanley"
+  },
+  {
+    "id": "hammersmith-81e2a46",
+    "country": "United Kingdom",
+    "name": "Hammersmith"
+  },
+  {
+    "id": "harrogate-671872d",
+    "country": "United Kingdom",
+    "name": "Harrogate"
+  },
+  {
+    "id": "harrow-85ab55b",
+    "country": "United Kingdom",
+    "name": "Harrow"
+  },
+  {
+    "id": "hartlepool-14dbe1d",
+    "country": "United Kingdom",
+    "name": "Hartlepool"
+  },
+  {
+    "id": "hastings-f0c1097",
+    "country": "United Kingdom",
+    "name": "Hastings"
+  },
+  {
+    "id": "hemel-hempstead-5996311",
+    "country": "United Kingdom",
+    "name": "Hemel Hempstead"
+  },
+  {
+    "id": "hereford-9e6bd46",
+    "country": "United Kingdom",
+    "name": "Hereford"
+  },
+  {
+    "id": "high-wycombe-7cb4dd8",
+    "country": "United Kingdom",
+    "name": "High Wycombe"
+  },
+  {
+    "id": "hounslow-6e6b9c6",
+    "country": "United Kingdom",
+    "name": "Hounslow"
+  },
+  {
+    "id": "huddersfield-eca530b",
+    "country": "United Kingdom",
+    "name": "Huddersfield"
+  },
+  {
+    "id": "hull-a8c3ec6",
+    "country": "United Kingdom",
+    "name": "Hull"
+  },
+  {
+    "id": "ilford-85e8565",
+    "country": "United Kingdom",
+    "name": "Ilford"
+  },
+  {
+    "id": "inverness-b020615",
+    "country": "United Kingdom",
+    "name": "Inverness"
+  },
+  {
+    "id": "ipswich-ddd8404",
+    "country": "United Kingdom",
+    "name": "Ipswich"
+  },
+  {
+    "id": "irvine-9c0782f",
+    "country": "United Kingdom",
+    "name": "Irvine"
+  },
+  {
+    "id": "kings-lynn-42922b7",
+    "country": "United Kingdom",
+    "name": "Kings Lynn"
+  },
+  {
+    "id": "kilburn-99fc57f",
+    "country": "United Kingdom",
+    "name": "Kilburn"
+  },
+  {
+    "id": "kingston-46cade1",
+    "country": "United Kingdom",
+    "name": "Kingston"
+  },
+  {
+    "id": "lakeside-837724d",
+    "country": "United Kingdom",
+    "name": "Lakeside"
+  },
+  {
+    "id": "lancaster-market-gate-9450197",
+    "country": "United Kingdom",
+    "name": "Lancaster / Market Gate"
+  },
+  {
+    "id": "leeds-ba1a8cb",
+    "country": "United Kingdom",
+    "name": "Leeds"
+  },
+  {
+    "id": "leeds-white-rose-a8cda5a",
+    "country": "United Kingdom",
+    "name": "Leeds White Rose"
+  },
+  {
+    "id": "leicester-fcc039a",
+    "country": "United Kingdom",
+    "name": "Leicester"
+  },
+  {
+    "id": "lincoln-f77cc30",
+    "country": "United Kingdom",
+    "name": "Lincoln"
+  },
+  {
+    "id": "liverpool-197f8b4",
+    "country": "United Kingdom",
+    "name": "Liverpool"
+  },
+  {
+    "id": "livingston-c5384d2",
+    "country": "United Kingdom",
+    "name": "Livingston"
+  },
+  {
+    "id": "loughborough-4435107",
+    "country": "United Kingdom",
+    "name": "Loughborough"
+  },
+  {
+    "id": "luton-42551e9",
+    "country": "United Kingdom",
+    "name": "Luton"
+  },
+  {
+    "id": "manchester-78ae262",
+    "country": "United Kingdom",
+    "name": "Manchester"
+  },
+  {
+    "id": "mansfield-fa774ef",
+    "country": "United Kingdom",
+    "name": "Mansfield"
+  },
+  {
+    "id": "margate-thanet-e443980",
+    "country": "United Kingdom",
+    "name": "Margate / Thanet"
+  },
+  {
+    "id": "meadowhall-df7cefe",
+    "country": "United Kingdom",
+    "name": "Meadowhall"
+  },
+  {
+    "id": "merry-hill-80c0eed",
+    "country": "United Kingdom",
+    "name": "Merry Hill"
+  },
+  {
+    "id": "metro-newcastle-1f3eacb",
+    "country": "United Kingdom",
+    "name": "Metro Newcastle"
+  },
+  {
+    "id": "middlesbrough-28f48a8",
+    "country": "United Kingdom",
+    "name": "Middlesbrough"
+  },
+  {
+    "id": "milton-keynes-centre-mk-7dda50f",
+    "country": "United Kingdom",
+    "name": "Milton Keynes – Centre MK"
+  },
+  {
+    "id": "milton-keynes-stadium-21d7ae4",
+    "country": "United Kingdom",
+    "name": "Milton Keynes – Stadium"
+  },
+  {
+    "id": "motherwell-7e084b4",
+    "country": "United Kingdom",
+    "name": "Motherwell"
+  },
+  {
+    "id": "newbury-b3643f9",
+    "country": "United Kingdom",
+    "name": "Newbury"
+  },
+  {
+    "id": "newcastle-c9b0a8e",
+    "country": "United Kingdom",
+    "name": "Newcastle"
+  },
+  {
+    "id": "newport-25daa70",
+    "country": "United Kingdom",
+    "name": "Newport"
+  },
+  {
+    "id": "newry-e18716a",
+    "country": "United Kingdom",
+    "name": "Newry"
+  },
+  {
+    "id": "newtownabbey-de23508",
+    "country": "United Kingdom",
+    "name": "NewtownAbbey"
+  },
+  {
+    "id": "newtownards-6b0bd41",
+    "country": "United Kingdom",
+    "name": "Newtownards"
+  },
+  {
+    "id": "northampton-1e8a9d5",
+    "country": "United Kingdom",
+    "name": "Northampton"
+  },
+  {
+    "id": "norwich-52a7f21",
+    "country": "United Kingdom",
+    "name": "Norwich"
+  },
+  {
+    "id": "nottingham-e830370",
+    "country": "United Kingdom",
+    "name": "Nottingham"
+  },
+  {
+    "id": "oldham-df50623",
+    "country": "United Kingdom",
+    "name": "Oldham"
+  },
+  {
+    "id": "omagh-53efb45",
+    "country": "United Kingdom",
+    "name": "Omagh"
+  },
+  {
+    "id": "oxford-st-east-tottenham-court-e0e2ef0",
+    "country": "United Kingdom",
+    "name": "Oxford St East (Tottenham Court)"
+  },
+  {
+    "id": "oxford-st-west-marble-arch-8bda4b5",
+    "country": "United Kingdom",
+    "name": "Oxford St West (Marble Arch)"
+  },
+  {
+    "id": "oxford-westgate-47c73ee",
+    "country": "United Kingdom",
+    "name": "Oxford Westgate"
+  },
+  {
+    "id": "park-head-glasgow-72289ed",
+    "country": "United Kingdom",
+    "name": "Park Head Glasgow"
+  },
+  {
+    "id": "perth-6142ebb",
+    "country": "United Kingdom",
+    "name": "Perth"
+  },
+  {
+    "id": "peterborough-d6693fb",
+    "country": "United Kingdom",
+    "name": "Peterborough"
+  },
+  {
+    "id": "plymouth-15d3069",
+    "country": "United Kingdom",
+    "name": "Plymouth"
+  },
+  {
+    "id": "poole-3022238",
+    "country": "United Kingdom",
+    "name": "Poole"
+  },
+  {
+    "id": "portsmouth-4190cc1",
+    "country": "United Kingdom",
+    "name": "Portsmouth"
+  },
+  {
+    "id": "preston-bb2debb",
+    "country": "United Kingdom",
+    "name": "Preston"
+  },
+  {
+    "id": "reading-aaf3204",
+    "country": "United Kingdom",
+    "name": "Reading"
+  },
+  {
+    "id": "redditch-b098c4e",
+    "country": "United Kingdom",
+    "name": "Redditch"
+  },
+  {
+    "id": "romford-617e4d5",
+    "country": "United Kingdom",
+    "name": "Romford"
+  },
+  {
+    "id": "rotherham-58acb9c",
+    "country": "United Kingdom",
+    "name": "Rotherham"
+  },
+  {
+    "id": "rushden-lakes-b351e24",
+    "country": "United Kingdom",
+    "name": "Rushden Lakes"
+  },
+  {
+    "id": "salisbury-54901ce",
+    "country": "United Kingdom",
+    "name": "Salisbury"
+  },
+  {
+    "id": "scunthorpe-463d7b3",
+    "country": "United Kingdom",
+    "name": "Scunthorpe"
+  },
+  {
+    "id": "sheffield-acc33b7",
+    "country": "United Kingdom",
+    "name": "Sheffield"
+  },
+  {
+    "id": "shrewsbury-1efdb9e",
+    "country": "United Kingdom",
+    "name": "Shrewsbury"
+  },
+  {
+    "id": "slough-2c89e04",
+    "country": "United Kingdom",
+    "name": "Slough"
+  },
+  {
+    "id": "southampton-1e05bf5",
+    "country": "United Kingdom",
+    "name": "Southampton"
+  },
+  {
+    "id": "southend-8e2f50a",
+    "country": "United Kingdom",
+    "name": "Southend"
+  },
+  {
+    "id": "southport-6ae6d13",
+    "country": "United Kingdom",
+    "name": "Southport"
+  },
+  {
+    "id": "stevenage-633ecd0",
+    "country": "United Kingdom",
+    "name": "Stevenage"
+  },
+  {
+    "id": "stockport-35a803e",
+    "country": "United Kingdom",
+    "name": "Stockport"
+  },
+  {
+    "id": "stratford-city-b1d9eea",
+    "country": "United Kingdom",
+    "name": "Stratford City"
+  },
+  {
+    "id": "staines-b7e361f",
+    "country": "United Kingdom",
+    "name": "Staines"
+  },
+  {
+    "id": "sunderland-1da258a",
+    "country": "United Kingdom",
+    "name": "Sunderland"
+  },
+  {
+    "id": "swansea-f57f897",
+    "country": "United Kingdom",
+    "name": "Swansea"
+  },
+  {
+    "id": "sutton-8171e3e",
+    "country": "United Kingdom",
+    "name": "Sutton"
+  },
+  {
+    "id": "swindon-4c50081",
+    "country": "United Kingdom",
+    "name": "Swindon"
+  },
+  {
+    "id": "tamworth-62934a1",
+    "country": "United Kingdom",
+    "name": "Tamworth"
+  },
+  {
+    "id": "taunton-1e29060",
+    "country": "United Kingdom",
+    "name": "Taunton"
+  },
+  {
+    "id": "teesside-park-bd6e2c6",
+    "country": "United Kingdom",
+    "name": "Teesside Park"
+  },
+  {
+    "id": "telford-c6638cc",
+    "country": "United Kingdom",
+    "name": "Telford"
+  },
+  {
+    "id": "torquay-4e8eab1",
+    "country": "United Kingdom",
+    "name": "Torquay"
+  },
+  {
+    "id": "trafford-d52ead1",
+    "country": "United Kingdom",
+    "name": "Trafford"
+  },
+  {
+    "id": "trafford-home-3324a62",
+    "country": "United Kingdom",
+    "name": "Trafford Home"
+  },
+  {
+    "id": "truro-lemon-quay-d7e9127",
+    "country": "United Kingdom",
+    "name": "Truro Lemon Quay"
+  },
+  {
+    "id": "tunbridge-wells-d2c3db5",
+    "country": "United Kingdom",
+    "name": "Tunbridge Wells"
+  },
+  {
+    "id": "uxbridge-8d459bf",
+    "country": "United Kingdom",
+    "name": "Uxbridge"
+  },
+  {
+    "id": "wakefield-e87f578",
+    "country": "United Kingdom",
+    "name": "Wakefield"
+  },
+  {
+    "id": "wallasey-4f5c68b",
+    "country": "United Kingdom",
+    "name": "Wallasey"
+  },
+  {
+    "id": "walsall-19d9178",
+    "country": "United Kingdom",
+    "name": "Walsall"
+  },
+  {
+    "id": "wandsworth-73b37a5",
+    "country": "United Kingdom",
+    "name": "Wandsworth"
+  },
+  {
+    "id": "warrington-82f3e26",
+    "country": "United Kingdom",
+    "name": "Warrington"
+  },
+  {
+    "id": "watford-f2e80e6",
+    "country": "United Kingdom",
+    "name": "Watford"
+  },
+  {
+    "id": "wembley-f87d804",
+    "country": "United Kingdom",
+    "name": "Wembley"
+  },
+  {
+    "id": "west-bromwich-35945b1",
+    "country": "United Kingdom",
+    "name": "West Bromwich"
+  },
+  {
+    "id": "westfield-london-white-city-4ecd333",
+    "country": "United Kingdom",
+    "name": "Westfield London (White City)"
+  },
+  {
+    "id": "weymouth-939e6be",
+    "country": "United Kingdom",
+    "name": "Weymouth"
+  },
+  {
+    "id": "wigan-70dcfb6",
+    "country": "United Kingdom",
+    "name": "Wigan"
+  },
+  {
+    "id": "winchester-db015ef",
+    "country": "United Kingdom",
+    "name": "Winchester\""
+  },
+  {
+    "id": "woking-9118f6a",
+    "country": "United Kingdom",
+    "name": "Woking"
+  },
+  {
+    "id": "wolverhampton-5f3a961",
+    "country": "United Kingdom",
+    "name": "Wolverhampton"
+  },
+  {
+    "id": "wood-green-a710377",
+    "country": "United Kingdom",
+    "name": "Wood Green"
+  },
+  {
+    "id": "woolwich-95a05b8",
+    "country": "United Kingdom",
+    "name": "Woolwich"
+  },
+  {
+    "id": "worcester-40f8641",
+    "country": "United Kingdom",
+    "name": "Worcester"
+  },
+  {
+    "id": "wrexham-c40168e",
+    "country": "United Kingdom",
+    "name": "Wrexham"
+  },
+  {
+    "id": "yeovil-3eb2e34",
+    "country": "United Kingdom",
+    "name": "Yeovil"
+  },
+  {
+    "id": "york-coppergate-a99e299",
+    "country": "United Kingdom",
+    "name": "York Coppergate"
+  },
+  {
+    "id": "york-monks-cross-c8f201e",
+    "country": "United Kingdom",
+    "name": "York Monks Cross"
+  },
+  {
+    "id": "american-dream-efc63aa",
+    "country": "United States",
+    "name": "American Dream"
+  },
+  {
+    "id": "arundel-mills-baltimore-md-10557f8",
+    "country": "United States",
+    "name": "Arundel Mills, Baltimore, MD"
+  },
+  {
+    "id": "boston-downtown-crossing-dtx-9e0d591",
+    "country": "United States",
+    "name": "Boston Downtown Crossing (DTX)"
+  },
+  {
+    "id": "braintree-primark-south-shore-plaza-4a9c518",
+    "country": "United States",
+    "name": "Braintree / Primark South Shore Plaza"
+  },
+  {
+    "id": "brooklyn-primark-kings-plaza-mall-6820e6b",
+    "country": "United States",
+    "name": "Brooklyn / Primark King’s Plaza Mall"
+  },
+  {
+    "id": "buffalo-ny-0d85367",
+    "country": "United States",
+    "name": "Buffalo, NY"
+  },
+  {
+    "id": "burlington-96ac77e",
+    "country": "United States",
+    "name": "Burlington"
+  },
+  {
+    "id": "castleton-square-96cae04",
+    "country": "United States",
+    "name": "Castleton Square"
+  },
+  {
+    "id": "chicago-state-street-76a0f3d",
+    "country": "United States",
+    "name": "Chicago State Street"
+  },
+  {
+    "id": "city-point-brooklyn-6d4a569",
+    "country": "United States",
+    "name": "City Point, Brooklyn"
+  },
+  {
+    "id": "concord-mills-fb7690d",
+    "country": "United States",
+    "name": "Concord Mills"
+  },
+  {
+    "id": "crossgates-albany-75e6640",
+    "country": "United States",
+    "name": "Crossgates, Albany"
+  },
+  {
+    "id": "danbury-03a0fbd",
+    "country": "United States",
+    "name": "Danbury"
+  },
+  {
+    "id": "fl-dolphin-mall-miami-0ad52b5",
+    "country": "United States",
+    "name": "FL, Dolphin Mall, Miami"
+  },
+  {
+    "id": "freehold-6536276",
+    "country": "United States",
+    "name": "Freehold"
+  },
+  {
+    "id": "great-lakes-crossing-5000aee",
+    "country": "United States",
+    "name": "Great Lakes Crossing"
+  },
+  {
+    "id": "green-acres-long-island-f159537",
+    "country": "United States",
+    "name": "Green Acres, Long Island"
+  },
+  {
+    "id": "herald-square-c165d18",
+    "country": "United States",
+    "name": "Herald Square"
+  },
+  {
+    "id": "il-gurnee-mills-949a877",
+    "country": "United States",
+    "name": "IL Gurnee Mills"
+  },
+  {
+    "id": "jamaica-ave-6d57326",
+    "country": "United States",
+    "name": "Jamaica Ave"
+  },
+  {
+    "id": "jersey-gardens-f50cbd0",
+    "country": "United States",
+    "name": "Jersey Gardens"
+  },
+  {
+    "id": "king-of-prussia-aa597d0",
+    "country": "United States",
+    "name": "King of Prussia\""
+  },
+  {
+    "id": "mall-of-america-0993e16",
+    "country": "United States",
+    "name": "Mall of America"
+  },
+  {
+    "id": "mall-of-prince-george-hyattsville-u-bf284b4",
+    "country": "United States",
+    "name": "Mall of Prince George, Hyattsville USA"
+  },
+  {
+    "id": "nj-newport-centre-jersey-city-adc8d54",
+    "country": "United States",
+    "name": "NJ Newport Centre, Jersey City"
+  },
+  {
+    "id": "nyc-queens-center-queens-35253c5",
+    "country": "United States",
+    "name": "NYC Queens Center, Queens"
+  },
+  {
+    "id": "orlando-florida-53d3e63",
+    "country": "United States",
+    "name": "Orlando, Florida"
+  },
+  {
+    "id": "philadelphia-fashion-district-c7aed4f",
+    "country": "United States",
+    "name": "Philadelphia Fashion District"
+  },
+  {
+    "id": "potomac-mills-va-729a343",
+    "country": "United States",
+    "name": "Potomac Mills, VA"
+  },
+  {
+    "id": "roosevelt-field-7d89c23",
+    "country": "United States",
+    "name": "Roosevelt Field"
+  },
+  {
+    "id": "sawgrass-563b0c5",
+    "country": "United States",
+    "name": "Sawgrass"
+  },
+  {
+    "id": "smith-haven-42269c3",
+    "country": "United States",
+    "name": "Smith Haven"
+  },
+  {
+    "id": "staten-island-c55f175",
+    "country": "United States",
+    "name": "Staten Island"
+  },
+  {
+    "id": "sugarloaf-mills-27573c6",
+    "country": "United States",
+    "name": "Sugarloaf Mills"
+  },
+  {
+    "id": "tn-cool-springs-galleria-64e650a",
+    "country": "United States",
+    "name": "TN, Cool Springs Galleria"
+  },
+  {
+    "id": "tn-wolfchase-galleria-60f58bf",
+    "country": "United States",
+    "name": "TN Wolfchase Galleria"
+  },
+  {
+    "id": "tx-grapevine-mills-dallas-fe1c27e",
+    "country": "United States",
+    "name": "TX Grapevine Mills, Dallas"
+  },
+  {
+    "id": "tx-katy-mills-houston-16da35c",
+    "country": "United States",
+    "name": "TX Katy Mills, Houston"
+  },
+  {
+    "id": "tx-la-plaza-mall-mcallen-3e085f2",
+    "country": "United States",
+    "name": "TX La Plaza Mall, McAllen"
+  },
+  {
+    "id": "tx-parks-at-arlington-cba6719",
+    "country": "United States",
+    "name": "TX Parks at Arlington"
+  },
+  {
+    "id": "north-east-mall-texas-5e10a31",
+    "country": "United States",
+    "name": "North East Mall, Texas"
+  },
+  {
+    "id": "texas-cielo-vista-mall-ab88123",
+    "country": "United States",
+    "name": "Texas Cielo Vista Mall"
+  },
+  {
+    "id": "tysons-corner-washington-va-a319132",
+    "country": "United States",
+    "name": "Tysons Corner, Washington, VA"
+  },
+  {
+    "id": "vineland-premium-outlets-22f63dd",
+    "country": "United States",
+    "name": "Vineland Premium Outlets"
+  },
+  {
+    "id": "willowbrook-mall-houston-tx-85816dd",
+    "country": "United States",
+    "name": "Willowbrook Mall, Houston TX"
+  },
+  {
+    "id": "willow-grove-1819ce1",
+    "country": "United States",
+    "name": "Willow Grove"
+  },
+  {
+    "id": "woodfield-mall-chicago-il-09296cf",
+    "country": "United States",
+    "name": "Woodfield Mall, Chicago, IL"
+  }
+]
