@@ -274,7 +274,7 @@ footer strong{letter-spacing:.08em}
 
 .sidebar>.shot-list-nav{font-size:.93rem;padding:11px 12px;flex:none}
 @media(max-width:760px){.code-banner{flex-wrap:wrap}.code-banner>div{min-width:0;flex:1 1 180px}}
-.assigned-course{display:block;padding:25px;position:relative;color:inherit}.assigned-course>svg{color:#008bc9;margin-bottom:20px}.assigned-course>.status{position:absolute;top:23px;right:20px}.assigned-course h3{font-size:23px;font-weight:600;margin:0 0 12px}.assigned-course p{color:#617988}.assigned-course>strong{color:#007cb9}.assigned-courses{margin:25px 0 35px}.admin-nav-link{color:#007cb9;font-weight:600;padding:11px 16px;font-size:14px}
+.assigned-course{display:flex;flex-direction:column;padding:0;overflow:hidden;color:inherit}.assigned-course-cover{position:relative;aspect-ratio:16/9;background:#eaf7fc}.course-cover-image{object-fit:cover;object-position:center 38%}.assigned-course-details{display:flex;flex:1;flex-direction:column;align-items:flex-start;padding:22px 25px 25px}.assigned-course-details>.status{position:static;max-width:100%;margin-bottom:14px}.assigned-course h3{font-size:23px;font-weight:600;margin:0 0 12px;overflow-wrap:anywhere}.assigned-course p{color:#617988;margin:0 0 20px}.assigned-course-details>strong{color:#007cb9;margin-top:auto}.assigned-course:focus-visible{outline:3px solid #008bc9;outline-offset:4px}.assigned-courses{margin:25px 0 35px}.admin-nav-link{color:#007cb9;font-weight:600;padding:11px 16px;font-size:14px}
 
 /* Account controls wrap without crowding the learning header on small screens. */
 

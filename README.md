@@ -165,3 +165,31 @@ separate secure session; a learner with the same email never inherits admin righ
 Old `/admin/sign-in` links redirect to the Login tab, preserving a safe return path.
 Opening the profile or returning to the browser rechecks permissions without clearing
 the dashboard when access is unchanged. Actual scope/filter changes still reload reports.
+
+
+### Course cover images
+
+Assigned course tiles and the Manage courses list use the same shared subject mapping
+in `lib/course-covers.ts`. All 34 imported records are mapped, including their language
+and country variants. Category takes precedence; English/original title matching supports
+older uncategorised uploads, with the induction image as a fallback. This is a presentation
+change: there is no migration, publishing, assignment or learning-record update.
+
+| Category | Cover | Origin |
+| --- | --- | --- |
+| Induction | Colleagues walking through the store | Existing |
+| Manual Handling | Stockroom trolley teamwork | Existing |
+| Dignity at Work | Inclusive colleague conversation | Existing |
+| Workplace Violence Prevention | Colleagues discussing observations | Existing |
+| Fire Safety | Fire warden briefing | New |
+| Emergency Response | Calm evacuation drill | New |
+| Equipment Safety (Baler Safety) | Briefing beside a closed baler | New |
+| Night Work | Evening handover in store | New |
+
+The other four existing covers remain available for data protection, accessibility,
+safeguarding and code of conduct courses. `components/course-cover.tsx` uses Next Image
+with responsive sizes, lazy loading, reserved space and a blur placeholder. The four
+new WebP assets together are approximately 458 KiB; generated source prompts and the
+reference asset are recorded in `docs/course-cover-prompts.json`. Images are decorative
+because the course title immediately identifies each tile/row. Course details previews
+the cover as its category is edited. Existing prototype sample covers are unchanged.

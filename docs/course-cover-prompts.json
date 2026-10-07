@@ -1,0 +1,27 @@
+{
+  "generator": "Built-in image generation",
+  "reference": "public/course-images/security.png",
+  "created": "2026-10-07",
+  "assets": [
+    {
+      "key": "fire-safety",
+      "prompt": "Use case: photorealistic-natural. Asset type: landscape course-cover photograph for Primark Safety Passport retail learning app. Match the reference image's visual style precisely: candid polished retail photography, bright cyan-blue short-sleeve colleague shirts with narrow dark trim, black trousers, diverse adult colleagues, modern spacious clothing store, warm neutral shelves and soft natural lighting, realistic skin and fabric, restrained friendly expressions. New scene, NOT an edit of the reference. Landscape 4:3 composition, subject visible in center 16:9 crop and at thumbnail size. No readable text, logos, watermarks, decorative borders or title overlays. Educational cover photograph, not a technical instruction diagram. Scene: A retail fire warden awareness briefing. Two adult store colleagues in blue uniforms stand in an uncluttered back-of-house corridor, one additionally wearing a yellow high-visibility vest. They look attentively at a red wall-mounted fire extinguisher with its safety pin intact and a simple green emergency-exit pictogram in the softly blurred background. They keep hands away from the extinguisher controls; no demonstration, flames or smoke. Equipment and people's faces both visible.",
+      "path": "public/course-images/fire-safety.webp"
+    },
+    {
+      "key": "emergency-response",
+      "prompt": "Use case: photorealistic-natural. Asset type: landscape course-cover photograph for Primark Safety Passport retail learning app. Match the reference image's visual style precisely: candid polished retail photography, bright cyan-blue short-sleeve colleague shirts with narrow dark trim, black trousers, diverse adult colleagues, modern spacious clothing store, warm neutral shelves and soft natural lighting, realistic skin and fabric, restrained friendly expressions. New scene, NOT an edit of the reference. Landscape 4:3 composition, subject visible in center 16:9 crop and at thumbnail size. No readable text, logos, watermarks, decorative borders or title overlays. Educational cover photograph, not a technical instruction diagram. Scene: A calm evacuation drill in a modern fashion store. One adult colleague in blue uniform calmly indicates the clear route through a wide open emergency exit while two adult colleagues follow at a walking pace. Exit pictogram above doorway only, no words. Bright daylight beyond the exit. Clear unobstructed aisle, no flames, smoke, panic, running or equipment use. Compose to show the direction gesture, faces and exit.",
+      "path": "public/course-images/emergency-response.webp"
+    },
+    {
+      "key": "baler-safety",
+      "prompt": "Use case: photorealistic-natural. Asset type: landscape course-cover photograph for Primark Safety Passport retail learning app. Match the reference image's visual style precisely: candid polished retail photography, bright cyan-blue short-sleeve colleague shirts with narrow dark trim, black trousers, diverse adult colleagues, modern spacious clothing store, warm neutral shelves and soft natural lighting, realistic skin and fabric, restrained friendly expressions. New scene, NOT an edit of the reference. Landscape 4:3 composition, subject visible in center 16:9 crop and at thumbnail size. No readable text, logos, watermarks, decorative borders or title overlays. Educational cover photograph, not a technical instruction diagram. Scene: A baler-safety awareness briefing in a tidy fashion-retail stockroom. A realistic modern grey vertical cardboard baler stands with every solid safety door fully closed, no exposed mechanism, no open apertures. Two adult retail colleagues in blue uniforms stand a safe distance beside it discussing the machine with a clipboard; no hands on controls, no loading or operation, nobody reaching inside. Neatly flattened cardboard stacked separately off the walkway. Faces and closed machine visible. No printed words or labels.",
+      "path": "public/course-images/baler-safety.webp"
+    },
+    {
+      "key": "night-work",
+      "prompt": "Use case: photorealistic-natural. Asset type: landscape course-cover photograph for Primark Safety Passport retail learning app. Match the reference image's visual style precisely: candid polished retail photography, bright cyan-blue short-sleeve colleague shirts with narrow dark trim, black trousers, diverse adult colleagues, modern spacious clothing store, warm neutral shelves and soft natural lighting, realistic skin and fabric, restrained friendly expressions. New scene, NOT an edit of the reference. Landscape 4:3 composition, subject visible in center 16:9 crop and at thumbnail size. No readable text, logos, watermarks, decorative borders or title overlays. Educational cover photograph, not a technical instruction diagram. Scene: Night-shift retail colleagues beginning work in a modern clothing store after closing. Two alert adult colleagues wearing matching blue uniforms and black trousers have a calm friendly handover beside tidy clothing rails, one holding a tablet. Store interior remains brightly and safely lit; large glass storefront windows in background show a dark blue evening sky and subtle city lights. No customers. Faces naturally lit, same bright clean palette as reference, not moody or ominous.",
+      "path": "public/course-images/night-work.webp"
+    }
+  ]
+}

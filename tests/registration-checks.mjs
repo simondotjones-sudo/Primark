@@ -18,6 +18,30 @@ export async function registrationChecks({m,check,query,invoke,loginAdmin,cookie
     await pg.exec(readFileSync('netlify/database/migrations/005_seed-primark-courses/migration.sql','utf8'));
     assert.equal(Number((await query('SELECT COUNT(*) AS n FROM courses WHERE source_course_id IS NOT NULL').first()).n),34);
   });
+  await check('Every imported country/language variant receives the correct subject cover',async()=>{
+    const rows=(await query('SELECT * FROM courses WHERE source_course_id IS NOT NULL').all()).results;
+    const expected={
+      'safety-pass':['264','154','673','209','191','473','2006','168','192'],
+      'dignity':['2487','2521','2520','2522','2470'],
+      'security':['2525','2371'],
+      'baler-safety':['1877'],
+      'emergency-response':['819','236','1743','1755','1860','1765','235','1769'],
+      'fire-safety':['169','208','1878','474','587','462'],
+      'manual-handling':['2509'],
+      'night-work':['2379','329'],
+    };
+    assert.equal(Object.values(expected).flat().length,rows.length);
+    for(const [cover,ids] of Object.entries(expected))for(const id of ids){
+      const course=rows.find(c=>c.source_course_id===id);
+      assert(course,'Missing imported course '+id);
+      assert.equal(m.covers.courseCoverKey(course),cover,course.title);
+      // English titles provide a fallback for uncategorised pre-import uploads.
+      assert.equal(m.covers.courseCoverKey({...course,category:''}),cover,course.title);
+    }
+    assert.equal(m.covers.courseCoverKey({title:'Unknown course'}),'safety-pass');
+    assert.equal(m.covers.courseCoverKey({title:'Induction Positive Workplace: Preventing Harassment'}),'dignity');
+    assert.equal(m.covers.courseCoverKey({title:'Fire warden',category:'Night Work'}),'night-work');
+  });
   await check('Registration requires safety, a password and a matching country/store; the shared code grants no admin rights',async()=>{
     for(const extra of [{registrationCode:''},{registrationCode:'wrong'},{registrationCode:'"safety"'},{password:'short'},{country:'Germany'}])assert.equal((await register('invalid@example.test',store,extra)).status,400);
     assert.equal(await query('SELECT id FROM learners WHERE email=?','invalid@example.test').first(),null);
@@ -57,6 +81,7 @@ export async function registrationChecks({m,check,query,invoke,loginAdmin,cookie
     assert.deepEqual((await (await getCourses(germanCookie)).json()).courses.map(c=>c.id),['legacy-154']);
     assert.equal((await invoke(m.scorm,'POST','/api/scorm',{action:'launch',courseId:'legacy-264'},germanCookie)).status,404);
     assert.deepEqual((await (await getCourses(irishCookie)).json()).courses.map(c=>c.id),['legacy-154']);
+    assert.equal((await (await getCourses(irishCookie)).json()).courses[0].coverKey,'safety-pass');
   });
   await check('Country induction wins for new joiners; existing assignments and SCORM resume remain pinned',async()=>{
     await ready('legacy-264');

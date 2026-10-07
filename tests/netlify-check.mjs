@@ -29,6 +29,7 @@ export * as access from '${process.cwd()}/app/api/admin/reporting-access/route.t
 export * as learnerAuth from '${process.cwd()}/lib/learner-auth.ts';
 export * as courseAccess from '${process.cwd()}/lib/course-access.ts';
 export * as catalogue from '${process.cwd()}/lib/course-catalogue.ts';
+export * as covers from '${process.cwd()}/lib/course-covers.ts';
 export * as manager from '${process.cwd()}/app/api/store/route.ts';
 export * as courses from '${process.cwd()}/app/api/courses/route.ts';
 export * as scorm from '${process.cwd()}/app/api/scorm/route.ts';
