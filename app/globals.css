@@ -357,3 +357,14 @@ footer strong{letter-spacing:.08em}
 .profile-panel .profile-group .profile-link:hover,.profile-panel .profile-group .profile-link[aria-current="page"]{background:#e8f5fb;color:#007dab}
 .profile-panel .language-picker>.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
 .topbar:has(.profile-menu) .profile-panel .language-picker select{max-width:170px}
+
+/* One segmented-control treatment across learning, reporting and administration. */
+.pill-switch.pill-switch{display:flex;align-items:stretch;justify-content:center;gap:4px;width:max-content;max-width:100%;height:auto;min-height:0;padding:6px;background:#e9f1f4;border:1px solid #dce7eb;border-radius:999px;margin-inline:auto}
+.shell .pill-switch.pill-switch>button{display:flex;align-items:center;justify-content:center;flex:1 1 0;min-width:0;min-height:49px;height:auto;padding:10px 12px;border:0;border-radius:999px;background:transparent;color:#607582;text-align:center;font:600 15px/1.35 Gellix,Arial,sans-serif;white-space:normal;overflow-wrap:anywhere;box-shadow:none;transition:background .15s,color .15s,box-shadow .15s}
+.shell .pill-switch.pill-switch>button:hover{color:#007cae}
+.shell .pill-switch.pill-switch>button:is([aria-pressed="true"],[data-state="active"],.selected){background:#fff;color:#007cb9;box-shadow:0 2px 9px #18445b13}
+.shell .pill-switch.pill-switch>button:focus-visible{outline:3px solid #008bc9;outline-offset:2px}
+.shell .pill-switch.pill-switch>button:disabled{cursor:default;opacity:.5}
+.course-view-switch.pill-switch{width:100%;max-width:650px;margin-inline:0}
+@media(max-width:760px){.pill-switch.pill-switch{width:100%;max-width:none;padding:5px;justify-self:stretch}.shell .pill-switch.pill-switch>button{min-height:46px;padding:9px 5px;font-size:.96rem}}
+@media(prefers-reduced-motion:reduce){.shell .pill-switch.pill-switch>button{transition:none}}

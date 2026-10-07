@@ -141,7 +141,7 @@ export default function Home() {
           </section>}
           {screen==="courses"&&<section className="courses-page">
             <h1>{t("My Courses")}</h1>
-            <div className="course-view-switch" role="group" aria-label={t("My Courses")}>
+            <div className="course-view-switch pill-switch" role="group" aria-label={t("My Courses")}>
               {(["all","todo","certs"] as const).map(view=><button key={view} type="button" aria-pressed={courseView===view} onClick={()=>setCourseView(view)}>{t(view==="all"?"All":view==="todo"?"To do":"Certs")}</button>)}
             </div>
             {!learner.induction_enrolled&&courseView!=="certs"&&(courseView!=="todo"||!complete)&&<button className="course-feature" onClick={()=>setScreen(complete?"pass":"home")}>

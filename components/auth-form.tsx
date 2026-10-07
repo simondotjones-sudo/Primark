@@ -19,7 +19,7 @@ const countries = [...new Set(stores.map(s=>s.country))].sort();
   const [mode,setMode]=useState('register');
   useEffect(()=>{if(new URLSearchParams(location.search).get('login')==='1')setMode('login');},[]);
   return <div className="paper entry-form"><Tabs value={mode} onValueChange={setMode}>
-    <TabsList className="auth-tabs" aria-label={t('Account access')}><TabsTrigger value="register">{t('Register')}</TabsTrigger><TabsTrigger value="login">{t('Login')}</TabsTrigger></TabsList>
+    <TabsList className="auth-tabs pill-switch" aria-label={t('Account access')}><TabsTrigger value="register">{t('Register')}</TabsTrigger><TabsTrigger value="login">{t('Login')}</TabsTrigger></TabsList>
     <TabsContent value="register"><h2 className="form-heading">{t('Let’s get you started')}</h2>
       <form onSubmit={e=>{e.preventDefault();onAuthenticate('register',{name,email,country,storeId,registrationCode,password});}}>
         <label>{t('Full name')}<Input name="name" autoComplete="name" required maxLength={100} value={name} onChange={e=>setName(e.target.value)} placeholder={t('Your full name')}/></label>
