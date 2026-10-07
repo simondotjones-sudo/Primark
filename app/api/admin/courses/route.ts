@@ -5,6 +5,13 @@ import { type Course, type Person } from '@/lib/course-types';
 import stores from '@/lib/stores.json';
 import { courseLanguages } from '@/lib/course-catalogue';
 export const dynamic='force-dynamic';
+function optionalPositiveInteger(value: unknown, existing: number | null | undefined, label: string, max: number) {
+  if (value === undefined) return existing ?? null;
+  if (value === null) return null;
+  if (typeof value !== 'number' || !Number.isInteger(value) || value < 1 || value > max)
+    throw new CourseError(`${label} must be a whole number from 1 to ${max.toLocaleString('en-GB')}, or left blank.`);
+  return value;
+}
 export async function GET() { try {
   await requireAdmin();
   const [courses,people,packages,progress] = await Promise.all([
@@ -23,6 +30,8 @@ export async function POST(request: NextRequest) { try {
   const audience=await validateAudience(b.audience);
   const existing=b.id?await getCourse(b.id):null;
   if (b.id && !existing) throw new CourseError('Course not found.',404);
+  const duration=optionalPositiveInteger(b.estimatedDurationMinutes,existing?.estimated_duration_minutes,'Estimated duration',10080);
+  const lessonCount=optionalPositiveInteger(b.lessonCount,existing?.lesson_count,'Lesson count',1000);
   const englishTitle=typeof b.englishTitle==='string'?b.englishTitle.trim():existing?.english_title||title;
   const category=typeof b.category==='string'?b.category.trim():existing?.category||'';
   const languageCode=b.languageCode??existing?.language_code??'en';
@@ -44,9 +53,9 @@ export async function POST(request: NextRequest) { try {
   }
   const id=existing?.id||crypto.randomUUID(); const date=now();
   if (existing) {
-    const result=await db().prepare('UPDATE courses SET title=?,description=?,audience_json=?,status=?,english_title=?,category=?,language_code=?,catalogue_scope=?,available_countries_json=?,induction_role=?,revision=revision+1,updated_at=? WHERE id=? AND revision=?')
-      .bind(title,description,JSON.stringify(audience),b.status,englishTitle,category,languageCode,catalogueScope,JSON.stringify(linkedCountries),inductionRole,date,id,b.revision).run();
+    const result=await db().prepare('UPDATE courses SET title=?,description=?,audience_json=?,status=?,english_title=?,category=?,language_code=?,catalogue_scope=?,available_countries_json=?,induction_role=?,estimated_duration_minutes=?,lesson_count=?,revision=revision+1,updated_at=? WHERE id=? AND revision=?')
+      .bind(title,description,JSON.stringify(audience),b.status,englishTitle,category,languageCode,catalogueScope,JSON.stringify(linkedCountries),inductionRole,duration,lessonCount,date,id,b.revision).run();
     if (!result.meta.changes) throw new CourseError('This course changed in another session. Reload it before saving.',409);
-  } else await db().prepare('INSERT INTO courses(id,title,description,status,audience_json,created_at,updated_at,english_title,category,language_code,catalogue_scope,available_countries_json,induction_role) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)').bind(id,title,description,b.status,JSON.stringify(audience),date,date,englishTitle,category,languageCode,catalogueScope,JSON.stringify(linkedCountries),inductionRole).run();
+  } else await db().prepare('INSERT INTO courses(id,title,description,status,audience_json,created_at,updated_at,english_title,category,language_code,catalogue_scope,available_countries_json,induction_role,estimated_duration_minutes,lesson_count) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)').bind(id,title,description,b.status,JSON.stringify(audience),date,date,englishTitle,category,languageCode,catalogueScope,JSON.stringify(linkedCountries),inductionRole,duration,lessonCount).run();
   return json({course:await getCourse(id)});
 } catch(e) { return failed(e); } }
