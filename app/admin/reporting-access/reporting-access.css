@@ -2,7 +2,7 @@
 .access-people,.access-editor{padding:28px}
 .access-search{display:grid;gap:8px;font-weight:600;max-width:440px;margin-bottom:24px}
 .access-people .table-scroll{position:relative}
-.access-people table{width:100%;text-align:left;border-collapse:collapse;font-size:15px}
+.access-people table{width:100%;text-align:start;border-collapse:collapse;font-size:15px}
 .access-people th{font-size:13px;color:#617988;font-weight:600;padding:12px;border-bottom:1px solid #dce8ef}
 .access-people td{padding:18px 12px;border-bottom:1px solid #edf2f5;vertical-align:middle}
 .access-people td strong,.access-people td small{display:block;overflow-wrap:anywhere}

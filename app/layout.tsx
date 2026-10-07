@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import {LanguageProvider} from '@/components/language-provider';
 
 export const metadata: Metadata = {
   title: "Primark Safety Passport",
@@ -16,8 +17,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
-      <body className="antialiased">{children}</body>
+    <html lang="en" suppressHydrationWarning>
+      <body className="antialiased"><LanguageProvider>{children}</LanguageProvider></body>
     </html>
   );
 }

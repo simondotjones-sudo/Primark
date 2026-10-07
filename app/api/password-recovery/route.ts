@@ -1,3 +1,4 @@
+import { isLanguage } from '@/lib/i18n';
 import { NextRequest, NextResponse } from 'next/server';
 import { allowLoginAttempt } from '@/lib/admin-auth';
 import { bodyJson, CourseError } from '@/lib/course-admin';
@@ -18,7 +19,7 @@ export async function POST(request: NextRequest) {
       const email = typeof body.email === 'string' ? body.email.trim().toLowerCase() : '';
       if (email.length > 254 || /[<>,;:"\\]/.test(email) || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return reply({error:'Enter a valid email address.'},400);
       // The same response for unknown, existing and throttled addresses.
-      if (await allowLoginAttempt('recovery-email:'+email,3)) await requestPasswordReset(email);
+      if (await allowLoginAttempt('recovery-email:'+email,3)) await requestPasswordReset(email,isLanguage(body.lang)?body.lang:'en');
       return reply({ok:true});
     }
     await resetPassword(body.token,body.password);

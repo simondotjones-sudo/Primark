@@ -2,6 +2,8 @@ import { createHash, randomBytes } from 'node:crypto';
 import { db, inTransaction } from '@/lib/database';
 import { credentialFingerprint, credentials, sessionCredentialFingerprint } from '@/lib/admin-auth';
 import { hashPassword, validPassword } from '@/lib/learner-auth';
+import { tr } from '@/lib/ui-copy';
+import { isLanguage, type Language } from '@/lib/i18n';
 import { runtimeEnv } from '@/lib/runtime-env';
 
 const digest = (value: string) => createHash('sha256').update(value).digest('hex');
@@ -21,7 +23,8 @@ function mailSettings() {
   return {token, from, origin: origin.origin};
 }
 
-export async function requestPasswordReset(email: string) {
+export async function requestPasswordReset(email: string, requestedLanguage: Language = 'en') {
+  const lang = isLanguage(requestedLanguage) ? requestedLanguage : 'en';
   const settings = mailSettings();
   const learner = await db().prepare('SELECT id,password_hash,code_hash FROM learners WHERE email=?').bind(email)
     .first<{id:string; password_hash:string|null; code_hash:string}>();
@@ -38,14 +41,14 @@ export async function requestPasswordReset(email: string) {
       .bind(tokenHash,account.type,account.id,account.fingerprint,expires).run();
     tokenHashes.push(tokenHash);
     // The fragment keeps reset tokens out of server access logs and referrers.
-    links.push(`${account.label}: ${settings.origin}/reset-password/#token=${token}`);
+    links.push(`${tr(lang,account.label)}: ${settings.origin}/reset-password/?lang=${lang}#token=${token}`);
   }
   try {
     const response = await fetch('https://api.postmarkapp.com/email', {
       method:'POST', signal:AbortSignal.timeout(10000),
       headers:{'Content-Type':'application/json','Accept':'application/json','X-Postmark-Server-Token':settings.token},
-      body:JSON.stringify({From:settings.from,To:email,Subject:'Reset your Primark password',
-        TextBody:`Reset your Primark Safety Passport password using the link below. Each link expires in 30 minutes and can be used once.\n\n${links.join('\n\n')}\n\nIf you did not request this, you can ignore this email. Your password has not changed.`,
+      body:JSON.stringify({From:settings.from,To:email,Subject:tr(lang,'Reset your Primark password'),
+        TextBody:`${tr(lang,'Reset your Primark Safety Passport password using the link below. Each link expires in 30 minutes and can be used once.')}\n\n${links.join('\n\n')}\n\n${tr(lang,'If you did not request this, you can ignore this email. Your password has not changed.')}`,
         MessageStream:runtimeEnv('POSTMARK_MESSAGE_STREAM') || 'outbound',TrackOpens:false,TrackLinks:'None'}),
     });
     const result = await response.json();

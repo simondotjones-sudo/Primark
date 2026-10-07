@@ -19,6 +19,7 @@ export const languageOptions: { code: Language; name: string; locale: string }[]
   {code:"hu",name:"Magyar",locale:"hu-HU"},
   {code:"ar",name:"العربية",locale:"ar"},
 ];
+export const isLanguage=(value:unknown):value is Language=>languageOptions.some(option=>option.code===value);
 export function languageLocale(lang:Language){return languageOptions.find(option=>option.code===lang)!.locale;}
 export function languageDirection(lang:Language){return lang==="ar"?"rtl":"ltr";}
 export function contentLanguage(lang:Language):ContentLanguage {return lang;}

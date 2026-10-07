@@ -1,7 +1,9 @@
+import {applicationCopy} from './locales/application';
 import { additionalCopy } from "./locales";
 import { authCopy } from './auth-copy';
-import { contentLanguage, languageLocale, type ContentLanguage, type Language } from "./i18n";
+import { languageLocale, type ContentLanguage, type Language } from "./i18n";
 type Dictionary = Record<string,string>;
+export type LocalizedText=string|{key:string;values?:Record<string,string|number>};
 export const ui: Record<Exclude<ContentLanguage,"en">,Dictionary> = {
   nl: additionalCopy.nl.ui,
   pt: additionalCopy.pt.ui,
@@ -93,8 +95,19 @@ Object.assign(ui.es,{"Language":"Idioma","Dismiss error":"Cerrar error","Prototy
 Object.assign(ui.fr,{"Language":"Langue","Dismiss error":"Fermer l’erreur","Prototype views":"Vues du prototype"});
 Object.assign(ui.de,{"Language":"Sprache","Dismiss error":"Fehler schließen","Prototype views":"Prototypansichten"});
 Object.assign(ui.it,{"Language":"Lingua","Dismiss error":"Chiudi errore","Prototype views":"Viste del prototipo"});
-export function tr(lang:Language,text:string){const copyLang=contentLanguage(lang);return copyLang==="en"?text:(authCopy[copyLang]?.[text]||ui[copyLang][text]||text);}
-export function formatDate(value:string|null,lang:Language){if(!value)return "—";return new Date(value).toLocaleDateString(languageLocale(lang),{day:"numeric",month:"short",year:"numeric"});}
+const dictionaries=Object.fromEntries(Object.keys(ui).map(lang=>[lang,Object.fromEntries(Object.entries({...ui[lang as Exclude<Language,'en'>],...authCopy[lang as Exclude<Language,'en'>],...applicationCopy[lang as Exclude<Language,'en'>]}).map(([key,value])=>[key.toLowerCase(),value]))])) as Record<string,Dictionary>;
+const aliases:Record<string,string>={"those details did not match.": "those sign-in details did not match.", "unknown action.": "invalid request.", "unknown view.": "invalid request.", "a request body is required.": "invalid request.", "unknown module.": "unknown chapter.", "invalid csv row.": "check the csv.", "invalid audience.": "choose a course audience.", "choose a country from the directory.": "choose a country", "choose a site from the directory.": "choose a site", "please use the safety passport page.": "please use the sign-in page.", "there are no users in this store yet.": "users appear here after registering for this store.", "the shot list could not be loaded. please try again.": "the shot list could not be loaded.", "this note is too long.": "keep the note to 500 characters.", "invalid slide update.": "invalid request.", "unknown module or slide.": "invalid request.", "save at least one photo before marking this slide complete.": "add a photo before marking this slide complete.", "invalid photo reference.": "invalid request.", "invalid photo part.": "invalid request.", "this photo reference is already in use.": "the photo could not be confirmed as saved. keep this page open and retry.", "the photo part is incomplete.": "the photo could not be confirmed as saved. keep this page open and retry.", "the photo preview was not valid.": "the photo could not be confirmed as saved. keep this page open and retry."};
+export function translationFor(lang:Language,text:string):string|undefined{
+ if(lang==='en'||!text)return text;
+ const direct=dictionaries[lang]?.[aliases[text.toLowerCase()]||text.toLowerCase()];if(direct)return direct;
+ // Retain presentation punctuation around a translated label, without altering IDs or data.
+ const decorated=text.match(/^([←·\s]*)(.*?)([\s(:·]*)$/);
+ if(decorated){const value=dictionaries[lang]?.[decorated[2].toLowerCase()];if(value)return decorated[1]+value+decorated[3];}
+ return undefined;
+}
+export function tr(lang:Language,message:LocalizedText,values?:Record<string,string|number>){const text=typeof message==='string'?message:message.key;values=typeof message==='string'?values:message.values;const translated=translationFor(lang,text)??text;return values?translated.replace(/\{(\w+)\}/g,(match,key)=>Object.hasOwn(values,key)?String(values[key]):match):translated;}
+
+export function formatDate(value:string|null,lang:Language){if(!value)return "—";return new Date(value).toLocaleDateString(languageLocale(lang),{day:"numeric",month:"short",year:"numeric",timeZone:"UTC"});}
 const countryCodes:Record<string,string>={Austria:"AT",Bahrain:"BH",Belgium:"BE","Czech Republic":"CZ",France:"FR",Germany:"DE",Hungary:"HU",Ireland:"IE",Italy:"IT",Kuwait:"KW",Netherlands:"NL",Poland:"PL",Portugal:"PT",Romania:"RO",Slovakia:"SK",Slovenia:"SI",Spain:"ES",UAE:"AE","United Kingdom":"GB","United States":"US"};
 export function countryName(country:string,lang:Language){if(lang==="en")return country;return countryCodes[country]?new Intl.DisplayNames([languageLocale(lang)],{type:"region"}).of(countryCodes[country])||country:country;}
 

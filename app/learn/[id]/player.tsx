@@ -1,4 +1,5 @@
 'use client';
+import {useLanguage,LanguagePicker} from '@/components/language-provider';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { AlertCircle, Check, LoaderCircle, Maximize2, Minimize2 } from 'lucide-react';
@@ -8,6 +9,8 @@ type Launch = { token: string; title: string; scos: Sco[]; scoId: string; url: s
 type SaveState = 'idle' | 'saving' | 'saved' | 'error';
 
 export default function Player({ courseId, preview }: { courseId: string; preview: boolean }) {
+  const {t}=useLanguage();
+
   const [launch, setLaunch] = useState<Launch | null>(null);
   const [error, setError] = useState('');
   const [saving, setSaving] = useState<SaveState>('idle');
@@ -166,8 +169,8 @@ export default function Player({ courseId, preview }: { courseId: string; previe
     <header className="player-toolbar">
       <span className="player-wordmark" aria-label="Primark">PRIMARK</span>
       <div className="player-heading">
-        <h1 title={launch?.title}>{launch?.title || 'Opening course…'}</h1>
-        {launch && launch.scos.length > 1 && <select aria-label="Lesson" value={launch.scoId} disabled={busy}
+        <h1 title={launch?.title}>{launch?.title || t('Opening course…')}</h1>
+        {launch && launch.scos.length > 1 && <select aria-label={t("Lesson")} value={launch.scoId} disabled={busy}
           onChange={async e => {
             const id = e.target.value;
             setBusy(true);
@@ -177,30 +180,30 @@ export default function Player({ courseId, preview }: { courseId: string; previe
           {launch.scos.map((s, i) => <option value={s.id} key={s.id}>{i + 1}. {s.title}</option>)}
         </select>}
       </div>
-      <div className="player-actions">
-        <span className={`player-save-state is-${preview ? 'preview' : saving}`} role="status" aria-label={statusDetail} title={statusDetail}>
+      <div className="player-actions"><LanguagePicker/>
+        <span className={`player-save-state is-${preview ? 'preview' : saving}`} role="status" aria-label={t(statusDetail)} title={t(statusDetail)}>
           {!preview && (saving === 'saved' ? <Check aria-hidden="true" /> : saving === 'saving' ? <LoaderCircle className="player-spinner" aria-hidden="true" /> : saving === 'error' ? <AlertCircle aria-hidden="true" /> : <span className="player-status-dot" aria-hidden="true" />)}
-          <span className="player-status-text">{status}</span>
+          <span className="player-status-text">{t(status)}</span>
         </span>
         {fullscreenAvailable && <button type="button" className="player-fullscreen" onClick={toggleFullscreen}
-          aria-label={fullscreen ? 'Exit full screen' : 'Full screen'} title={fullscreen ? 'Exit full screen' : 'Full screen'} aria-pressed={fullscreen}>
+          aria-label={t(fullscreen ? 'Exit full screen' : 'Full screen')} title={t(fullscreen ? 'Exit full screen' : 'Full screen')} aria-pressed={fullscreen}>
           {fullscreen ? <Minimize2 aria-hidden="true" /> : <Maximize2 aria-hidden="true" />}
         </button>}
-        <button type="button" className="player-exit" disabled={busy} onClick={exit}>{preview ? 'Exit preview' : 'Save & exit'}</button>
+        <button type="button" className="player-exit" disabled={busy} onClick={exit}>{t(preview ? 'Exit preview' : 'Save & exit')}</button>
       </div>
     </header>
-    {fullscreenMessage && <p className="player-notice" role="status">{fullscreenMessage}</p>}
+    {fullscreenMessage && <p className="player-notice" role="status">{t(fullscreenMessage)}</p>}
     {error && <div role="alert" className="player-error">
-      <span>{error}</span>
-      {latest.current ? <button type="button" onClick={() => send(latest.current!)}>Retry save</button> : <a href={preview ? '/admin/courses/' : '/'}>Return to sign in</a>}
+      <span>{t(error)}</span>
+      {latest.current ? <button type="button" onClick={() => send(latest.current!)}>{t("Retry save")}</button> : <a href={preview ? '/admin/courses/' : '/'}>{t("Return to sign in")}</a>}
     </div>}
-    <main className="player-stage" aria-label="Course">
+    <main className="player-stage" aria-label={t("Course")}>
       {launch && <iframe key={launch.token} ref={frame} title={launch.title} src={launch.url}
         onLoad={() => setFrameLoading(false)}
         sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-downloads"
         allow="fullscreen; autoplay" referrerPolicy="no-referrer" />}
       {frameLoading && !error && <div className="player-loading" role="status">
-        <LoaderCircle className="player-spinner" aria-hidden="true" /><span>Opening course…</span>
+        <LoaderCircle className="player-spinner" aria-hidden="true" /><span>{t("Opening course…")}</span>
       </div>}
     </main>
   </div>;

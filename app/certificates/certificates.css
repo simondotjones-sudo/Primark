@@ -3,3 +3,5 @@
 @media print{.certificate-toolbar{display:none!important}@page{size:A4 landscape;margin:12mm}.certificates-main{padding:0;max-width:none}.certificate-view{max-width:none}.certificate-paper{border:1px solid #cee2e9;border-radius:0;box-shadow:none;break-inside:avoid;print-color-adjust:exact;-webkit-print-color-adjust:exact}.certificate-masthead{padding:20px 36px;flex-direction:row;align-items:center}.certificate-content{padding:24px 36px}.certificate-content h1{font-size:38px}.certificate-content h2{font-size:25px}.certificate-awarded{margin-top:20px}.certificate-dates{margin:22px 0 16px;padding:16px 0}.certificate-footer{flex-direction:row;align-items:center}.certificate-id bdi{max-width:340px}.certificate-verification img{width:88px;height:88px}.certificate-alert{display:none}}
 
 .assigned-course h3 a{color:inherit;text-decoration:none}.assigned-course a:focus-visible{outline:3px solid #008bc9;outline-offset:4px}
+
+.verify-page{position:relative;padding-top:90px}.verify-language{position:absolute;inset-block-start:24px;inset-inline-end:28px}

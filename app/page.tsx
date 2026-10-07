@@ -1,4 +1,5 @@
 "use client";
+import {useLanguage,LanguagePicker} from "@/components/language-provider";
 import { useCallback, useEffect, useRef, useState } from "react";
 import QRCode from "qrcode";
 import Image from "next/image";
@@ -18,18 +19,16 @@ import TrainingReporting from "@/components/training-report";
 import CertificatePaper from "@/components/certificate-paper";
 import type { Certificate } from "@/lib/certificates";
 import AssignedCourses from "@/components/assigned-courses";
-import { ArrowLeft, BookOpen, Check, CheckCircle2, ClipboardCheck, Globe2, LayoutGrid, Play, Printer, ShieldCheck, Video } from "lucide-react";
+import { ArrowLeft, BookOpen, Check, CheckCircle2, ClipboardCheck, LayoutGrid, Play, ShieldCheck, Video } from "lucide-react";
 import stores from "@/lib/stores.json";
 import { modules, questions } from "@/lib/course";
-import { contentLanguage, languageDirection, languageOptions, moduleCopy, questionCopy, type Language } from "@/lib/i18n";
-import { tr, formatDate, formatDuration, countryName } from "@/lib/ui-copy";
+import { contentLanguage, languageDirection, moduleCopy, questionCopy, type Language } from "@/lib/i18n";
+import { formatDuration } from "@/lib/ui-copy";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 type Learner = {id:string;name:string;email:string;store_id:string;country:string;entered_at:string;started_at:string|null;completed_at:string|null;best_score:number|null;certificate_token:string|null;induction_enrolled:boolean};
 type Screen = "home"|"courses"|"module"|"quiz"|"result"|"pass";
-const storeName = (id:string) => stores.find(s => s.id === id)?.name || id;
 const sampleCourses = [
   {title:"Manual Handling",image:"manual-handling",cover:manualHandlingCover,alt:"Colleagues moving stock on a trolley"},
   {title:"Security, loss prevention and personal safety",image:"security",cover:securityCover,alt:"Colleagues speaking on the shop floor"},
@@ -48,9 +47,8 @@ async function api(url:string, options?:RequestInit) {
 const post = (action:string,data:Record<string,unknown>={}) => api("",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({action,...data})});
 
 export default function Home() {
-  const [lang,setLang]=useState<Language>("en");
+  const {lang,t}=useLanguage();
   const copyLang=contentLanguage(lang);
-  const t=(value:string)=>tr(lang,value);
   const shownModules=modules.map((m,i)=>copyLang==="en"?m:{...m,...moduleCopy[copyLang][i],short:moduleCopy[copyLang][i].title});
   const shownQuestions=questions.map((q,i)=>copyLang==="en"?q:{...q,...questionCopy[copyLang][i]});
   const [platformAdmin,setPlatformAdmin]=useState(false);
@@ -98,8 +96,6 @@ export default function Home() {
   useEffect(()=>{if(learner?.induction_enrolled&&screen!=="courses")setScreen("courses");},[learner?.induction_enrolled,screen]);
 
   useEffect(()=>{refreshMe().catch(e=>setError(e.message)).finally(()=>setLoading(false));},[refreshMe]);
-  useEffect(()=>{const saved=localStorage.getItem("primark-language");if(languageOptions.some(option=>option.code===saved))setLang(saved as Language);},[]);
-  useEffect(()=>{document.documentElement.lang=copyLang;document.documentElement.dir=languageDirection(lang);localStorage.setItem("primark-language",lang);},[lang,copyLang]);
   useEffect(()=>{if(learner?.certificate_token)QRCode.toDataURL(location.origin+"/verify/"+learner.certificate_token+"?lang="+lang,{margin:1,width:260,color:{dark:"#173046",light:"#ffffff"}}).then(setQr).catch(()=>setQr(""));},[learner?.certificate_token,lang]);
   useEffect(()=>{
     type ToolContext={registerTool:(tool:{name:string;title:string;description:string;inputSchema:object;annotations:{readOnlyHint:boolean;untrustedContentHint:boolean};execute:(input:unknown)=>unknown},options:{signal:AbortSignal})=>void|Promise<void>};
@@ -119,7 +115,7 @@ export default function Home() {
   const nextChapter=shownModules.findIndex(m=>!viewed.includes(m.key));
 
   return <div className={"shell"+(!account&&!loading?" login-screen":"")} lang={lang} dir={languageDirection(lang)}>
-    <header className="topbar"><div className="topbar-brand"><button className="brand" onClick={()=>{setArea(platformAdmin?"report":"learn");setScreen("home");}}><strong>PRIMARK</strong></button>{reportingAccess&&<nav aria-label={t("Primary menu")}><button className={area==="report"?"active":""} aria-current={area==="report"?"page":undefined} onClick={()=>setArea("report")}>{t("Learning Overview")}</button></nav>}</div><div className="top-controls"><label className="language-picker"><Globe2 size={17}/><span className="sr-only">{t("Language")}</span><select aria-label={t("Language")} lang={lang} dir={languageDirection(lang)} value={lang} onChange={e=>setLang(e.target.value as Language)}>{languageOptions.map(option=><option key={option.code} value={option.code} lang={option.code} dir={languageDirection(option.code)}>{option.name}</option>)}</select></label><ProfileMenu account={account} view={area} filter={{role,country:scopeCountry,site:scopeSite}} onOpen={()=>{void refreshMe().catch(()=>{});}}
+    <header className="topbar"><div className="topbar-brand"><button className="brand" onClick={()=>{setArea(platformAdmin?"report":"learn");setScreen("home");}}><strong>PRIMARK</strong></button>{reportingAccess&&<nav aria-label={t("Primary menu")}><button className={area==="report"?"active":""} aria-current={area==="report"?"page":undefined} onClick={()=>setArea("report")}>{t("Learning Overview")}</button></nav>}</div><div className="top-controls"><LanguagePicker/><ProfileMenu account={account} view={area} filter={{role,country:scopeCountry,site:scopeSite}} onOpen={()=>{void refreshMe().catch(()=>{});}}
       onViewChange={next=>{if(next==="learn"||next==="report"){setArea(next);}else location.assign(profileHref(next));}}
       onFilterChange={next=>{setRole(next.role);setScopeCountry(next.country);setScopeSite(next.site);setArea("report");}}
       onSignOut={async()=>{if(platformAdmin){const response=await fetch("/api/admin/session",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"logout"})});if(!response.ok)throw new Error("Could not sign out. Please try again.");}else await post("logout");await refreshMe();setArea("learn");setScreen("home");}}/></div></header>
@@ -157,12 +153,13 @@ export default function Home() {
           {screen==="pass"&&(complete?<Pass learner={learner} qr={qr} lang={lang}/>:<div className="paper result"><ShieldCheck/><h2>{t("Your pass is almost ready")}</h2><p>{t("View all six chapters and pass the assessment.")}</p><Button onClick={()=>setScreen("home")}>{t("Back to induction")}</Button></div>)}
         </div></div>
     : <TrainingReporting key={account?.email||"report"} access={reportingAccess} platformAdmin={platformAdmin} filter={{role,country:scopeCountry,site:scopeSite}} onFilterChange={next=>{setRole(next.role);setScopeCountry(next.country);setScopeSite(next.site);}} lang={lang}/>}
-    </main><footer><strong><bdi dir="ltr">PRIMARK</bdi> · {t("Safety Passport")}</strong>{platformAdmin&&<a href="/admin/courses/">Platform admin</a>}<span>{t("Private working prototype · Sample content is not approved training")}</span></footer>
+    </main><footer><strong><bdi dir="ltr">PRIMARK</bdi> · {t("Safety Passport")}</strong>{platformAdmin&&<a href="/admin/courses/">{t("Platform admin")}</a>}<span>{t("Private working prototype · Sample content is not approved training")}</span></footer>
   </div>;
 }
 
 function Pass({learner}:{learner:Learner;qr:string;lang:Language}){
+  const {t}=useLanguage();
   const [record,setRecord]=useState<Certificate|null>(null),[error,setError]=useState('');
   useEffect(()=>{let active=true;fetch('/api/certificates',{cache:'no-store'}).then(async response=>{const data=await response.json();if(!response.ok)throw new Error(data.error);const certificate=data.certificates.find((c:Certificate)=>c.token===learner.certificate_token);if(!certificate)throw new Error('Your certificate could not be found. Please reload and try again.');if(active)setRecord(certificate);}).catch(e=>{if(active)setError(e.message);});return ()=>{active=false;};},[learner.certificate_token]);
-  return error?<p role="alert">{error}</p>:record?<CertificatePaper record={record}/>:<p role="status">Loading your certificate…</p>;
+  return error?<p role="alert">{t(error)}</p>:record?<CertificatePaper record={record}/>:<p role="status">{t("Loading your certificate…")}</p>;
 }

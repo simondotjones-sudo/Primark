@@ -2,19 +2,16 @@
 import { useEffect, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { tr } from '@/lib/ui-copy';
-import { languageOptions, languageDirection, type Language } from '@/lib/i18n';
+import {useLanguage,LanguagePicker} from '@/components/language-provider';
+import { languageDirection } from '@/lib/i18n';
 
 export default function PasswordRecoveryForm({reset = false}:{reset?:boolean}) {
   const [email,setEmail]=useState(''),[password,setPassword]=useState(''),[confirm,setConfirm]=useState('');
   const [token,setToken]=useState(''),[ready,setReady]=useState(false),[busy,setBusy]=useState(false),[done,setDone]=useState(false),[error,setError]=useState('');
-  const [lang,setLang]=useState<Language>('en');
+  const {lang,t}=useLanguage();
   const initialized=useRef(false);
-  const t=(value:string)=>tr(lang,value);
   useEffect(()=>{
     if(initialized.current)return;initialized.current=true;
-    const saved=new URLSearchParams(location.search).get('lang') || localStorage.getItem('primark-language');
-    if(languageOptions.some(option=>option.code===saved))setLang(saved as Language);
     if(reset){setToken(new URLSearchParams(location.hash.slice(1)).get('token') || '');history.replaceState(null,'',location.pathname+location.search);}
     setReady(true);
   },[reset]);
@@ -23,7 +20,7 @@ export default function PasswordRecoveryForm({reset = false}:{reset?:boolean}) {
     if(reset&&password!==confirm){setError('Passwords do not match.');return;}
     setBusy(true);
     try {
-      const response=await fetch('/api/password-recovery',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(reset?{action:'reset',token,password}:{action:'request',email})});
+      const response=await fetch('/api/password-recovery',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(reset?{action:'reset',token,password}:{action:'request',email,lang})});
       const data=await response.json();if(!response.ok)throw new Error(data.error || 'Please try again.');
       setDone(true);setPassword('');setConfirm('');setToken('');
     } catch(e){setError(e instanceof Error?e.message:'Please try again.');}
@@ -31,7 +28,7 @@ export default function PasswordRecoveryForm({reset = false}:{reset?:boolean}) {
   }
   const missing=reset&&ready&&!token&&!done;
   return <div className="shell login-screen" lang={lang} dir={languageDirection(lang)}>
-    <header className="topbar"><a className="brand" href="/?login=1"><strong>PRIMARK</strong></a></header>
+    <header className="topbar"><a className="brand" href="/?login=1"><strong>PRIMARK</strong></a><LanguagePicker/></header>
     <main className="main"><section className="paper entry-form password-recovery">
       <h1 className="form-heading">{t(done?(reset?'Password updated':'Check your email'):(reset?'Reset password':'Forgot password?'))}</h1>
       {done?<p className="auth-notice" role="status">{t(reset?'Your password has been updated. Log in with your new password.':'If an account exists for this email address, you will receive a password reset link. Check your junk folder too.')}</p>:

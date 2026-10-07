@@ -1,4 +1,5 @@
 'use client';
+import type {LocalizedText} from '@/lib/ui-copy';
 import { useEffect, useMemo, useState } from 'react';
 import { Download, Search, Store, X } from 'lucide-react';
 import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
@@ -9,10 +10,10 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { profileScope, type ReportFilter } from '@/lib/profile';
 import type { ReportingAccess } from '@/lib/reporting-types';
 import { ORIGINAL_INDUCTION, statusLabels, type ReportEmployee, type ReportCourse, type TrainingRecord, type TrainingReport } from '@/lib/training-report-types';
-import { countryName, formatDate, tr } from '@/lib/ui-copy';
+import { countryName, formatDate } from '@/lib/ui-copy';
 import { languageLocale, type Language } from '@/lib/i18n';
-import { courseLanguages } from '@/lib/course-catalogue';
 import './training-report.css';
+import {useLanguage} from '@/components/language-provider';
 
 type Props={access:ReportingAccess;platformAdmin:boolean;filter:ReportFilter;onFilterChange:(filter:ReportFilter)=>void;lang:Language};
 type Cell={person:ReportEmployee;course:ReportCourse;record?:TrainingRecord};
@@ -21,7 +22,7 @@ function csvCell(value:unknown){let text=String(value??'');if(/^[=+@\-\t\r]/.tes
 function saveCsv(name:string,rows:unknown[][]){const blob=new Blob(['\uFEFF'+rows.map(row=>row.map(csvCell).join(',')).join('\r\n')],{type:'text/csv;charset=utf-8'});const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);}
 
 export default function TrainingReporting({access,platformAdmin,filter,onFilterChange,lang}:Props){
-  const t=(s:string)=>tr(lang,s);
+  const {t,languageName}=useLanguage();
   const scope=profileScope(access,filter);
   const [data,setData]=useState<TrainingReport|null>(null);
   const [loading,setLoading]=useState(true);
@@ -35,7 +36,7 @@ export default function TrainingReporting({access,platformAdmin,filter,onFilterC
   const [month,setMonth]=useState('all');
   const [cell,setCell]=useState<Cell|null>(null);
   const [csv,setCsv]=useState('');
-  const [message,setMessage]=useState('');
+  const [message,setMessage]=useState<LocalizedText>('');
   const [busy,setBusy]=useState(false);
   const isMatrix=view==='matrix'&&filter.role==='site';
   useEffect(()=>{
@@ -75,16 +76,16 @@ export default function TrainingReporting({access,platformAdmin,filter,onFilterC
   function changeScope(next:Partial<ReportFilter>){onFilterChange(profileScope(access,{...filter,...next}).filter);setSearch('');}
   function exportReport(){
     if(isMatrix){saveCsv('primark-site-matrix.csv',[
-      ['Employee','Email',...courses.map(c=>c.title)],
-      ...people.map(p=>[p.name,p.email,...courses.map(c=>{const r=recordMap.get(key(p.id,c.id));return r?statusLabels[r.status]:'Not assigned';})]),
+      [t('Employee'),t('Email'),...courses.map(c=>c.title)],
+      ...people.map(p=>[p.name,p.email,...courses.map(c=>{const r=recordMap.get(key(p.id,c.id));return r?t(statusLabels[r.status]):t('Not assigned');})]),
     ]);return;}
     saveCsv('primark-training-report.csv',[
-      ['Employee','Email','Country','Store','Course','Category','Status','Completed','Expires','Score','Completion in selected period'],
-      ...visibleRecords.map(r=>{const p=employeeMap.get(r.learnerId)!;const c=courseMap.get(r.courseId)!;return [p.name,p.email,p.country,p.storeName,c.title,c.category,statusLabels[r.status],r.completedAt,r.expiresAt,r.score,inPeriod(r.completedAt)?'Yes':'No'];}),
+      ['Employee','Email','Country','Store','Course','Category','Status','Completed','Expires','Score','Completion in selected period'].map(key=>t(key)),
+      ...visibleRecords.map(r=>{const p=employeeMap.get(r.learnerId)!;const c=courseMap.get(r.courseId)!;return [p.name,p.email,countryName(p.country,lang),p.storeName,c.title,t(c.category),t(statusLabels[r.status]),r.completedAt,r.expiresAt,r.score,t(inPeriod(r.completedAt)?'Yes':'No')];}),
     ]);
   }
   async function originalAction(action:string,body:Record<string,unknown>={}){
-    setBusy(true);setError('');setMessage('');try{const response=await fetch('/api/prototype',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({action,...body})});const result=await response.json();if(!response.ok)throw new Error(result.error);setMessage(action==='import'?`${result.imported} historical rows imported.`:'Sample learners loaded.');setRefresh(v=>v+1);}catch(e){setError(e instanceof Error?e.message:'Please try again.');}finally{setBusy(false);}
+    setBusy(true);setError('');setMessage('');try{const response=await fetch('/api/prototype',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({action,...body})});const result=await response.json();if(!response.ok)throw new Error(result.error);setMessage(action==='import'?{key:'Historical rows imported: {count}.',values:{count:result.imported}}:'Sample learners loaded.');setRefresh(v=>v+1);}catch(e){setError(e instanceof Error?e.message:'Please try again.');}finally{setBusy(false);}
   }
   const statusText=(r?:TrainingRecord)=>r?t(statusLabels[r.status]):t('Not assigned');
   return <section className="report training-report">
@@ -99,7 +100,7 @@ export default function TrainingReporting({access,platformAdmin,filter,onFilterC
     </div>
     <div className="report-filters">
       <label>{t('Category')}<NativeSelect aria-label={t('Course category')} disabled={loading} value={activeCategory} onChange={e=>{setCategory(e.target.value);setCourseId('all');setCell(null);}}><option value="all">{t('All categories')}</option>{categories.map(c=><option key={c} value={c}>{t(c)}</option>)}</NativeSelect></label>
-      <label className="course-filter">{t('Course')}<NativeSelect aria-label={t('Reporting course')} disabled={loading} value={activeCourse} onChange={e=>{setCourseId(e.target.value);setCell(null);}}><option value="all">{t('All courses')}</option>{options.map(c=><option key={c.id} value={c.id}>{c.title}{c.paused?' · Paused':''}</option>)}</NativeSelect></label>
+      <label className="course-filter">{t('Course')}<NativeSelect aria-label={t('Reporting course')} disabled={loading} value={activeCourse} onChange={e=>{setCourseId(e.target.value);setCell(null);}}><option value="all">{t('All courses')}</option>{options.map(c=><option key={c.id} value={c.id}>{c.title}{c.paused?' · '+t('Paused'):''}</option>)}</NativeSelect></label>
       <fieldset className={'completion-period'+(isMatrix?' is-inactive':'')} disabled={loading||isMatrix} aria-hidden={isMatrix} inert={isMatrix}>
         <legend>{t('Completion period')}</legend>
         <div className="completion-period-inputs">
@@ -109,7 +110,7 @@ export default function TrainingReporting({access,platformAdmin,filter,onFilterC
       </fieldset>
       <button className={'report-reset'+(activeCategory==='all'&&activeCourse==='all'?' is-hidden':'')} disabled={loading||(activeCategory==='all'&&activeCourse==='all')} aria-hidden={activeCategory==='all'&&activeCourse==='all'} onClick={()=>{setCategory('all');setCourseId('all');}}><X size={14}/>{t('Clear')}</button>
     </div>
-    {error&&<div className="error" role="alert">{error}<Button variant="outline" onClick={()=>setRefresh(v=>v+1)}>{t('Try again')}</Button></div>}
+    {error&&<div className="error" role="alert">{t(error)}<Button variant="outline" onClick={()=>setRefresh(v=>v+1)}>{t('Try again')}</Button></div>}
     <div className="report-results" aria-busy={loading}>
     {loading&&<div className={data?'report-refreshing':'paper report-loading'} role="status">{t('Loading training records…')}</div>}
     {data&&<div className="report-results-content" aria-hidden={loading} inert={loading}>
@@ -117,7 +118,7 @@ export default function TrainingReporting({access,platformAdmin,filter,onFilterC
       <div className="people-head"><div><h2>{t('Site matrix')}</h2><p>{scope.sites.find(s=>s.id===filter.site)?.name} · {people.length} {t('employees')} · {courses.length} {t('courses')}</p></div><EmployeeSearch value={search} onChange={setSearch} label={t('Search employees')}/></div>
       <div className="matrix-legend">{Object.entries(statusLabels).map(([status,label])=><span key={status}><i aria-hidden="true" className={'training-dot '+status}/>{t(label)}</span>)}<span><i className="unassigned-mark" aria-hidden="true">—</i>{t('Not assigned')}</span></div>
       <div className="matrix-scroll" tabIndex={0} role="region" aria-label={t('Employee training matrix')}>
-        {people.length&&courses.length?<table className="training-matrix"><caption className="sr-only">{t('Current training status. Select a dot to see completion and expiry dates.')}</caption><thead><tr><th scope="col" className="employee-column">{t('Employee')}</th>{courses.map(c=><th scope="col" key={c.id}><span title={c.title}>{c.title}</span><small>{t(c.category)}{c.paused?' · Paused':''}</small></th>)}</tr></thead><tbody>{people.map(p=><tr key={p.id}><th scope="row" className="employee-column"><strong dir="auto">{p.name}</strong><small dir="ltr">{p.email}</small></th>{courses.map(c=>{const r=recordMap.get(key(p.id,c.id));return <td key={c.id}><button className="matrix-cell" onClick={()=>setCell({person:p,course:c,record:r})} aria-label={`${p.name}, ${c.title}: ${statusText(r)}`} title={statusText(r)}>{r?<i className={'training-dot '+r.status} aria-hidden="true"/>:<span className="unassigned-mark" aria-hidden="true">—</span>}</button></td>;})}</tr>)}</tbody></table>:<div className="empty">{!courses.length?t('No courses match this view.'):t('No employees match this view.')}</div>}
+        {people.length&&courses.length?<table className="training-matrix"><caption className="sr-only">{t('Current training status. Select a dot to see completion and expiry dates.')}</caption><thead><tr><th scope="col" className="employee-column">{t('Employee')}</th>{courses.map(c=><th scope="col" key={c.id}><span title={c.title}>{c.title}</span><small>{t(c.category)}{c.paused?' · '+t('Paused'):''}</small></th>)}</tr></thead><tbody>{people.map(p=><tr key={p.id}><th scope="row" className="employee-column"><strong dir="auto">{p.name}</strong><small dir="ltr">{p.email}</small></th>{courses.map(c=>{const r=recordMap.get(key(p.id,c.id));return <td key={c.id}><button className="matrix-cell" onClick={()=>setCell({person:p,course:c,record:r})} aria-label={`${p.name}, ${c.title}: ${statusText(r)}`} title={statusText(r)}>{r?<i className={'training-dot '+r.status} aria-hidden="true"/>:<span className="unassigned-mark" aria-hidden="true">—</span>}</button></td>;})}</tr>)}</tbody></table>:<div className="empty">{!courses.length?t('No courses match this view.'):t('No employees match this view.')}</div>}
       </div><p className="matrix-hint">{t('Current status · Select a dot for details')}{courses.length>5?' · '+t('Scroll across for more courses'):''}</p>
     </div>:<>
       <div className="metrics"><ReportMetric label={t('Employees')} value={new Set(records.map(r=>r.learnerId)).size} detail={`${records.length} ${t('course records')}`}/><ReportMetric label={t('In progress')} value={records.filter(r=>r.status==='in-progress').length} detail={t('Courses underway now')}/><ReportMetric label={t('Completed')} value={completed} detail={t('Completions in selected period')} blue/><ReportMetric label={t('Expired')} value={records.filter(r=>r.status==='expired').length} detail={t('Require renewal now')}/></div>
@@ -125,12 +126,12 @@ export default function TrainingReporting({access,platformAdmin,filter,onFilterC
       {filter.role!=='site'&&<div className="paper report-breakdown"><div className="card-head"><div><h2>{t(filter.role==='global'?'By country':'By store')}</h2><p>{t('Current course status')}</p></div><Store/></div><div className="table-scroll"><table><thead><tr><th>{t(filter.role==='global'?'Country':'Store')}</th><th>{t('Course records')}</th><th>{t('Completed')}</th><th>{t('Expired')}</th></tr></thead><tbody>{groups.map(g=><tr key={g.id}><td><button className="report-drill" onClick={()=>filter.role==='global'?changeScope({role:'country',country:g.id}):changeScope({role:'site',site:g.id})}>{g.label}</button></td><td>{g.total}</td><td><b className="count-pill">{g.completed}</b></td><td>{g.expired||'—'}</td></tr>)}</tbody></table>{!groups.length&&<div className="empty">{t('No training records in this view yet.')}</div>}</div></div>}
       <div className="paper people report-people"><div className="people-head"><div><h2>{t('Course activity')}</h2><p>{t('Current status for each employee and course')}</p></div><EmployeeSearch value={search} onChange={setSearch} label={t('Search employees')}/></div><div className="table-scroll"><table><thead><tr><th>{t('Employee')}</th><th>{t('Course')}</th><th>{t('Status')}</th><th>{t('Completed')}</th><th>{t('Expires')}</th></tr></thead><tbody>{visibleRecords.map(r=>{const p=employeeMap.get(r.learnerId)!;const c=courseMap.get(r.courseId)!;return <tr key={key(r.learnerId,r.courseId)}><td><strong dir="auto">{p.name}</strong><small>{p.storeName}</small></td><td>{c.title}<small>{t(c.category)}</small></td><td><span className="training-status"><i className={'training-dot '+r.status} aria-hidden="true"/>{statusText(r)}</span></td><td>{formatDate(r.completedAt,lang)}</td><td>{r.expiresAt?formatDate(r.expiresAt,lang):'—'}</td></tr>;})}</tbody></table>{!visibleRecords.length&&<div className="empty">{t('No training records match this view.')}</div>}</div></div>
       <p className="report-note">{t('Dates filter the Completed total. The trend shows the selected year; employee counts and statuses show the current position.')}</p>
-      {data.legacy.length>0&&(activeCategory==='all'||activeCategory==='Induction')&&(activeCourse==='all'||activeCourse===ORIGINAL_INDUCTION)&&<details className="paper legacy-report"><summary>{t('Previous LMS')} · {data.legacy.filter(l=>year==='all'||inPeriod(l.completedAt)).length} {t('historical completions')}</summary><p>{t('Historical induction imports are kept separate from current course completion.')}</p><Button variant="outline" onClick={()=>saveCsv('primark-previous-lms.csv',[['Email','Store','Completed'],...data.legacy.filter(l=>year==='all'||inPeriod(l.completedAt)).map(l=>[l.email,l.storeName,l.completedAt])])}><Download/>{t('Export CSV')}</Button></details>}
+      {data.legacy.length>0&&(activeCategory==='all'||activeCategory==='Induction')&&(activeCourse==='all'||activeCourse===ORIGINAL_INDUCTION)&&<details className="paper legacy-report"><summary>{t('Previous LMS')} · {data.legacy.filter(l=>year==='all'||inPeriod(l.completedAt)).length} {t('historical completions')}</summary><p>{t('Historical induction imports are kept separate from current course completion.')}</p><Button variant="outline" onClick={()=>saveCsv('primark-previous-lms.csv',[['Email','Store','Completed'].map(key=>t(key)),...data.legacy.filter(l=>year==='all'||inPeriod(l.completedAt)).map(l=>[l.email,l.storeName,l.completedAt])])}><Download/>{t('Export CSV')}</Button></details>}
     </>}
     </div>}
     </div>
-    {platformAdmin&&!isMatrix&&<details className="paper import original-tools"><summary>{t('Original induction tools')}</summary><Button variant="outline" disabled={busy} onClick={()=>originalAction('seed')}>{t('Load sample learners')}</Button><p>{t('Import previous LMS completions')} · <code>email,completed,completed_at,site_id</code></p><textarea aria-label={t('Previous LMS CSV')} value={csv} onChange={e=>setCsv(e.target.value)} placeholder="email,completed,completed_at,site_id"/><div><label className="file-label">{t('Choose CSV file')}<input type="file" accept=".csv,text/csv" onChange={async e=>{const f=e.target.files?.[0];if(f)setCsv(await f.text());}}/></label><Button disabled={!csv||busy} onClick={()=>{try{void originalAction('import',{records:parseCsv(csv)});}catch(e){setError(e instanceof Error?e.message:'Check the CSV.');}}}>{t('Import CSV')}</Button><span role="status">{message}</span></div></details>}
-    <Dialog open={!!cell} onOpenChange={open=>{if(!open)setCell(null);}}><DialogContent className="training-detail"><DialogHeader><DialogTitle>{cell?.person.name}</DialogTitle><DialogDescription>{cell?.course.title}</DialogDescription></DialogHeader>{cell&&<><div className="training-status detail-status">{cell.record?<i aria-hidden="true" className={'training-dot '+cell.record.status}/>:<span aria-hidden="true">—</span>}{statusText(cell.record)}</div><dl><div><dt>{t('Completed')}</dt><dd>{formatDate(cell.record?.completedAt||null,lang)}</dd></div><div><dt>{t('Expires')}</dt><dd>{cell.record?.expiresAt?formatDate(cell.record.expiresAt,lang):cell.record?.completedAt&&!cell.course.validityMonths?t('No expiry'):'—'}</dd></div>{cell.record?.score&&<div><dt>{t('Score')}</dt><dd>{cell.record.score}</dd></div>}<div><dt>{t('Language')}</dt><dd>{courseLanguages[cell.course.language]||cell.course.language}</dd></div></dl></>}</DialogContent></Dialog>
+    {platformAdmin&&!isMatrix&&<details className="paper import original-tools"><summary>{t('Original induction tools')}</summary><Button variant="outline" disabled={busy} onClick={()=>originalAction('seed')}>{t('Load sample learners')}</Button><p>{t('Import previous LMS completions')} · <code>email,completed,completed_at,site_id</code></p><textarea aria-label={t('Previous LMS CSV')} value={csv} onChange={e=>setCsv(e.target.value)} placeholder="email,completed,completed_at,site_id"/><div><label className="file-label">{t('Choose CSV file')}<input type="file" accept=".csv,text/csv" onChange={async e=>{const f=e.target.files?.[0];if(f)setCsv(await f.text());}}/></label><Button disabled={!csv||busy} onClick={()=>{try{void originalAction('import',{records:parseCsv(csv)});}catch(e){setError(e instanceof Error?e.message:'Check the CSV.');}}}>{t('Import CSV')}</Button><span role="status">{t(message)}</span></div></details>}
+    <Dialog open={!!cell} onOpenChange={open=>{if(!open)setCell(null);}}><DialogContent className="training-detail"><DialogHeader><DialogTitle>{cell?.person.name}</DialogTitle><DialogDescription>{cell?.course.title}</DialogDescription></DialogHeader>{cell&&<><div className="training-status detail-status">{cell.record?<i aria-hidden="true" className={'training-dot '+cell.record.status}/>:<span aria-hidden="true">—</span>}{statusText(cell.record)}</div><dl><div><dt>{t('Completed')}</dt><dd>{formatDate(cell.record?.completedAt||null,lang)}</dd></div><div><dt>{t('Expires')}</dt><dd>{cell.record?.expiresAt?formatDate(cell.record.expiresAt,lang):cell.record?.completedAt&&!cell.course.validityMonths?t('No expiry'):'—'}</dd></div>{cell.record?.score&&<div><dt>{t('Score')}</dt><dd>{cell.record.score}</dd></div>}<div><dt>{t('Language')}</dt><dd>{languageName(cell.course.language)}</dd></div></dl></>}</DialogContent></Dialog>
   </section>;
 }
 function ReportMetric({label,value,detail,blue=false}:{label:string;value:number;detail:string;blue?:boolean}){return <div className={'metric '+(blue?'metric-blue':'')}><span>{label}</span><strong>{value}</strong><small>{detail}</small></div>;}

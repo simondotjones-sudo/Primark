@@ -49,8 +49,8 @@ export async function coursePanelChecks({m,check,query,invoke,loginAdmin}) {
     const html=render(details);
     assert.match(html,/country-flags\/de.svg/);assert.match(html,/Germany/);assert.match(html,/Language: /);assert.match(html,/English/);
     assert(!html.includes('/gb.svg'));assert(!html.includes('lesson'));assert(!html.includes('Approx.'));
-    assert.match(render({...details,lessonCount:1,estimatedDurationMinutes:20}),/1 lesson<\/span>/);
-    assert.match(render({...details,lessonCount:3}),/3 lessons<\/span>/);
+    assert.match(render({...details,lessonCount:1,estimatedDurationMinutes:20}),/Lessons: 1<\/span>/);
+    assert.match(render({...details,lessonCount:3}),/Lessons: 3<\/span>/);
     const global=render({...details,catalogueScope:'global'});assert.match(global,/All countries/);assert(!global.includes('country-flags/'));
     const unset=render({...details,catalogueScope:'unconfigured'});assert(!unset.includes('All countries'));assert(!unset.includes('Germany'));
     const multiple=render({...details,availableCountries:['Germany','Austria']});assert.match(multiple,/country-flags\/de.svg/);assert.match(multiple,/country-flags\/at.svg/);

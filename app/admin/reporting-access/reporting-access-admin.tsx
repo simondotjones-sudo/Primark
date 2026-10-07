@@ -1,4 +1,6 @@
 'use client';
+import type {LocalizedText} from '@/lib/ui-copy';
+import {useLanguage} from '@/components/language-provider';
 import PageHeader from '@/components/page-header';
 import { useCallback, useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
@@ -16,12 +18,14 @@ const scopeLabel = (person: Person) => person.manager_store_id ? `Store Manager 
     ? `${storeName(person.reporting_site_id)} · ${person.reporting_country}` : 'Learner only';
 
 export default function ReportingAccessAdmin() {
+  const {t,country:countryLabel}=useLanguage();
+
   const [people, setPeople] = useState<Person[]>([]), [query, setQuery] = useState('');
   const [selected, setSelected] = useState<Person | null>(null);
   const [scope, setScope] = useState<ReportingAccess['scope'] | 'none' | 'manager'>('none');
   const [country, setCountry] = useState(''), [siteId, setSiteId] = useState('');
   const [loading, setLoading] = useState(true), [busy, setBusy] = useState(false);
-  const [error, setError] = useState(''), [message, setMessage] = useState('');
+  const [error, setError] = useState(''), [message, setMessage] = useState<LocalizedText>('');
   const refresh = useCallback(async () => {
     const res = await fetch('/api/admin/reporting-access', { cache: 'no-store' });
     const data = await res.json();
@@ -43,45 +47,45 @@ export default function ReportingAccessAdmin() {
         body: JSON.stringify({ learnerId: selected.id, scope:scope==='manager'?'site':scope, country, siteId, managerStoreId:scope==='manager'?siteId:null }) });
       const data = await res.json(); if (!res.ok) throw new Error(data.error || 'Could not save access.');
       await refresh(); setSelected(null);
-      setMessage(scope === 'none' ? `Access removed for ${selected.name}.` : `Access saved for ${selected.name}.`);
+      setMessage({key:scope === 'none' ? 'Access removed for {name}.' : 'Access saved for {name}.',values:{name:selected.name}});
     } catch (e) { setError(e instanceof Error ? e.message : 'Please try again.'); }
     finally { setBusy(false); }
   }
   const shown = people.filter(p => `${p.name} ${p.email} ${storeName(p.store_id)}`.toLowerCase().includes(query.toLowerCase()));
   return <div className="shell course-admin access-admin app-page">
-    <PageHeader title="User access" view="access"/>
+    <PageHeader title={t("User access")} view="access"/>
     <main className="main">
-      {error && <p className="error" role="alert">{error}</p>}
-      {message && <p className="admin-success" role="status">{message}</p>}
+      {error && <p className="error" role="alert">{t(error)}</p>}
+      {message && <p className="admin-success" role="status">{t(message)}</p>}
       {selected ? <section className="paper access-editor">
-        <button className="back" disabled={busy} onClick={() => setSelected(null)}>← Back to accounts</button>
+        <button className="back" disabled={busy} onClick={() => setSelected(null)}>{t("← Back to accounts")}</button>
         <h2>{selected.name}</h2><p>{selected.email}</p>
         <form onSubmit={e => { e.preventDefault(); void save(); }}>
-          <label>Access<NativeSelect value={scope} disabled={busy} onChange={e => setScope(e.target.value as typeof scope)}>
-            <option value="none">Learner only</option><option value="manager">Store Manager</option><option value="site">Site reporting admin</option>
-            <option value="country">Country reporting admin</option><option value="organisation">Primark reporting admin</option>
+          <label>{t("Access")}<NativeSelect value={scope} disabled={busy} onChange={e => setScope(e.target.value as typeof scope)}>
+            <option value="none">{t("Learner only")}</option><option value="manager">{t("Store Manager")}</option><option value="site">{t("Site reporting admin")}</option>
+            <option value="country">{t("Country reporting admin")}</option><option value="organisation">{t("Primark reporting admin")}</option>
           </NativeSelect></label>
-          {(scope === 'country' || scope === 'site' || scope === 'manager') && <label>Country<NativeSelect required disabled={busy} value={country} onChange={e => { setCountry(e.target.value); setSiteId(''); }}>
-            <option value="">Choose a country</option>{countries.map(c => <option key={c}>{c}</option>)}
+          {(scope === 'country' || scope === 'site' || scope === 'manager') && <label>{t("Country")}<NativeSelect required disabled={busy} value={country} onChange={e => { setCountry(e.target.value); setSiteId(''); }}>
+            <option value="">{t("Choose a country")}</option>{countries.map(c => <option key={c} value={c}>{countryLabel(c)}</option>)}
           </NativeSelect></label>}
-          {(scope === 'site'||scope==='manager') && <label>Site<NativeSelect required disabled={busy || !country} value={siteId} onChange={e => setSiteId(e.target.value)}>
-            <option value="">Choose a site</option>{stores.filter(s => s.country === country).map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+          {(scope === 'site'||scope==='manager') && <label>{t("Site")}<NativeSelect required disabled={busy || !country} value={siteId} onChange={e => setSiteId(e.target.value)}>
+            <option value="">{t("Choose a site")}</option>{stores.filter(s => s.country === country).map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
           </NativeSelect></label>}
-          <p className="access-explanation">{scope === 'manager' ? 'Can see users in the selected store, assign courses from its country library and view store reports.' : scope === 'none' ? 'This account can access its own learning.' : scope === 'organisation'
+          <p className="access-explanation">{t(scope === 'manager' ? 'Can see users in the selected store, assign courses from its country library and view store reports.' : scope === 'none' ? 'This account can access its own learning.' : scope === 'organisation'
             ? 'Can view and export reports across all Primark countries and sites.' : scope === 'country'
-              ? 'Can view and export reports for the selected country and its sites.' : 'Can view and export reports for the selected site.'}</p>
-          {scope !== 'none' && <p className="access-note">They sign in with their email and password. Creating courses and assigning access stay with the platform admin.</p>}
-          <div className="editor-actions"><Button variant="outline" type="button" disabled={busy} onClick={() => setSelected(null)}>Cancel</Button>
-            <Button className="blue-button" disabled={busy}>{busy ? 'Saving…' : 'Save access'}</Button></div>
+              ? 'Can view and export reports for the selected country and its sites.' : 'Can view and export reports for the selected site.')}</p>
+          {scope !== 'none' && <p className="access-note">{t("They sign in with their email and password. Creating courses and assigning access stay with the platform admin.")}</p>}
+          <div className="editor-actions"><Button variant="outline" type="button" disabled={busy} onClick={() => setSelected(null)}>{t("Cancel")}</Button>
+            <Button className="blue-button" disabled={busy}>{t(busy ? 'Saving…' : 'Save access')}</Button></div>
         </form>
       </section> : <section className="paper access-people">
-        <label className="access-search">Find an account<Input type="search" value={query} onChange={e => setQuery(e.target.value)} placeholder="Name, email or site" /></label>
-        {loading ? <p className="empty">Loading accounts…</p> : !shown.length ? <p className="empty">{people.length ? 'No accounts match your search.' : 'Accounts appear here after a learner registers.'}</p> :
-          <div className="table-scroll"><table><thead><tr><th>Account</th><th>Home site</th><th>Access</th><th><span className="sr-only">Action</span></th></tr></thead>
+        <label className="access-search">{t("Find an account")}<Input type="search" value={query} onChange={e => setQuery(e.target.value)} placeholder={t("Name, email or site")} /></label>
+        {loading ? <p className="empty">{t("Loading accounts…")}</p> : !shown.length ? <p className="empty">{t(people.length ? 'No accounts match your search.' : 'Accounts appear here after a learner registers.')}</p> :
+          <div className="table-scroll"><table><thead><tr><th>{t("Account")}</th><th>{t("Home site")}</th><th>{t("Access")}</th><th><span className="sr-only">{t("Action")}</span></th></tr></thead>
             <tbody>{shown.map(person => <tr key={person.id}><td><strong>{person.name}</strong><small>{person.email}</small></td>
-              <td>{storeName(person.store_id)}<small>{person.country}</small></td>
-              <td><span className={person.scope ? 'access-badge' : 'access-none'}>{scopeLabel(person)}</span></td>
-              <td><Button variant="outline" onClick={() => edit(person)} aria-label={`Edit access for ${person.name}`}>Edit access</Button></td></tr>)}</tbody></table></div>}
+              <td>{storeName(person.store_id)}<small>{countryLabel(person.country)}</small></td>
+              <td><span className={person.scope ? 'access-badge' : 'access-none'}>{person.manager_store_id?`${t('Store Manager')} · ${storeName(person.manager_store_id)}`:person.scope==='country'?countryLabel(person.reporting_country||''):person.scope==='site'?`${storeName(person.reporting_site_id)} · ${countryLabel(person.reporting_country||'')}`:t(scopeLabel(person)||'')}</span></td>
+              <td><Button variant="outline" onClick={() => edit(person)} aria-label={t("Edit access for {name}",{name:person.name})}>{t("Edit access")}</Button></td></tr>)}</tbody></table></div>}
       </section>}
     </main>
   </div>;

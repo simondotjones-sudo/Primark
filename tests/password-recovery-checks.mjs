@@ -22,7 +22,7 @@ export async function passwordRecoveryChecks({m,check,query,invoke,loginAdmin,co
     await check('Recovery sends only to the account email, hides account existence, and uses hashed 30-minute tokens with a trusted origin',async()=>{
       const known=await request(email,{host:'hostile.invalid',origin:'https://hostile.invalid'});assert.equal(known.status,200);
       token=tokens()[0];assert.match(token,/^[a-f0-9]{64}$/);assert.equal(links()[0].origin,'https://primark.example.test');
-      assert.equal(links()[0].search,'');assert.equal(messages.at(-1).To,email);assert.equal(messages.at(-1).TrackLinks,'None');
+      assert.equal(links()[0].searchParams.get('lang'),'en');assert(!links()[0].searchParams.has('token'));assert.equal(messages.at(-1).To,email);assert.equal(messages.at(-1).TrackLinks,'None');
       const rows=(await query('SELECT * FROM password_resets').all()).results;
       assert(rows.some(row=>row.token_hash===digest(token)));assert(!JSON.stringify(rows).includes(token));
       const ttl=new Date(rows[0].expires_at).getTime()-Date.now();assert(ttl>29*60000&&ttl<=30*60000);
@@ -70,6 +70,15 @@ export async function passwordRecoveryChecks({m,check,query,invoke,loginAdmin,co
       const old=process.env.PRIMARK_ADMIN_PASSWORD;
       try{process.env.PRIMARK_ADMIN_PASSWORD='Rotated-hosting-secret-123';assert.equal((await reset(token)).status,400);assert.equal((await login(process.env.PRIMARK_ADMIN_EMAIL,process.env.PRIMARK_ADMIN_PASSWORD)).status,200);}
       finally{process.env.PRIMARK_ADMIN_PASSWORD=old;}
+    });
+    await check('Recovery email and reset link preserve supported languages and reject unknown locale values',async()=>{
+      for(const [lang,expected,subject] of [['it','it','Reimposta la password Primark'],['ar','ar','إعادة تعيين كلمة مرور Primark'],['unsupported','en','Reset your Primark password']]){
+        await query('DELETE FROM auth_limits').run();
+        const response=await invoke(m.recovery,'POST','/api/password-recovery',{action:'request',email,lang});
+        assert.equal(response.status,200);assert.equal(links()[0].searchParams.get('lang'),expected);
+        assert.equal(messages.at(-1).Subject,subject);assert.match(tokens()[0],/^[a-f0-9]{64}$/);
+        assert(!links()[0].searchParams.has('token'));assert(messages.at(-1).TextBody.includes('30'));
+      }
     });
     await check('Recovery throttles email delivery without exposing account existence',async()=>{
       await query('DELETE FROM auth_limits').run();const start=messages.length;

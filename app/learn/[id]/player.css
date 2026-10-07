@@ -122,3 +122,6 @@
   .player-spinner { animation: none; }
   .player-fullscreen, .player-exit { transition: none; }
 }
+
+.player-actions .language-picker select{max-width:118px;font-size:12px;padding-block:7px}.player-actions .language-picker svg{display:none}
+@media(max-width:700px){.player-toolbar{height:auto;min-height:56px;flex-wrap:wrap;padding-block:8px;gap:8px}.player-actions{margin-inline-start:auto}.player-heading:has(select){order:3;flex-basis:100%}.player-heading select{max-width:none}.player-heading:not(:has(select)){display:none}.player-save-state.is-preview .player-status-text{display:none}.player-actions .language-picker select{max-width:95px}.player-exit{max-width:160px;white-space:normal;line-height:1.2}.player-wordmark{font-size:14px}}
