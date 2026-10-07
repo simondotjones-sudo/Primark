@@ -1,7 +1,7 @@
-.access-admin .admin-heading p{color:#617988;margin-top:12px}
 .access-admin .admin-id{flex-wrap:wrap;justify-content:flex-end}
 .access-people,.access-editor{padding:28px}
 .access-search{display:grid;gap:8px;font-weight:600;max-width:440px;margin-bottom:24px}
+.access-people .table-scroll{position:relative}
 .access-people table{width:100%;text-align:left;border-collapse:collapse;font-size:15px}
 .access-people th{font-size:13px;color:#617988;font-weight:600;padding:12px;border-bottom:1px solid #dce8ef}
 .access-people td{padding:18px 12px;border-bottom:1px solid #edf2f5;vertical-align:middle}
@@ -17,4 +17,4 @@
 .access-explanation{background:#edf7fc;color:#165675;padding:18px;border-radius:12px;margin:0}
 .access-note{font-size:14px;margin:0;line-height:1.6}
 .access-editor .editor-actions{margin-top:0}
-@media(max-width:700px){.access-admin .topbar{align-items:flex-start;gap:18px;flex-direction:column}.access-admin .admin-id{gap:14px;justify-content:flex-start}.access-admin .admin-heading h1{font-size:2.2rem}.access-people,.access-editor{padding:20px}.access-people table{min-width:640px}}
+@media(max-width:700px){.access-admin .admin-id{gap:14px;justify-content:flex-start}.access-people,.access-editor{padding:20px}.access-people table{min-width:640px}}

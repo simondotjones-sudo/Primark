@@ -1,5 +1,5 @@
 'use client';
-import ProfileMenu from '@/components/profile-menu';
+import PageHeader from '@/components/page-header';
 import { useCallback, useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -48,11 +48,9 @@ export default function ReportingAccessAdmin() {
     finally { setBusy(false); }
   }
   const shown = people.filter(p => `${p.name} ${p.email} ${storeName(p.store_id)}`.toLowerCase().includes(query.toLowerCase()));
-  return <div className="shell course-admin access-admin">
-    <header className="topbar"><a href="/" className="brand"><strong>PRIMARK</strong></a><ProfileMenu view="access"/></header>
+  return <div className="shell course-admin access-admin app-page">
+    <PageHeader title="User access" view="access"/>
     <main className="main">
-      <div className="admin-heading"><div><span className="eyebrow">PLATFORM ADMIN</span><h1>User access</h1>
-        <p>Choose Store Manager or reporting access for an account.</p></div></div>
       {error && <p className="error" role="alert">{error}</p>}
       {message && <p className="admin-success" role="status">{message}</p>}
       {selected ? <section className="paper access-editor">
