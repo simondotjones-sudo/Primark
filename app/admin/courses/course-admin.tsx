@@ -1,7 +1,7 @@
 'use client';
 import ProfileMenu from "@/components/profile-menu";
 import type { FileEntry } from '@zip.js/zip.js';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { BookOpen, Check, FileArchive, Globe2, Plus, Search, Upload, Users } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -16,6 +16,12 @@ export default function CourseAdmin(){
  const [courses,setCourses]=useState<Course[]>([]),[people,setPeople]=useState<Person[]>([]),[packages,setPackages]=useState<Package[]>([]),[progress,setProgress]=useState<any[]>([]);
  const [current,setCurrent]=useState<Course|null>(null),[editing,setEditing]=useState(false),[title,setTitle]=useState(''),[description,setDescription]=useState(''),[audience,setAudience]=useState<Audience>(emptyAudience),[step,setStep]=useState(0);
  const [busy,setBusy]=useState(false),[loading,setLoading]=useState(true),[error,setError]=useState(''),[notice,setNotice]=useState(''),[query,setQuery]=useState(''),[percent,setPercent]=useState(0),[uploadLabel,setUploadLabel]=useState('');
+ const noticeRef=useRef<HTMLDivElement>(null);
+ useEffect(()=>{
+  if(!notice||!noticeRef.current)return;
+  noticeRef.current.focus({preventScroll:true});
+  noticeRef.current.scrollIntoView({behavior:window.matchMedia('(prefers-reduced-motion: reduce)').matches?'auto':'smooth',block:'center'});
+ },[notice]);
  const selectedPackage=packages.find(p=>p.id===current?.package_id);
  const matched=useMemo(()=>people.filter(p=>matchesAudience(audience,p)),[people,audience]);
  const load=async()=>{const d=await request('/api/admin/courses');setCourses(d.courses);setPeople(d.people);setPackages(d.packages);setProgress(d.progress);return d;};
@@ -51,7 +57,7 @@ export default function CourseAdmin(){
  const filteredPeople=people.filter(p=>(p.name+' '+p.email+' '+p.country+' '+(stores.find(s=>s.id===p.store_id)?.name||'')).toLowerCase().includes(query.toLowerCase()));
  return <div className="shell course-admin"><header className="topbar"><a href="/" className="brand"><strong>PRIMARK</strong></a><ProfileMenu view="courses"/></header><main className="main">
  <div className="admin-heading"><div><span className="eyebrow">PLATFORM ADMIN</span><h1>Courses</h1></div>{!editing&&<Button className="blue-button" onClick={()=>open(null)}><Plus size={18}/>Create course</Button>}</div>
- {error&&<div role="alert" className="error">{error}<Button variant="ghost" onClick={()=>run(async()=>{const d=await load();if(current){const latest=d.courses.find((c:Course)=>c.id===current.id);if(latest)open(latest);}})}>Reload</Button></div>}{notice&&<div className="admin-success" role="status"><Check size={18}/>{notice}</div>}
+ {error&&<div role="alert" className="error">{error}<Button variant="ghost" onClick={()=>run(async()=>{const d=await load();if(current){const latest=d.courses.find((c:Course)=>c.id===current.id);if(latest)open(latest);}})}>Reload</Button></div>}{notice&&<div ref={noticeRef} tabIndex={-1} className="admin-success" role="status"><Check size={18}/>{notice}</div>}
  {loading?<p>Loading courses…</p>:!editing?<><div className="course-summary"><span><strong>{courses.length}</strong> courses</span><span><strong>{courses.filter(c=>c.status==='published').length}</strong> published</span><span><strong>{people.length}</strong> registered users</span></div>{courses.length?<div className="admin-course-list">{courses.map(c=>{const a=JSON.parse(c.audience_json) as Audience;const count=people.filter(p=>matchesAudience(a,p)).length;return <button className="paper admin-course-row" key={c.id} onClick={()=>open(c)}><span className="course-icon"><BookOpen/></span><span><strong>{c.title}</strong><small>{c.package_id?'SCORM 1.2':'No package yet'} · {count} matching users</small></span><span className={'status '+(c.status==='published'?'done':'')}>{c.status==='published'?'Published':'Draft'}</span></button>;})}</div>:<div className="paper course-empty"><BookOpen size={34}/><h2>Your course library starts here</h2><p>Create a course, add its SCORM file and choose who should receive it.</p><Button onClick={()=>open(null)}>Create course</Button></div>}</>:
  <div><button disabled={busy} className="back" onClick={()=>setEditing(false)}>All courses</button><div className="course-steps" aria-label="Course setup">{['Course details','SCORM package','Audience & publish'].map((label,i)=><button key={label} className={step===i?'selected':''} disabled={busy||(i>0&&!current)} onClick={()=>setStep(i)}><b>{i+1}</b>{label}</button>)}</div>
  <div className="paper course-editor">
