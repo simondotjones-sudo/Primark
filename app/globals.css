@@ -125,7 +125,19 @@ p{line-height:1.55}.shell{min-height:100vh;display:flex;flex-direction:column}
 .module-card small{color:#6c8290;font-size:.84rem;font-weight:500}
 .assessment-tile strong{margin:0;margin-inline-end:auto}
 .assessment-tile small{color:#007eae}
-.courses-page h1{margin-bottom:28px}
+/* The learner course catalogue has one heading and one segmented view switch. */
+.courses-layout{display:block;max-width:1010px;margin-inline:auto}
+.courses-layout .learner-main{max-width:none}
+.courses-page h1{margin:0 0 26px}
+.course-view-switch{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:4px;max-width:650px;padding:6px;margin-bottom:24px;background:#e9f1f4;border:1px solid #dce7eb;border-radius:999px}
+.course-view-switch button{border:0;border-radius:999px;background:transparent;color:#607582;min-height:49px;padding:10px 12px;text-align:center;font-weight:600;transition:background .15s,color .15s,box-shadow .15s}
+.course-view-switch button:hover{color:#007cae}
+.course-view-switch button[aria-pressed="true"]{background:#fff;color:#007cb9;box-shadow:0 2px 9px #18445b13}
+.course-view-switch button:focus-visible{outline:3px solid #008bc9;outline-offset:2px}
+.courses-layout .assigned-courses{margin:0 0 26px}
+.courses-layout .course-feature{margin-bottom:26px}
+@media(max-width:760px){.course-view-switch{max-width:none;padding:5px;margin-bottom:20px}.course-view-switch button{min-height:46px;padding:9px 5px;font-size:.96rem}}
+
 .course-feature{width:100%;display:grid;grid-template-columns:43% 1fr;text-align:start;padding:0;overflow:hidden;border:1px solid #cde6f2;border-radius:24px;background:#e9f6fc;color:#15394d;min-height:258px;transition:box-shadow .2s,transform .2s}
 .course-feature:hover{transform:translateY(-2px);box-shadow:0 15px 35px #0d506018}
 .course-feature>img{width:100%;height:100%;min-height:258px;object-fit:cover}
