@@ -1,5 +1,5 @@
 'use client';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { NativeSelect } from '@/components/ui/native-select';
@@ -15,7 +15,9 @@ export default function AuthForm({lang,busy,onAuthenticate}:Props) {
   const [name,setName]=useState(''),[email,setEmail]=useState(''),[country,setCountry]=useState(''),[storeId,setStoreId]=useState('');
   const [registrationCode,setRegistrationCode]=useState(''),[password,setPassword]=useState('');
   const [loginEmail,setLoginEmail]=useState(''),[loginPassword,setLoginPassword]=useState(''),[oldCode,setOldCode]=useState(''),[legacy,setLegacy]=useState(false);
-  return <div className="paper entry-form"><Tabs defaultValue="register">
+  const [mode,setMode]=useState('register');
+  useEffect(()=>{if(new URLSearchParams(location.search).get('login')==='1')setMode('login');},[]);
+  return <div className="paper entry-form"><Tabs value={mode} onValueChange={setMode}>
     <TabsList className="auth-tabs" aria-label={t('Account access')}><TabsTrigger value="register">{t('Register')}</TabsTrigger><TabsTrigger value="login">{t('Login')}</TabsTrigger></TabsList>
     <TabsContent value="register"><h2 className="form-heading">{t('Let’s get you started')}</h2>
       <form onSubmit={e=>{e.preventDefault();onAuthenticate('register',{name,email,country,storeId,registrationCode,password});}}>
@@ -33,7 +35,7 @@ export default function AuthForm({lang,busy,onAuthenticate}:Props) {
       <form onSubmit={e=>{e.preventDefault();onAuthenticate(legacy?'set-password':'login',{email:loginEmail,password:loginPassword,...(legacy?{code:oldCode}:{})});}}>
         <label>{t('Email address')}<Input name="loginEmail" autoComplete="username" dir="ltr" type="email" required maxLength={254} value={loginEmail} onChange={e=>setLoginEmail(e.target.value)}/></label>
         {legacy&&<label>{t('Existing pass code')}<Input name="oldCode" autoComplete="off" dir="ltr" required value={oldCode} onChange={e=>setOldCode(e.target.value)} placeholder="PR-XXXXXXXXXX"/></label>}
-        <label>{t(legacy?'Create password':'Password')}<Input name="loginPassword" autoComplete={legacy?'new-password':'current-password'} dir="ltr" type="password" required minLength={legacy?8:undefined} maxLength={128} value={loginPassword} onChange={e=>setLoginPassword(e.target.value)}/></label>
+        <label>{t(legacy?'Create password':'Password')}<Input name="loginPassword" autoComplete={legacy?'new-password':'current-password'} dir="ltr" type="password" required minLength={legacy?8:undefined} maxLength={legacy?128:1024} value={loginPassword} onChange={e=>setLoginPassword(e.target.value)}/></label>
         <Button className="blue-button" size="lg" disabled={busy}>{busy?t('Please wait…'):t(legacy?'Save password & login':'Login')}</Button>
         <button type="button" className="auth-help" disabled={busy} onClick={()=>{setLegacy(!legacy);setLoginPassword('');}}>{t(legacy?'Back to Login':'Already have a pass code?')}</button>
       </form>

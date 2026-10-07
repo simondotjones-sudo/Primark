@@ -224,4 +224,45 @@ await check('Learner logout clears both old cookies and cannot resurrect an admi
 });
 await query('DELETE FROM auth_limits').run();
 await registrationChecks({m,check,query,invoke,loginAdmin,cookieFrom,store,uk,pg});
+await query('DELETE FROM auth_limits').run();
+const commonLogin=(body,cookie='',extra={})=>invoke(m.prototype,'POST','/api/prototype',{action:'login',...body},cookie,extra);
+await check('Common Login recognises platform credentials, rotates sessions and returns a safe admin destination',async()=>{
+ const learnerLogin=await commonLogin({email:'new@example.test',password:'My-fixture-password'});
+ const oldLearner='primark_session='+cookieFrom(learnerLogin,'primark_session');
+ const first=await commonLogin({email:' ADMIN@EXAMPLE.TEST ',password:process.env.PRIMARK_ADMIN_PASSWORD,returnTo:'/admin/reporting-access'},oldLearner);
+ assert.equal(first.status,200,await first.clone().text());assert.equal((await first.json()).returnTo,'/admin/reporting-access');
+ assert(first.headers.get('set-cookie').includes('httpOnly=true'));assert(first.headers.get('set-cookie').includes('sameSite=strict'));assert(first.headers.get('set-cookie').includes('primark_session=;'));
+ const admin='primark_admin='+cookieFrom(first,'primark_admin');
+ const state=await (await invoke(m.prototype,'GET','/api/prototype?view=me',undefined,admin)).json();
+ assert.equal(state.account.role,'Platform admin');assert.equal(state.platformAdmin,true);assert.equal(state.learner,null);
+ assert.equal((await (await invoke(m.prototype,'GET','/api/prototype?view=me',undefined,oldLearner)).json()).learner,null);
+ assert.equal((await invoke(m.courseAdmin,'GET','/api/admin/courses',undefined,admin)).status,200);
+ const second=await commonLogin({email:'admin@example.test',password:process.env.PRIMARK_ADMIN_PASSWORD,returnTo:'//evil.invalid'},admin);
+ assert.equal((await second.json()).returnTo,'/admin/courses');assert.equal(await context.run({cookie:admin},()=>m.auth.getAdminUser()),null);
+});
+await check('Sharing an admin email does not elevate a learner password or posted role',async()=>{
+ await query('INSERT INTO learners(id,name,email,code_hash,store_id,country,entered_at,password_hash) VALUES(?,?,?,?,?,?,?,?)','same-email','Ordinary Learner','admin@example.test','unusable',store.id,store.country,new Date().toISOString(),await m.learnerAuth.hashPassword('Ordinary-password')).run();
+ const res=await commonLogin({email:'admin@example.test',password:'Ordinary-password',platformAdmin:true,role:'platform-admin',returnTo:'/admin/courses'});
+ assert.equal(res.status,200);assert.equal((await res.json()).returnTo,undefined);
+ const cookie='primark_session='+cookieFrom(res,'primark_session');
+ const me=await (await invoke(m.prototype,'GET','/api/prototype?view=me',undefined,cookie)).json();
+ assert.equal(me.platformAdmin,false);assert.equal(me.account.role,'Learner');
+ assert.equal((await invoke(m.courseAdmin,'GET','/api/admin/courses',undefined,cookie)).status,403);
+});
+await check('Common Login rejects wrong details and cross-origin requests and shares the admin rate limit',async()=>{
+ await query('DELETE FROM auth_limits').run();
+ const credentials={email:'admin@example.test',password:process.env.PRIMARK_ADMIN_PASSWORD};
+ assert.equal((await commonLogin(credentials,'',{origin:'https://evil.invalid'})).status,403);
+ assert.equal((await commonLogin({...credentials,email:'unknown@example.test'})).status,401);
+ for(let i=0;i<5;i++){assert.equal((await commonLogin({...credentials,password:'wrong'})).status,401);assert.equal((await session({...credentials,password:'wrong'})).status,401);}
+ assert.equal((await commonLogin(credentials)).status,429);assert.equal((await session(credentials)).status,429);
+ await query('DELETE FROM auth_limits').run();
+});
+await check('Common Login preserves long configured admin passwords and old login bookmarks have safe redirects',async()=>{
+ const previous=process.env.PRIMARK_ADMIN_PASSWORD;
+ try {process.env.PRIMARK_ADMIN_PASSWORD='fixture-'.repeat(25);assert.equal((await commonLogin({email:'admin@example.test',password:process.env.PRIMARK_ADMIN_PASSWORD})).status,200);}
+ finally {process.env.PRIMARK_ADMIN_PASSWORD=previous;}
+ for(const value of ['https://evil.invalid','//evil.invalid','/\\evil.invalid','/admin/sign-in','/?login=1'])assert.equal(m.auth.safeReturnTo(value),'/admin/courses');
+ await assert.rejects(context.run({cookie:''},()=>m.auth.requireAdminUser('/admin/courses')),/\/\?login=1&returnTo=%2Fadmin%2Fcourses/);
+});
 console.log(`${passed} Netlify migration checks passed.`);await pg.close();rmSync(dir,{recursive:true,force:true});

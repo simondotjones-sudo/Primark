@@ -1,4 +1,5 @@
-import { allowLoginAttempt, ADMIN_COOKIE, getAdminUser } from '@/lib/admin-auth';
+import { allowLoginAttempt, ADMIN_COOKIE, credentials, getAdminUser, passwordMatches } from '@/lib/admin-auth';
+import { createAdminSession } from '@/lib/admin-session';
 import { getReportingAccess, reportingAccessFor, reportingFilter } from '@/lib/reporting-access';
 import type { ReportingAccess } from "@/lib/reporting-types";
 import type { ProfileAccount } from "@/lib/profile";
@@ -150,8 +151,13 @@ export async function POST(request: NextRequest) {
     if (action === "login") {
       const email = emailAddress(body.email);
       const password = typeof body.password === 'string' ? body.password : '';
-      if (!email || !password || password.length > 128) return fail('Enter your email and password.');
+      if (!email || !password || password.length > 1024) return fail('Enter your email and password.');
       if (!await allowLoginAttempt("learner:"+email)) return fail("Too many attempts. Try again in 15 minutes.",429);
+      if (email === credentials()?.email) {
+        if (!await allowLoginAttempt('platform-admin')) return fail('Too many attempts. Try again in 15 minutes.',429);
+        if (passwordMatches(email,password)) return await createAdminSession(request,body.returnTo);
+      }
+      if (password.length > 128) return fail('Those details did not match.',401);
       const learner = await database.prepare('SELECT id,password_hash FROM learners WHERE email=?').bind(email).first<{id:string;password_hash:string|null}>();
       const correct = await verifyPassword(password, learner?.password_hash || null);
       if (!learner || !correct) return fail('Those details did not match.',401);

@@ -290,7 +290,17 @@ footer strong{letter-spacing:.08em}
 .profile-role{font-size:12px;font-weight:600;color:#0076a5;background:#edf7fc;border-radius:20px;padding:4px 10px}
 .profile-site{display:flex;gap:7px;align-items:center;color:#5d7888;font-size:14px}
 .profile-field{display:grid;gap:7px;font-size:13px;font-weight:600;margin:0 0 16px}
-.profile-field select{width:100%;min-height:44px;border:1px solid #d6e4ec;border-radius:10px;background:#fff;padding:10px;color:#203f51;font-size:14px;min-width:0;text-overflow:ellipsis}
+/* Shared controls for profile, reporting and course administration. */
+.profile-field select,
+:is(.course-admin,.report) :is([data-slot="input"],[data-slot="native-select"]){width:100%;height:44px;min-height:44px;min-width:0;border:1px solid #d6e4ec;border-radius:10px;background:#fff;padding:10px;color:#203f51;font:500 14px/22px Gellix,Arial,sans-serif;box-shadow:none;text-overflow:ellipsis}
+:is(.course-admin,.report) [data-slot="native-select-wrapper"]{width:100%;min-width:0}
+:is(.course-admin,.report) [data-slot="native-select"]{padding-inline-end:36px}
+:is(.course-admin,.report) [data-slot="native-select-icon"]{color:#203f51;opacity:1}
+:is(.course-admin,.report) :is([data-slot="input"],[data-slot="native-select"]):focus-visible{outline:3px solid #69b8dd;outline-offset:3px;box-shadow:none;border-color:#d6e4ec}
+:is(.course-admin,.report) :is([data-slot="input"],[data-slot="native-select"]):disabled{background:#f7fafb;color:#526d7c}
+.report .search{position:relative;padding:0;border:0;background:transparent}
+.report .search>svg{position:absolute;inset-inline-start:12px;pointer-events:none}
+.report .search [data-slot="input"]{padding-inline-start:38px}
 .profile-field select:disabled{background:#f7fafb;color:#526d7c;opacity:1;cursor:default}
 .profile-scope{padding-top:4px}
 .profile-signout{display:flex;gap:10px;align-items:center;padding:14px 0 0;margin-top:6px;border:0;border-top:1px solid #e7eef2;background:none;color:#007dab;font-weight:600;width:100%;text-align:start}

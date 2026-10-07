@@ -34,12 +34,12 @@ export async function getAdminUser() {
 export async function requireAdminUser(returnTo: string) {
   const user = await getAdminUser();
   if (user) return user;
-  redirect(`/admin/sign-in?returnTo=${encodeURIComponent(safeReturnTo(returnTo))}`);
+  redirect(`/?login=1&returnTo=${encodeURIComponent(safeReturnTo(returnTo))}`);
 }
 export function safeReturnTo(value: unknown) {
   if (typeof value !== 'string' || !value.startsWith('/') || value.startsWith('//') || value.includes('\\')) return '/admin/courses';
   const url = new URL(value, 'https://local.invalid');
-  return url.origin === 'https://local.invalid' && !url.pathname.startsWith('/admin/sign-in') ? url.pathname + url.search : '/admin/courses';
+  return url.origin === 'https://local.invalid' && !url.pathname.startsWith('/admin/sign-in') && !url.searchParams.has('login') ? url.pathname + url.search : '/admin/courses';
 }
 export async function allowLoginAttempt(key: string, maximum = 10) {
   const date = new Date().toISOString(), expires = new Date(Date.now() + 15 * 60000).toISOString();

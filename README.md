@@ -19,7 +19,7 @@ Primark Safety Passport migrated from the current prototype (version 15, source
 4. Deploy. `@netlify/database` provisions Netlify Database and applies the SQL in
    `netlify/database/migrations/` in order. Netlify Blobs
    stores uploaded course files and photos automatically.
-5. Open `/admin/sign-in`, create a course, upload a SCORM 1.2 ZIP, select its audience
+5. Open the home page, choose Login with the configured platform-admin credentials, create a course, upload a SCORM 1.2 ZIP, select its audience
    and publish. Learners register from the home page with the `safety` code, choose a password and select their country/store.
 
 No manually created Neon project or database connection string is needed.
@@ -156,3 +156,12 @@ preserved induction assignments, manager boundaries and SCORM resume. Rollbacks 
 retain the added tables/columns and password hashes. An old application build cannot
 sign in newly created password-only users; use a forward fix or disable registrations
 while restoring the current authentication routes. Do not reverse/drop these migrations.
+
+### Shared login and stable reporting
+
+The home-page Login tab accepts learner, manager, reporting-admin and platform-admin
+credentials. Platform admins continue to use the server-configured password and a
+separate secure session; a learner with the same email never inherits admin rights.
+Old `/admin/sign-in` links redirect to the Login tab, preserving a safe return path.
+Opening the profile or returning to the browser rechecks permissions without clearing
+the dashboard when access is unchanged. Actual scope/filter changes still reload reports.
