@@ -155,7 +155,7 @@ export async function POST(request: NextRequest) {
       if (!await allowLoginAttempt("learner:"+email)) return fail("Too many attempts. Try again in 15 minutes.",429);
       if (email === credentials()?.email) {
         if (!await allowLoginAttempt('platform-admin')) return fail('Too many attempts. Try again in 15 minutes.',429);
-        if (passwordMatches(email,password)) return await createAdminSession(request,body.returnTo);
+        if (await passwordMatches(email,password)) return await createAdminSession(request,body.returnTo);
       }
       if (password.length > 128) return fail('Those details did not match.',401);
       const learner = await database.prepare('SELECT id,password_hash FROM learners WHERE email=?').bind(email).first<{id:string;password_hash:string|null}>();

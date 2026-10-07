@@ -5,6 +5,17 @@ type Executor = { query: (sql: string, values?: unknown[]) => Promise<QueryResul
 let driver: ReturnType<typeof getDatabase> | undefined;
 function database() { return driver ??= getDatabase(); }
 
+export async function inTransaction<T>(operation: (client: Executor) => Promise<T>) {
+  const client = await database().pool.connect();
+  try {
+    await client.query('BEGIN');
+    const result = await operation(client as Executor);
+    await client.query('COMMIT');
+    return result;
+  } catch (error) { await client.query('ROLLBACK'); throw error; }
+  finally { client.release(); }
+}
+
 // Existing application statements use positional ? parameters. Never interpolate values.
 export function postgresSql(sql: string) {
   let result = '', index = 0, quote = '';

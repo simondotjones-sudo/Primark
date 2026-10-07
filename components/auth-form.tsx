@@ -37,6 +37,7 @@ export default function AuthForm({lang,busy,onAuthenticate}:Props) {
         {legacy&&<label>{t('Existing pass code')}<Input name="oldCode" autoComplete="off" dir="ltr" required value={oldCode} onChange={e=>setOldCode(e.target.value)} placeholder="PR-XXXXXXXXXX"/></label>}
         <label>{t(legacy?'Create password':'Password')}<Input name="loginPassword" autoComplete={legacy?'new-password':'current-password'} dir="ltr" type="password" required minLength={legacy?8:undefined} maxLength={legacy?128:1024} value={loginPassword} onChange={e=>setLoginPassword(e.target.value)}/></label>
         <Button className="blue-button" size="lg" disabled={busy}>{busy?t('Please wait…'):t(legacy?'Save password & login':'Login')}</Button>
+        {!legacy&&<a className="auth-help" href={`/forgot-password/?lang=${lang}`}>{t('Forgot password?')}</a>}
         <button type="button" className="auth-help" disabled={busy} onClick={()=>{setLegacy(!legacy);setLoginPassword('');}}>{t(legacy?'Back to Login':'Already have a pass code?')}</button>
       </form>
     </TabsContent>
