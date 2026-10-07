@@ -1,7 +1,7 @@
 import stores from '@/lib/stores.json';
 import type { ReportingAccess } from '@/lib/reporting-types';
 
-export type ProfileView = 'learn' | 'report' | 'courses' | 'access' | 'shots' | 'store';
+export type ProfileView = 'learn' | 'report' | 'courses' | 'access' | 'shots' | 'store' | 'organisation';
 export type ProfileAccount = {
   name: string; email: string; role: string; site: string;
   platformAdmin: boolean; reportingAccess: ReportingAccess | null;
@@ -11,18 +11,19 @@ export type ReportFilter = { role: 'global' | 'country' | 'site'; country: strin
 
 export function profileViews(account: ProfileAccount): { value: ProfileView; label: string }[] {
   return [
-    { value: 'learn' as const, label: 'Learning' },
-    ...(account.managerStoreId ? [{value:'store' as const,label:'My store'}] : []),
+    { value: 'learn' as const, label: 'My Courses' },
     ...(account.reportingAccess ? [{ value: 'report' as const, label: 'Reporting' }] : []),
+    ...(!account.platformAdmin && account.managerStoreId ? [{value:'store' as const,label:'Manage Users'}] : []),
     ...(account.platformAdmin ? [
-      { value: 'courses' as const, label: 'Manage courses' },
-      { value: 'access' as const, label: 'User access' },
-      { value: 'shots' as const, label: 'Shot list' },
+      { value: 'courses' as const, label: 'Courses' },
+      { value: 'access' as const, label: 'Manage Users' },
+      { value: 'organisation' as const, label: 'Organisation' },
     ] : []),
   ];
 }
 
-export function profileScope(access: ReportingAccess, desired: Partial<ReportFilter> = {}) {
+export function profileScope(access: ReportingAccess, desired: Partial<ReportFilter> = {}, directory=stores) {
+  const stores=directory;
   const roles: ReportFilter['role'][] = access.scope === 'organisation' ? ['global', 'country', 'site']
     : access.scope === 'country' ? ['country', 'site'] : ['site'];
   const countries = access.scope === 'organisation' ? [...new Set(stores.map(s => s.country))].sort() : [access.country!];
@@ -34,6 +35,7 @@ export function profileScope(access: ReportingAccess, desired: Partial<ReportFil
 }
 
 export function profileHref(view: ProfileView, filter?: ReportFilter) {
+  if (view === 'organisation') return '/admin/organisation';
   if (view === 'store') return '/store';
   if (view === 'courses') return '/admin/courses';
   if (view === 'access') return '/admin/reporting-access';

@@ -6,7 +6,7 @@ import ProfileMenu from '@/components/profile-menu';
 import CertificatePaper from '@/components/certificate-paper';
 import '@/app/certificates/certificates.css';
 
-function Header(){return <header className="topbar"><a className="brand" href="/"><strong>PRIMARK</strong></a><div className="top-controls"><LanguagePicker/><ProfileMenu/></div></header>;}
+function Header(){return <header className="topbar"><a className="brand" href="/"><strong>PRIMARK</strong></a><div className="top-controls"><ProfileMenu/></div></header>;}
 export function CertificateList({records}:{records:Certificate[]}){
  const {t,date}=useLanguage();
  return <div className="shell"><Header/><main className="certificates-main"><div className="certificates-heading"><h1>{t('My certificates')}</h1><a href="/?courses=1">{t('Back to My courses')}</a></div>

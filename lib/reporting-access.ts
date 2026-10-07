@@ -1,6 +1,6 @@
 import type { NextRequest } from 'next/server';
 import { getAdminUser } from '@/lib/admin-auth';
-import { currentLearner, db, storeById } from '@/lib/server';
+import { currentLearner, db } from '@/lib/server';
 import { CourseError } from '@/lib/course-admin';
 import stores from '@/lib/stores.json';
 import type { ReportingAccess } from '@/lib/reporting-types';
@@ -16,7 +16,8 @@ export async function getReportingAccess(request: NextRequest): Promise<Reportin
   return learner ? reportingAccessFor(learner.id) : null;
 }
 
-export function reportingFilter(access: ReportingAccess, params: URLSearchParams) {
+export function reportingFilter(access: ReportingAccess, params: URLSearchParams, directory=stores) {
+  const stores=directory;const storeById=new Map(stores.map(s=>[s.id,s]));
   const role = params.get('role') || (access.scope === 'organisation' ? 'global' : access.scope);
   const country = params.get('country') || access.country || '';
   const site = params.get('site') || access.siteId || '';

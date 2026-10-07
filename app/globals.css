@@ -339,3 +339,21 @@ footer strong{letter-spacing:.08em}
 .page-topbar .topbar-brand{flex:1}
 @media(max-width:760px){.page-topbar .topbar-brand{gap:12px}.topbar-title{padding:9px 11px;font-size:.88rem;white-space:normal}.page-topbar:has(.profile-menu){height:auto;min-height:82px}}
 @media(max-width:390px){.page-topbar .topbar-brand,.page-topbar:has(.profile-menu){gap:8px}}
+
+/* Grouped profile navigation */
+.profile-group{padding:0 0 16px;margin:0 0 16px;border-bottom:1px solid #e7eef2}
+.profile-group h2{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:#6b8290;margin:0 0 9px;font-weight:600}
+.profile-link{display:flex;align-items:center;gap:12px;width:100%;border:0;border-radius:11px;background:#f4f6f8;color:#203f51;padding:12px 14px;margin:6px 0;text-align:start;font:500 15px/1.4 Gellix,Arial,sans-serif;text-decoration:none;cursor:pointer}
+.profile-link svg{flex:none;color:#007dab}.profile-link:hover,.profile-link[aria-current="page"]{background:#e8f5fb;color:#007dab}
+.profile-link:focus-visible,.profile-trigger:focus-visible{outline:3px solid #69b8dd;outline-offset:3px}
+.profile-language{display:flex;align-items:center;justify-content:space-between;gap:10px;font-size:14px}
+.profile-panel .language-picker{min-width:0}.profile-panel .language-picker select{max-width:170px;width:100%;height:44px}
+.profile-panel .language-picker>svg{display:block!important}.profile-panel .profile-signout{padding:14px 0;margin-top:14px}.profile-panel .profile-version{margin-top:0}
+.shot-list-link{width:fit-content;margin:0 0 20px}
+.organisation-form{display:flex;align-items:end;gap:16px;flex-wrap:wrap}.organisation-form label{display:grid;gap:8px;flex:1;min-width:180px}.organisation-stores{margin-top:16px}.organisation-store{display:flex;justify-content:space-between;gap:16px;align-items:center;padding:14px 0;border-bottom:1px solid #e7eef2}.organisation-store small{display:block;color:#6b8290;margin-top:4px}
+/* The header's horizontal navigation rules must not affect this vertical menu. */
+.profile-panel .profile-group{display:block;height:auto}
+.profile-panel .profile-group .profile-link{display:flex;width:100%;gap:12px;white-space:normal;padding:12px 14px;margin:6px 0;border-radius:11px;background:#f4f6f8;color:#203f51;font:500 15px/1.4 Gellix,Arial,sans-serif;text-align:start}
+.profile-panel .profile-group .profile-link:hover,.profile-panel .profile-group .profile-link[aria-current="page"]{background:#e8f5fb;color:#007dab}
+.profile-panel .language-picker>.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+.topbar:has(.profile-menu) .profile-panel .language-picker select{max-width:170px}

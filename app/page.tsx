@@ -48,6 +48,7 @@ async function api(url:string, options?:RequestInit) {
 const post = (action:string,data:Record<string,unknown>={}) => api("",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({action,...data})});
 
 export default function Home() {
+
   const {lang,t}=useLanguage();
   const copyLang=contentLanguage(lang);
   const shownModules=modules.map((m,i)=>copyLang==="en"?m:{...m,...moduleCopy[copyLang][i],short:moduleCopy[copyLang][i].title});
@@ -86,7 +87,8 @@ export default function Home() {
       accessKey.current=key;
       if(!access){setArea("learn");}else{
         const params=new URLSearchParams(location.search);
-        const selected=profileScope(access,{role:params.get("role") as ReportFilter['role'],country:params.get("country")||undefined,site:params.get("site")||undefined}).filter;
+        const directory=await fetch("/api/stores",{cache:"no-store"}).then(r=>r.ok?r.json():null).catch(()=>null);
+        const selected=profileScope(access,{role:params.get("role") as ReportFilter['role'],country:params.get("country")||undefined,site:params.get("site")||undefined},directory?.stores||stores).filter;
         setRole(selected.role);setScopeCountry(selected.country);setScopeSite(selected.site);
         if(params.get("view")==="report"||data.platformAdmin)setArea("report");
       }
@@ -117,8 +119,8 @@ export default function Home() {
   const nextChapter=shownModules.findIndex(m=>!viewed.includes(m.key));
 
   return <div className={"shell"+(!account&&!loading?" login-screen":"")} lang={lang} dir={languageDirection(lang)}>
-    <header className="topbar"><div className="topbar-brand"><button className="brand" onClick={()=>{setArea(platformAdmin?"report":"learn");setScreen("home");}}><strong>PRIMARK</strong></button>{reportingAccess&&<nav aria-label={t("Primary menu")}><button className={area==="report"?"active":""} aria-current={area==="report"?"page":undefined} onClick={()=>setArea("report")}>{t("Learning Overview")}</button></nav>}</div><div className="top-controls"><LanguagePicker/><ProfileMenu account={account} view={area} filter={{role,country:scopeCountry,site:scopeSite}} onOpen={()=>{void refreshMe().catch(()=>{});}}
-      onViewChange={next=>{if(next==="learn"||next==="report"){setArea(next);}else location.assign(profileHref(next));}}
+    <header className="topbar"><div className="topbar-brand"><button className="brand" onClick={()=>{setArea(platformAdmin?"report":"learn");setScreen("home");}}><strong>PRIMARK</strong></button>{account&&<span className="topbar-title">{t(area==='report'?'Learning Overview':'My Courses')}</span>}</div><div className="top-controls">{!account&&<LanguagePicker/>}<ProfileMenu account={account} view={area} filter={{role,country:scopeCountry,site:scopeSite}} onOpen={()=>{void refreshMe().catch(()=>{});}}
+      onViewChange={next=>{if(next==="learn"||next==="report"){setArea(next);if(next==="learn")setScreen("courses");}else location.assign(profileHref(next));}}
       onFilterChange={next=>{setRole(next.role);setScopeCountry(next.country);setScopeSite(next.site);setArea("report");}}
       onSignOut={async()=>{if(platformAdmin){const response=await fetch("/api/admin/session",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"logout"})});if(!response.ok)throw new Error("Could not sign out. Please try again.");}else await post("logout");await refreshMe();setArea("learn");setScreen("home");}}/></div></header>
     <main className="main">

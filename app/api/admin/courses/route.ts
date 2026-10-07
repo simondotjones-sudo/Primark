@@ -2,7 +2,7 @@ import { NextRequest } from 'next/server';
 import { db } from '@/lib/server';
 import { bodyJson, failed, getCourse, getPackage, json, now, requireAdmin, validateAudience, CourseError } from '@/lib/course-admin';
 import { type Course, type Person } from '@/lib/course-types';
-import stores from '@/lib/stores.json';
+import {storeDirectory} from '@/lib/store-directory';
 import { courseLanguages } from '@/lib/course-catalogue';
 export const dynamic='force-dynamic';
 function optionalPositiveInteger(value: unknown, existing: number | null | undefined, label: string, max: number) {
@@ -24,6 +24,7 @@ export async function GET() { try {
 } catch(e) { return failed(e); } }
 export async function POST(request: NextRequest) { try {
   await requireAdmin(request);
+ const stores=await storeDirectory(false);const storeById=new Map(stores.map(s=>[s.id,s]));
   const b=await bodyJson(request); const title=typeof b.title==='string'?b.title.trim():''; const description=typeof b.description==='string'?b.description.trim():'';
   if (!title || title.length>150 || description.length>2000) throw new CourseError('Add a course title (up to 150 characters) and a description of up to 2,000 characters.');
   if (!['draft','published'].includes(b.status)) throw new CourseError('Invalid course status.');

@@ -5,13 +5,14 @@ import { Input } from '@/components/ui/input';
 import { NativeSelect } from '@/components/ui/native-select';
 import { Checkbox } from '@/components/ui/checkbox';
 import { courseCategories,courseLanguages } from '@/lib/course-catalogue';
-import stores from '@/lib/stores.json';
+import {useStores} from '@/components/store-directory';
 import type { Course } from '@/lib/course-types';
 
 export type CatalogueFields={englishTitle:string;category:string;languageCode:string;catalogueScope:Course['catalogue_scope'];availableCountries:string[];inductionRole:Course['induction_role'];validityMonths:number|null;estimatedDurationMinutes:number|null;lessonCount:number|null};
 export const fieldsFor=(course:Course|null):CatalogueFields=>({englishTitle:course?.english_title||'',category:course?.category||'',languageCode:course?.language_code||'en',catalogueScope:course?.catalogue_scope||'unconfigured',availableCountries:JSON.parse(course?.available_countries_json||'[]'),inductionRole:course?.induction_role||'none',validityMonths:course?.validity_months??null,estimatedDurationMinutes:course?.estimated_duration_minutes??null,lessonCount:course?.lesson_count??null});
-const countries=[...new Set(stores.map(s=>s.country))].sort();
 export default function CourseCatalogueFields({value,onChange}:{value:CatalogueFields;onChange:(next:CatalogueFields)=>void}){
+ const stores=useStores();
+const countries=[...new Set(stores.map(s=>s.country))].sort();
   const {t,country:countryLabel,languageName}=useLanguage();
 
   const standard=[3,6,12,24,36];

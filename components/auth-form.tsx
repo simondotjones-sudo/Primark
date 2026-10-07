@@ -4,13 +4,14 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { NativeSelect } from '@/components/ui/native-select';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
-import stores from '@/lib/stores.json';
+import {useStores} from '@/components/store-directory';
 import { tr, countryName } from '@/lib/ui-copy';
 import type { Language } from '@/lib/i18n';
 
-const countries = [...new Set(stores.map(s=>s.country))].sort();
 type Props = {lang:Language; busy:boolean; onAuthenticate:(action:string, fields:Record<string,string>)=>void};
 export default function AuthForm({lang,busy,onAuthenticate}:Props) {
+ const stores=useStores();
+const countries = [...new Set(stores.map(s=>s.country))].sort();
   const t=(text:string)=>tr(lang,text);
   const [name,setName]=useState(''),[email,setEmail]=useState(''),[country,setCountry]=useState(''),[storeId,setStoreId]=useState('');
   const [registrationCode,setRegistrationCode]=useState(''),[password,setPassword]=useState('');

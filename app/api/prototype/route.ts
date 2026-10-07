@@ -5,9 +5,9 @@ import type { ReportingAccess } from "@/lib/reporting-types";
 import type { ProfileAccount } from "@/lib/profile";
 import type { PreparedStatement } from "@/lib/database";
 import { NextRequest, NextResponse } from "next/server";
-import stores from "@/lib/stores.json";
+import {storeDirectory} from '@/lib/store-directory';
 import { modules, questions } from "@/lib/course";
-import { completeIfReady, currentLearner, db, hash, now, progressFor, randomToken, storeById, withSession, type Learner } from "@/lib/server";
+import { completeIfReady, currentLearner, db, hash, now, progressFor, randomToken, withSession, type Learner } from "@/lib/server";
 
 import { isPlatformAdmin, CourseError } from "@/lib/course-admin";
 import { sameOrigin } from "@/lib/shot-server";
@@ -23,6 +23,7 @@ const emailAddress = (value: unknown) => typeof value === "string" && value.trim
 
 const privateHeaders = { "Cache-Control": "private, no-store" };
 async function learnerState(request: NextRequest) {
+  const stores=await storeDirectory();const storeById=new Map(stores.map(s=>[s.id,s]));
   const learner = await currentLearner(request);
   const admin = await getAdminUser();
   const platformAdmin = !!admin;
@@ -47,7 +48,7 @@ async function dashboard(request: NextRequest) {
   const access = await getReportingAccess(request);
   if (!access) return fail("Reporting access is required.", 403);
   const url = request.nextUrl;
-  const { siteIds } = reportingFilter(access, url.searchParams);
+  const { siteIds } = reportingFilter(access, url.searchParams, await storeDirectory());
   const year = url.searchParams.get("year") || String(new Date().getUTCFullYear());
   const month = url.searchParams.get("month") || "all";
   if (year !== "all" && (!/^\d{4}$/.test(year) || Number(year) < 2000 || Number(year) > new Date().getUTCFullYear() + 1)) return fail("Choose a valid year.");
@@ -72,6 +73,7 @@ const inMonth = (date:string|null,key:string) => !!date && date.slice(0,7) === k
 
 export async function GET(request: NextRequest) {
   try {
+  const stores=await storeDirectory();const storeById=new Map(stores.map(s=>[s.id,s]));
     const view = request.nextUrl.searchParams.get("view");
     if (view === "me") return await learnerState(request);
     if (view === "dashboard" || view === "export") {
@@ -122,6 +124,7 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
+  const stores=await storeDirectory();const storeById=new Map(stores.map(s=>[s.id,s]));
     if (!sameOrigin(request)) return fail("Please use the Safety Passport page.",403);
     const body = await bodyJson(request, 100000) as Record<string, unknown>;
     const action = body.action;
@@ -132,7 +135,7 @@ export async function POST(request: NextRequest) {
       const name = typeof body.name === "string" ? body.name.trim().replace(/\s+/g, " ") : "";
       const storeId = typeof body.storeId === "string" ? body.storeId : "";
       const store = storeById.get(storeId);
-      if (!email || name.length < 2 || name.length > 100 || !store) return fail("Enter your name, a valid email and a store.");
+      if (!email || name.length < 2 || name.length > 100 || !store || !store.active) return fail("Enter your name, a valid email and a store.");
       if (!await allowLoginAttempt('register:'+email, 10)) return fail('Too many attempts. Try again in 15 minutes.',429);
       if (typeof body.registrationCode !== 'string' || body.registrationCode.trim().toLowerCase() !== 'safety') return fail('Enter the registration code provided by Primark.');
       if (!validPassword(body.password)) return fail('Create a password with 8–128 characters.');

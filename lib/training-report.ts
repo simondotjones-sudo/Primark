@@ -1,14 +1,15 @@
 import type { Certificate } from '@/lib/certificates';
-import { db, storeById, type Learner } from '@/lib/server';
+import { db, type Learner } from '@/lib/server';
 import { availableInCountry, inductionFor } from '@/lib/course-catalogue';
 import { matchesAudience, type Course, type Sco } from '@/lib/course-types';
-import stores from '@/lib/stores.json';
+import {storeDirectory} from '@/lib/store-directory';
 import { completionExpiry, ORIGINAL_INDUCTION, type TrainingRecord, type TrainingReport } from '@/lib/training-report-types';
 
 type ReportPerson = Learner & {induction_enrolled:boolean};
 type ReadyCourse = Course & {scos_json:string};
 type Progress = {learner_id:string;package_id:string;sco_id:string;status:string;score:string|null;completed_at:string|null};
 export async function trainingReport(siteIds:string[]|null):Promise<TrainingReport> {
+  const stores=await storeDirectory();const storeById=new Map(stores.map(s=>[s.id,s]));
   const where=siteIds ? `l.store_id IN (${siteIds.map(()=>'?').join(',')})` : '1=1';
   const args=siteIds||[];
   // Every query containing learner information is scoped on the server, before aggregation.

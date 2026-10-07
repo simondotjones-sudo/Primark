@@ -1,5 +1,6 @@
 'use client';
-import {useLanguage,LanguagePicker} from '@/components/language-provider';
+import ProfileMenu from '@/components/profile-menu';
+import {useLanguage} from '@/components/language-provider';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { AlertCircle, Check, LoaderCircle, Maximize2, Minimize2 } from 'lucide-react';
@@ -180,7 +181,7 @@ export default function Player({ courseId, preview }: { courseId: string; previe
           {launch.scos.map((s, i) => <option value={s.id} key={s.id}>{i + 1}. {s.title}</option>)}
         </select>}
       </div>
-      <div className="player-actions"><LanguagePicker/>
+      <div className="player-actions"><ProfileMenu/>
         <span className={`player-save-state is-${preview ? 'preview' : saving}`} role="status" aria-label={t(statusDetail)} title={t(statusDetail)}>
           {!preview && (saving === 'saved' ? <Check aria-hidden="true" /> : saving === 'saving' ? <LoaderCircle className="player-spinner" aria-hidden="true" /> : saving === 'error' ? <AlertCircle aria-hidden="true" /> : <span className="player-status-dot" aria-hidden="true" />)}
           <span className="player-status-text">{t(status)}</span>

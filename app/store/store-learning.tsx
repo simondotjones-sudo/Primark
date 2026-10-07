@@ -2,7 +2,7 @@
 import type {LocalizedText} from '@/lib/ui-copy';
 import {useLanguage,LanguagePicker} from '@/components/language-provider';
 import { useEffect,useState } from 'react';
-import ProfileMenu from '@/components/profile-menu';
+import PageHeader from '@/components/page-header';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -16,8 +16,8 @@ export default function StoreLearning(){
   useEffect(()=>{load().catch(e=>setError(e.message));},[]);
   const toggle=(id:string,values:string[],setter:(v:string[])=>void)=>setter(values.includes(id)?values.filter(v=>v!==id):[...values,id]);
   async function assign(){setBusy(true);setError('');setNotice('');try{const response=await fetch('/api/store',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({courseIds:courses,userIds:users,allUsers:all})});const result=await response.json();if(!response.ok)throw new Error(result.error);setNotice({key:'Assignment complete. Courses: {courses}. Users: {users}.',values:{courses:result.courses,users:result.users}});setCourses([]);setUsers([]);setAll(false);await load();}catch(e){setError(e instanceof Error?e.message:'Please try again.');}finally{setBusy(false);}}
-  return <div className="shell course-admin"><header className="topbar"><a className="brand" href="/"><strong>PRIMARK</strong></a><div className="top-controls"><LanguagePicker/><ProfileMenu view="store"/></div></header><main className="main">
-    <div className="admin-heading"><div><span className="eyebrow">{t("STORE MANAGER")}</span><h1>{t("My store")}</h1>{data&&<p>{data.store.name} · {countryLabel(data.store.country)}</p>}</div></div>
+  return <div className="shell course-admin"><PageHeader title={t("Manage Users")} view="store"/><main className="main">
+    <div className="admin-heading"><div><span className="eyebrow">{t("STORE MANAGER")}</span>{data&&<p>{data.store.name} · {countryLabel(data.store.country)}</p>}</div></div>
     {error&&<p className="error" role="alert">{t(error)}</p>}{notice&&<p className="admin-success" role="status">{t(notice)}</p>}
     {!data?!error&&<p>{t("Loading your store…")}</p>:<><div className="store-assignment-grid">
       <section className="paper course-editor"><h2>{t("Users")}{" "}<small>({data.people.length})</small></h2><Input type="search" aria-label={t("Search users")} placeholder={t("Find a user")} value={search} onChange={e=>setSearch(e.target.value)}/>

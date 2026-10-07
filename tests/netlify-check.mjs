@@ -31,6 +31,8 @@ export * as reporting from '${process.cwd()}/app/api/reporting/route.ts';
 export * as reportTypes from '${process.cwd()}/lib/training-report-types.ts';
 export * as prototype from '${process.cwd()}/app/api/prototype/route.ts';
 export * as recovery from '${process.cwd()}/app/api/password-recovery/route.ts';
+export * as organisation from '${process.cwd()}/app/api/admin/organisation/route.ts';
+export * as directory from '${process.cwd()}/lib/store-directory.ts';
 export * as access from '${process.cwd()}/app/api/admin/reporting-access/route.ts';
 export * as learnerAuth from '${process.cwd()}/lib/learner-auth.ts';
 export * as courseAccess from '${process.cwd()}/lib/course-access.ts';
@@ -127,9 +129,9 @@ const grant=(id,scope,extra={},cookie=reportingAdmin)=>invoke(m.access,'POST','/
 await check('Profile displays identity and only views permitted for each role',async()=>{
  const account={name:'Photo User',email:'photo@example.test',role:'Learner',site:store.name,platformAdmin:false,reportingAccess:null};
  const props={account,view:'learn',onView(){},onFilter(){},onSignOut(){}};
- const learner=renderToStaticMarkup(createElement(m.ProfileContent,props));assert(learner.includes('Photo User'));assert(learner.includes('Learner'));assert(learner.includes(store.name));assert(learner.includes('Sign out'));assert(!learner.includes('<select'));assert(!learner.includes('Shot list'));
+ const learner=renderToStaticMarkup(createElement(m.ProfileContent,props));assert(learner.includes('Photo User'));assert(learner.includes('Learner'));assert(learner.includes(store.name));assert(learner.includes('Sign out'));assert.equal((learner.match(/<select/g)||[]).length,1);assert(learner.includes('Language'));assert(!learner.includes('Reporting level'));assert(learner.includes('My Courses')); assert(!learner.includes('Shot list'));
  const reporting=renderToStaticMarkup(createElement(m.ProfileContent,{...props,account:{...account,reportingAccess:{scope:'country',country:'Ireland',siteId:null}}}));assert(reporting.includes('Reporting'));assert(!reporting.includes('Manage courses'));assert(!reporting.includes('Reporting access'));assert(!reporting.includes('Shot list'));
- const admin=renderToStaticMarkup(createElement(m.ProfileContent,{...props,account:{...account,platformAdmin:true,reportingAccess:{scope:'organisation',country:null,siteId:null}}}));for(const label of ['Learning','Reporting','Manage courses','User access','Shot list'])assert(admin.includes(label));
+ const admin=renderToStaticMarkup(createElement(m.ProfileContent,{...props,account:{...account,platformAdmin:true,reportingAccess:{scope:'organisation',country:null,siteId:null}}}));for(const label of ['My Courses','Reporting','Courses','Manage Users','Organisation','Platform administration'])assert(admin.includes(label));
 });
 await check('Profile scope controls restrict sites and reporting levels and produce usable links',async()=>{
  const siteAccess={scope:'site',country:store.country,siteId:store.id},countryAccess={scope:'country',country:'Ireland',siteId:null},orgAccess={scope:'organisation',country:null,siteId:null};
@@ -277,5 +279,25 @@ await check('Common Login preserves long configured admin passwords and old logi
  await assert.rejects(context.run({cookie:''},()=>m.auth.requireAdminUser('/admin/courses')),/\/\?login=1&returnTo=%2Fadmin%2Fcourses/);
 });
 await reportingChecks({m,check,query,invoke,loginAdmin,store,uk});
+await check('Organisation store lifecycle enforces admin access and preserves historical records',async()=>{
+ const cookie=await loginAdmin();
+ const endpoint='/api/admin/organisation';
+ assert.equal((await invoke(m.organisation,'GET',endpoint)).status,403);
+ assert.equal((await invoke(m.organisation,'POST',endpoint,{action:'add',name:'New Store',country:'Ireland'},userCookies['site-person'])).status,403);
+ assert.equal((await invoke(m.organisation,'POST',endpoint,{action:'add',name:'New Store',country:'Ireland'},cookie,{origin:'https://evil.invalid'})).status,403);
+ const result=await invoke(m.organisation,'POST',endpoint,{action:'add',name:'New Store',country:'Ireland'},cookie);assert.equal(result.status,200);
+ const added=(await result.json()).stores.find(s=>s.name==='New Store');assert(added.active);
+ assert.equal((await invoke(m.organisation,'POST',endpoint,{action:'add',name:'new store',country:'ireland'},cookie)).status,400);
+ const before=(await query('SELECT COUNT(*) AS n FROM learners').first()).n;
+ assert.equal((await invoke(m.organisation,'POST',endpoint,{action:'archive',id:store.id},cookie)).status,200);
+ assert(!(await m.directory.storeDirectory(false)).some(s=>s.id===store.id));
+ assert((await m.directory.storeDirectory()).some(s=>s.id===store.id));
+ assert.equal((await query('SELECT COUNT(*) AS n FROM learners').first()).n,before);
+ const registration=await invoke(m.prototype,'POST','/api/prototype',{action:'register',email:'archived@example.test',name:'Archive Test',storeId:store.id,country:store.country,registrationCode:'safety',password:'test-password-123'});
+ assert.equal(registration.status,400);
+ assert.equal((await invoke(m.organisation,'POST',endpoint,{action:'restore',id:store.id},cookie)).status,200);
+ assert((await m.directory.storeDirectory(false)).some(s=>s.id===store.id));
+ assert.equal((await query('SELECT COUNT(*) AS n FROM organisation_store_audit WHERE store_id=?',store.id).first()).n,2);
+});
 await passwordRecoveryChecks({m,check,query,invoke,loginAdmin,cookieFrom,store});
 console.log(`${passed} Netlify migration checks passed.`);await pg.close();rmSync(dir,{recursive:true,force:true});

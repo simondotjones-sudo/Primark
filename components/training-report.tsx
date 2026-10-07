@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { NativeSelect } from '@/components/ui/native-select';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import {useStores} from '@/components/store-directory';
 import { profileScope, type ReportFilter } from '@/lib/profile';
 import type { ReportingAccess } from '@/lib/reporting-types';
 import { ORIGINAL_INDUCTION, statusLabels, type ReportEmployee, type ReportCourse, type TrainingRecord, type TrainingReport } from '@/lib/training-report-types';
@@ -23,7 +24,8 @@ function saveCsv(name:string,rows:unknown[][]){const blob=new Blob(['\uFEFF'+row
 
 export default function TrainingReporting({access,platformAdmin,filter,onFilterChange,lang}:Props){
   const {t,languageName}=useLanguage();
-  const scope=profileScope(access,filter);
+  const stores=useStores(true);
+  const scope=profileScope(access,filter,stores);
   const [data,setData]=useState<TrainingReport|null>(null);
   const [loading,setLoading]=useState(true);
   const [error,setError]=useState('');

@@ -1,9 +1,9 @@
 'use client';
-import {useLanguage} from '@/components/language-provider';
+import {LanguagePicker,useLanguage} from '@/components/language-provider';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { LogOut, MapPin, UserRound } from 'lucide-react';
+import { LogOut, MapPin, UserRound, BookOpen, BarChart3, Users, Library, Building2, Camera } from 'lucide-react';
 import { APP_VERSION } from '@/lib/app-version';
-import { profileHref, profileScope, profileViews, type ProfileAccount, type ProfileView, type ReportFilter } from '@/lib/profile';
+import { profileHref, profileViews, type ProfileAccount, type ProfileView, type ReportFilter } from '@/lib/profile';
 
 type ContentProps = {
   account: ProfileAccount;
@@ -16,30 +16,16 @@ type ContentProps = {
 };
 
 export function ProfileContent({ account, view, filter, onView, onFilter, onSignOut, busy }: ContentProps) {
-  const {t,country:countryLabel}=useLanguage();
-
-  const scope = account.reportingAccess ? profileScope(account.reportingAccess, filter) : null;
-  const changeFilter = (change: Partial<ReportFilter>) => {
-    if (account.reportingAccess && scope) onFilter(profileScope(account.reportingAccess, { ...scope.filter, ...change }).filter);
-  };
+  const {t}=useLanguage();
   const views = profileViews(account);
+  const icons = {learn:BookOpen,report:BarChart3,store:Users,access:Users,courses:Library,organisation:Building2,shots:Camera};
+  const group = (options: typeof views, heading: string) => options.length > 0 && <nav className="profile-group" aria-label={t(heading)}><h2>{t(heading)}</h2>{options.map(option => {const Icon=icons[option.value];return <button key={option.value} type="button" className="profile-link" aria-current={view===option.value?'page':undefined} onClick={()=>onView(option.value)}><Icon size={19}/><span>{t(option.label)}</span></button>;})}</nav>;
   return <>
     <div className="profile-identity"><strong>{account.name}</strong>{account.name !== account.email && <small>{account.email}</small>}
       <span className="profile-role">{t(account.role)}</span><span className="profile-site"><MapPin size={15}/>{account.platformAdmin?t('All Primark'):account.site}</span></div>
-    {views.length > 1 && <label className="profile-field">{t("View")}<select value={view} onChange={e => onView(e.target.value as ProfileView)}>
-      {views.map(option => <option key={option.value} value={option.value}>{t(option.label)}</option>)}
-    </select></label>}
-    {scope && view === 'report' && <div className="profile-scope">
-      <label className="profile-field">{t("Reporting level")}<select value={scope.filter.role} disabled={scope.roles.length === 1} onChange={e => changeFilter({ role: e.target.value as ReportFilter['role'] })}>
-        {scope.roles.map(role => <option key={role} value={role}>{t(role === 'global' ? 'All Primark' : role === 'country' ? 'Country' : 'Site')}</option>)}
-      </select></label>
-      {scope.filter.role !== 'global' && <label className="profile-field">{t("Country")}<select value={scope.filter.country} disabled={scope.countries.length === 1} onChange={e => changeFilter({ country: e.target.value, site: '' })}>
-        {scope.countries.map(country => <option key={country} value={country}>{countryLabel(country)}</option>)}
-      </select></label>}
-      {scope.filter.role === 'site' && <label className="profile-field">{t("Site")}<select value={scope.filter.site} disabled={scope.sites.length === 1} onChange={e => changeFilter({ site: e.target.value })}>
-        {scope.sites.map(site => <option key={site.id} value={site.id}>{site.name}</option>)}
-      </select></label>}
-    </div>}
+    {group(views.filter(option=>!['courses','organisation','shots'].includes(option.value)), 'Learning')}
+    {group(views.filter(option=>['courses','organisation'].includes(option.value)), 'Platform administration')}
+    <div className="profile-language"><span>{t('Language')}</span><LanguagePicker/></div>
     <button type="button" className="profile-signout" disabled={busy} onClick={onSignOut}><LogOut size={17}/>{t(busy ? 'Signing out…' : 'Sign out')}</button>
     <div className="profile-version">{t("Primark Version")}{" "}<bdi>{APP_VERSION}</bdi></div>
   </>;
@@ -74,7 +60,7 @@ export default function ProfileMenu({ account: supplied, view = 'learn', filter,
     return () => { document.removeEventListener('pointerdown', close); document.removeEventListener('keydown', escape); };
   }, []);
   if (!account) return null;
-  const effectiveFilter = account.reportingAccess ? profileScope(account.reportingAccess, filter).filter : undefined;
+  const effectiveFilter = account.reportingAccess ? filter : undefined;
   async function signOut() {
     setBusy(true); setError('');
     try {
@@ -91,7 +77,7 @@ export default function ProfileMenu({ account: supplied, view = 'learn', filter,
     <summary className="profile-trigger" aria-label={t("Open profile")} title={t("Your profile")}><UserRound size={22}/></summary>
     <div className="profile-panel" role="region" aria-label={t("Your profile")}>
       <ProfileContent account={account} view={view} filter={effectiveFilter} busy={busy}
-        onView={next => { if (onViewChange) onViewChange(next); else location.assign(profileHref(next, effectiveFilter)); }}
+        onView={next => { if (details.current) details.current.open=false; if (onViewChange) onViewChange(next); else location.assign(profileHref(next, effectiveFilter)); }}
         onFilter={next => { if (onFilterChange) onFilterChange(next); else location.assign(profileHref('report', next)); }} onSignOut={() => void signOut()}/>
       {error && <p className="profile-error" role="alert">{t(error)}</p>}
     </div>

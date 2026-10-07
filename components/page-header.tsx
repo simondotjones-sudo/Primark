@@ -10,6 +10,6 @@ export default function PageHeader({ title, view }: { title: string; view: Profi
       <a href="/" className="brand"><strong>PRIMARK</strong></a>
       <h1 className="topbar-title">{t(title)}</h1>
     </div>
-    <div className="top-controls"><LanguagePicker/><ProfileMenu view={view}/></div>
+    <div className="top-controls"><ProfileMenu view={view}/></div>
   </header>;
 }

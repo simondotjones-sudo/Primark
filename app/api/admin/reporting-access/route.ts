@@ -1,8 +1,8 @@
 import type { NextRequest } from 'next/server';
 import { getAdminUser } from '@/lib/admin-auth';
 import { bodyJson, CourseError, failed, json, requireAdmin } from '@/lib/course-admin';
-import { db, now, storeById } from '@/lib/server';
-import stores from '@/lib/stores.json';
+import { db, now } from '@/lib/server';
+import {storeDirectory} from '@/lib/store-directory';
 import type { PreparedStatement } from '@/lib/database';
 
 export const dynamic = 'force-dynamic';
@@ -20,6 +20,7 @@ export async function GET() {
 export async function POST(request: NextRequest) {
   try {
     await requireAdmin(request);
+ const stores=await storeDirectory(false);const storeById=new Map(stores.map(s=>[s.id,s]));
     const admin = await getAdminUser();
     const body = await bodyJson(request, 10000);
     if (typeof body.learnerId !== 'string' || !await db().prepare('SELECT id FROM learners WHERE id=?').bind(body.learnerId).first())

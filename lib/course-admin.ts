@@ -3,7 +3,7 @@ import { getAdminUser } from '@/lib/admin-auth';
 import { db, now } from '@/lib/server';
 import { sameOrigin } from '@/lib/shot-server';
 import { type Audience, type Course, type Package } from '@/lib/course-types';
-import stores from '@/lib/stores.json';
+import {storeDirectory} from '@/lib/store-directory';
 export async function isPlatformAdmin() { return !!await getAdminUser(); }
 export class CourseError extends Error { constructor(message: string, public status = 400) { super(message); } }
 export async function requireAdmin(request?: NextRequest) { if (!await isPlatformAdmin()) throw new CourseError('Platform admin sign-in is required.', 403); if (request && !sameOrigin(request)) throw new CourseError('Please make this change from the course page.',403); }
@@ -14,6 +14,7 @@ export async function getCourse(id: string) { return db().prepare('SELECT * FROM
 export async function getPackage(id: string) { return db().prepare('SELECT * FROM course_packages WHERE id=?').bind(id).first<Package>(); }
 export async function validateAudience(input: unknown): Promise<Audience> {
   if (!input || typeof input !== 'object') throw new CourseError('Choose a course audience.');
+  const stores=await storeDirectory(false);
   const value = input as Audience;
   for (const field of ['countries','sites','users'] as const) if (!Array.isArray(value[field]) || value[field].length > 10000 || value[field].some(v=>typeof v !== 'string')) throw new CourseError('Invalid audience.');
   const a: Audience = {countries:[...new Set(value.countries)],sites:[...new Set(value.sites)],users:[...new Set(value.users)]};

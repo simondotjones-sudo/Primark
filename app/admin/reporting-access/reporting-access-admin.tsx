@@ -6,18 +6,20 @@ import { useCallback, useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { NativeSelect } from '@/components/ui/native-select';
-import stores from '@/lib/stores.json';
+import {useStores} from '@/components/store-directory';
 import type { ReportingAccess } from '@/lib/reporting-types';
 
 type Person = { id: string; name: string; email: string; country: string; store_id: string;
   manager_store_id:string|null; scope: ReportingAccess['scope'] | null; reporting_country: string | null; reporting_site_id: string | null };
+
+
+export default function ReportingAccessAdmin() {
+ const stores=useStores();
 const countries = [...new Set(stores.map(s => s.country))].sort();
 const storeName = (id: string | null) => stores.find(s => s.id === id)?.name || id || '';
 const scopeLabel = (person: Person) => person.manager_store_id ? `Store Manager · ${storeName(person.manager_store_id)}` : person.scope === 'organisation' ? 'All Primark'
   : person.scope === 'country' ? person.reporting_country : person.scope === 'site'
     ? `${storeName(person.reporting_site_id)} · ${person.reporting_country}` : 'Learner only';
-
-export default function ReportingAccessAdmin() {
   const {t,country:countryLabel}=useLanguage();
 
   const [people, setPeople] = useState<Person[]>([]), [query, setQuery] = useState('');
@@ -53,7 +55,7 @@ export default function ReportingAccessAdmin() {
   }
   const shown = people.filter(p => `${p.name} ${p.email} ${storeName(p.store_id)}`.toLowerCase().includes(query.toLowerCase()));
   return <div className="shell course-admin access-admin app-page">
-    <PageHeader title={t("User access")} view="access"/>
+    <PageHeader title={t("Manage Users")} view="access"/>
     <main className="main">
       {error && <p className="error" role="alert">{t(error)}</p>}
       {message && <p className="admin-success" role="status">{t(message)}</p>}
