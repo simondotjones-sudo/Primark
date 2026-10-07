@@ -22,7 +22,10 @@ export function passwordMatches(email: string, password: string) {
   return email.toLowerCase() === configured.email && correctPassword;
 }
 export async function getAdminUser() {
-  const token = (await cookies()).get(ADMIN_COOKIE)?.value;
+  const jar = await cookies();
+  // Fail closed for browsers with both cookies from before session separation.
+  if (jar.get('primark_session')?.value) return null;
+  const token = jar.get(ADMIN_COOKIE)?.value;
   if (!token || !credentials()) return null;
   const row = await db().prepare('SELECT email FROM admin_sessions WHERE token_hash=? AND credential_hash=? AND expires_at>?')
     .bind(createHash('sha256').update(token).digest('hex'), credentialFingerprint(), new Date().toISOString()).first<{ email: string }>();

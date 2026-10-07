@@ -1,11 +1,13 @@
 import assert from 'node:assert/strict';
+import { createElement } from 'react';
+import { renderToStaticMarkup } from 'react-dom/server';
 import { build } from 'esbuild';
 import { PGlite } from '@electric-sql/pglite';
-import { mkdtempSync, writeFileSync, readFileSync, rmSync } from 'node:fs';
+import { mkdtempSync, writeFileSync, readFileSync, readdirSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { AsyncLocalStorage } from 'node:async_hooks';
-const pg=new PGlite();await pg.exec(readFileSync('netlify/database/migrations/001_initial-schema/migration.sql','utf8'));
+const pg=new PGlite();for(const name of readdirSync('netlify/database/migrations').sort())await pg.exec(readFileSync('netlify/database/migrations/'+name+'/migration.sql','utf8'));
 const context=new AsyncLocalStorage(), maps=new Map();
 const pool={async query(sql,values=[]){const r=await pg.query(sql,values);return {rows:r.rows,rowCount:r.affectedRows};},async connect(){return {...this,release(){}};}};
 function getStore(options){const name=typeof options==='string'?options:options.name;if(!maps.has(name))maps.set(name,new Map());const data=maps.get(name);return {async set(k,v){data.set(k,await new Response(v).arrayBuffer());},async setJSON(k,v){data.set(k,structuredClone(v));},async get(k,o){const v=data.get(k);return v===undefined?null:o?.type==='json'?structuredClone(v):v.slice(0);}};}
@@ -13,11 +15,15 @@ globalThis.__migrationTest={pool,getStore,cookie:()=>context.getStore()?.cookie|
 process.env.PRIMARK_ADMIN_EMAIL='admin@example.test';process.env.PRIMARK_ADMIN_PASSWORD='fixture-secret-not-for-production';
 const dir=mkdtempSync(join(tmpdir(),'primark-netlify-test-')),entry=join(dir,'entry.ts');
 writeFileSync(entry,`export * as storage from '${process.cwd()}/lib/storage.ts';
+export {default as AccountNavigation} from '${process.cwd()}/components/account-navigation.tsx';
 export * as database from '${process.cwd()}/lib/database.ts';
 export * as auth from '${process.cwd()}/lib/admin-auth.ts';
 export * as origin from '${process.cwd()}/lib/request-origin.ts';
 export * as session from '${process.cwd()}/app/api/admin/session/route.ts';
 export * as prototype from '${process.cwd()}/app/api/prototype/route.ts';
+export * as access from '${process.cwd()}/app/api/admin/reporting-access/route.ts';
+export * as courseAdmin from '${process.cwd()}/app/api/admin/courses/route.ts';
+export * as packages from '${process.cwd()}/app/api/admin/packages/route.ts';
 export * as photos from '${process.cwd()}/app/api/shot-list/photos/route.ts';
 export * as photoRead from '${process.cwd()}/app/api/shot-list/photos/[id]/route.ts';
 export {default as edge} from '${process.cwd()}/lib/stored-files-edge.ts';
@@ -73,4 +79,96 @@ await check('Unauthorised photo reads are rejected before any file access',async
 await check('Byte ranges cross chunk boundaries and invalid ranges are rejected',async()=>{const object=await m.storage.photoBucket().get(photoKey,{range:new Headers({Range:'bytes=2097150-2097160'})});assert.equal((await object.arrayBuffer()).byteLength,11);await assert.rejects(m.storage.photoBucket().get(photoKey,{range:new Headers({Range:'bytes=999999999-'})}),m.storage.InvalidRange);});
 await check('Incomplete uploads cannot become readable files',async()=>{const b=m.storage.photoBucket();await b.writeChunk('unfinished',0,new ArrayBuffer(m.storage.CHUNK_SIZE));await assert.rejects(b.complete('unfinished',m.storage.CHUNK_SIZE+1));assert.equal(await b.get('unfinished'),null);});
 await check('Edge delivery checks app permission and streams files larger than 20 MB',async()=>{const bytes=new Uint8Array(22*1024*1024+3).fill(42);await m.storage.photoBucket().put('large-file',bytes);const res=await m.edge(req('/scorm-content/session/video.mp4'),{next:async r=>{assert.equal(r.headers.get('x-primark-storage-descriptor'),'1');return Response.json({key:'large-file',headers:{'Content-Type':'video/mp4'}});}});assert.equal(res.status,200);assert.equal((await res.arrayBuffer()).byteLength,bytes.length);const denied=await m.edge(req('/scorm-content/session/video.mp4'),{next:async()=>new Response('Denied',{status:401})});assert.equal(denied.status,401);});
+
+// Exercise the real permission endpoints with independent learner/admin sessions.
+const query=(sql,...values)=>m.database.db().prepare(sql).bind(...values);
+const invoke=(route,method,url,body,cookie='',extra={})=>context.run({cookie},()=>route[method](req(url,method,body,cookie,extra)));
+const getReport=(cookie,params='')=>invoke(m.prototype,'GET','/api/prototype?view=dashboard&year=all'+params,undefined,cookie);
+const getExport=(cookie,params='')=>invoke(m.prototype,'GET','/api/prototype?view=export&year=all'+params,undefined,cookie);
+const cookieFrom=(response,name)=>response.headers.get('set-cookie')?.match(new RegExp('(?:^|, )'+name+'=([^;,]+)'))?.[1];
+await query('DELETE FROM auth_limits').run();
+const loginAdmin=async(cookie='')=>{const res=await session({email:process.env.PRIMARK_ADMIN_EMAIL,password:process.env.PRIMARK_ADMIN_PASSWORD},cookie);assert.equal(res.status,200,await res.clone().text());return 'primark_admin='+cookieFrom(res,'primark_admin');};
+let reportingAdmin=await loginAdmin();
+const irelandStores=m.stores.filter(s=>s.country==='Ireland'), ireland2=irelandStores.find(s=>s.id!==store.id), uk=m.stores.find(s=>s.country==='United Kingdom');
+const people=[['site-manager',store],['country-manager',store],['org-manager',store],['same-site',store],['other-irish-site',ireland2],['uk-person',uk]];
+const userCookies={};
+for(const [id,site] of people){await query('INSERT INTO learners(id,name,email,code_hash,store_id,country,entered_at) VALUES(?,?,?,?,?,?,?)',id,id,id+'@example.test',await m.hash('TEST-CODE'),site.id,site.country,id==='uk-person'?'2019-01-01T00:00:00Z':new Date().toISOString()).run();await query('INSERT INTO sessions(token_hash,learner_id,expires_at) VALUES(?,?,?)',await m.hash(id+'-token'),id,'2099-01-01').run();userCookies[id]='primark_session='+id+'-token';}
+for(const [email,site,date] of [['same-site@example.test',uk.id,'2026-01-01'],['uk-person@example.test',store.id,'2019-01-01'],['old-irish@example.test',store.id,'2026-01-01'],['old-uk@example.test',uk.id,'2019-01-01'],['unscoped@example.test',null,'2018-01-01']])await query('INSERT INTO legacy_completions(email,completed,completed_at,store_id,imported_at) VALUES(?,1,?,?,?)',email,date,site,'now').run();
+const grant=(id,scope,extra={},cookie=reportingAdmin)=>invoke(m.access,'POST','/api/admin/reporting-access',{learnerId:id,scope,...extra},cookie);
+await check('Navigation hides reporting and management for learners, and keeps reporting admins out of course management',async()=>{
+ const props={area:'learn',onLearn(){},onReport(){},onSignOut(){},translate:x=>x};
+ assert.equal(renderToStaticMarkup(createElement(m.AccountNavigation,{...props,platformAdmin:false,canReport:false})), '');
+ const reporting=renderToStaticMarkup(createElement(m.AccountNavigation,{...props,platformAdmin:false,canReport:true}));assert(reporting.includes('Reporting'));assert(!reporting.includes('Manage courses'));assert(!reporting.includes('Reporting access'));
+ const admin=renderToStaticMarkup(createElement(m.AccountNavigation,{...props,platformAdmin:true,canReport:true}));assert(admin.includes('Manage courses'));assert(admin.includes('Reporting access'));
+});
+await check('Learners and anonymous visitors cannot read reports, exports, course management or permission lists',async()=>{
+ for(const cookie of ['',userCookies['same-site']]){
+  assert.equal((await getReport(cookie)).status,403);assert.equal((await getExport(cookie)).status,403);
+  assert.equal((await invoke(m.courseAdmin,'GET','/api/admin/courses',undefined,cookie)).status,403);
+  assert.equal((await invoke(m.access,'GET','/api/admin/reporting-access',undefined,cookie)).status,403);
+  const res=await invoke(m.prototype,'GET','/api/prototype?view=me',undefined,cookie);const data=await res.json();assert.equal(data.platformAdmin,false);assert.equal(data.reportingAccess,null);
+ }
+});
+await check('Only platform admin can grant valid scopes and cross-origin role changes fail',async()=>{
+ assert.equal((await grant('same-site','organisation',{},userCookies['same-site'])).status,403);
+ assert.equal((await grant('missing','organisation')).status,400);
+ assert.equal((await grant('site-manager','site',{siteId:'missing'})).status,400);
+ assert.equal((await grant('site-manager','country',{country:'Atlantis'})).status,400);
+ assert.equal((await grant('site-manager','platform-admin')).status,400);
+ assert.equal((await invoke(m.access,'POST','/api/admin/reporting-access',{learnerId:'site-manager',scope:'organisation'},reportingAdmin,{origin:'https://evil.invalid'})).status,403);
+ assert.equal((await grant('site-manager','site',{siteId:store.id,country:'United Kingdom'})).status,200);
+ assert.equal((await grant('country-manager','country',{country:'Ireland'})).status,200);
+ assert.equal((await grant('org-manager','organisation')).status,200);
+ assert.equal((await query('SELECT country FROM reporting_access WHERE learner_id=?','site-manager').first()).country,'Ireland');
+});
+await check('Site reporting limits rows, counts, trends, years, legacy records and CSV to one site',async()=>{
+ const cookie=userCookies['site-manager'],res=await getReport(cookie);assert.equal(res.status,200);const data=await res.json();
+ assert(data.rows.length>0);assert(data.rows.every(p=>p.store_id===store.id));assert.equal(data.counts.entered,data.rows.length);
+ assert(!data.years.includes(2019));assert(!data.years.includes(2018));assert.equal(data.counts.legacy,2);
+ const csv=await (await getExport(cookie)).text();assert(csv.includes('same-site@example.test'));assert(csv.includes('old-irish@example.test'));assert(!csv.includes('uk-person@example.test'));assert(!csv.includes('old-uk@example.test'));assert(!csv.includes('unscoped@example.test'));
+ for(const params of ['&role=global','&role=country&country=Ireland','&role=site&site='+ireland2.id,'&role=site&site='+uk.id]){assert.equal((await getReport(cookie,params)).status,403);assert.equal((await getExport(cookie,params)).status,403);}
+});
+await check('Country reporting permits its sites and rejects other countries and global reports',async()=>{
+ const cookie=userCookies['country-manager'],data=await (await getReport(cookie)).json();assert(data.rows.every(p=>p.country==='Ireland'));assert(data.rows.some(p=>p.id==='other-irish-site'));assert(!data.years.includes(2019));
+ assert.equal((await getReport(cookie,'&role=site&site='+ireland2.id)).status,200);
+ for(const params of ['&role=global','&role=country&country=United+Kingdom','&role=site&site='+uk.id]){assert.equal((await getReport(cookie,params)).status,403);assert.equal((await getExport(cookie,params)).status,403);}
+});
+await check('Organisation reporting includes all locations but cannot manage courses, roles, imports or sample records',async()=>{
+ const cookie=userCookies['org-manager'],data=await (await getReport(cookie)).json();assert(data.rows.some(p=>p.id==='uk-person'));assert(data.years.includes(2019));assert.equal(data.counts.legacy,5);
+ assert.equal((await getReport(cookie,'&role=site&site='+uk.id)).status,200);
+ for(const route of [m.courseAdmin,m.access])assert.equal((await invoke(route,'GET','/api/admin',undefined,cookie)).status,403);
+ assert.equal((await invoke(m.packages,'POST','/api/admin/packages',{},cookie)).status,403);
+ assert.equal((await grant('same-site','organisation',{},cookie)).status,403);
+ for(const action of ['seed','import'])assert.equal((await invoke(m.prototype,'POST','/api/prototype',{action},cookie)).status,403);
+ const me=await (await invoke(m.prototype,'GET','/api/prototype?view=me',undefined,cookie)).json();assert.equal(me.platformAdmin,false);assert.equal(me.reportingAccess.scope,'organisation');
+});
+await check('Changing and removing reporting access applies immediately to an existing session',async()=>{
+ const cookie=userCookies['site-manager'];assert.equal((await grant('site-manager','site',{siteId:uk.id})).status,200);
+ let res=await getReport(cookie);assert.equal(res.status,200);assert((await res.json()).rows.every(p=>p.store_id===uk.id));
+ assert.equal((await getReport(cookie,'&role=site&site='+store.id)).status,403);
+ assert.equal((await grant('site-manager','none')).status,200);assert.equal((await getReport(cookie)).status,403);assert.equal((await getExport(cookie)).status,403);
+ const me=await (await invoke(m.prototype,'GET','/api/prototype?view=me',undefined,cookie)).json();assert.equal(me.reportingAccess,null);assert(me.learner);
+});
+await check('Existing dual-cookie sessions cannot inherit platform-admin permissions',async()=>{
+ const cookie=reportingAdmin+'; '+userCookies['same-site'];
+ assert.equal(await context.run({cookie},()=>m.auth.getAdminUser()),null);
+ assert.equal((await invoke(m.courseAdmin,'GET','/api/admin/courses',undefined,cookie)).status,403);
+ assert.equal((await getReport(cookie)).status,403);
+});
+await check('Learner registration and sign-in end and revoke the previous platform session',async()=>{
+ const res=await invoke(m.prototype,'POST','/api/prototype',{action:'register',name:'Switch User',email:'switch@example.test',storeId:store.id},reportingAdmin);assert.equal(res.status,200);assert(res.headers.get('set-cookie').includes('primark_admin=;'));
+ assert.equal(await context.run({cookie:reportingAdmin},()=>m.auth.getAdminUser()),null);
+ reportingAdmin=await loginAdmin();const logged=await invoke(m.prototype,'POST','/api/prototype',{action:'login',email:'same-site@example.test',code:'TEST-CODE'},reportingAdmin);assert.equal(logged.status,200);assert(logged.headers.get('set-cookie').includes('primark_admin=;'));
+ assert.equal(await context.run({cookie:reportingAdmin},()=>m.auth.getAdminUser()),null);
+});
+await check('Platform sign-in clears learner cookies and revokes the learner session',async()=>{
+ const cookie=userCookies['same-site'];const res=await session({email:process.env.PRIMARK_ADMIN_EMAIL,password:process.env.PRIMARK_ADMIN_PASSWORD},cookie);assert.equal(res.status,200);assert(res.headers.get('set-cookie').includes('primark_session=;'));
+ const state=await (await invoke(m.prototype,'GET','/api/prototype?view=me',undefined,cookie)).json();assert.equal(state.learner,null);
+ reportingAdmin='primark_admin='+cookieFrom(res,'primark_admin');assert.equal((await getReport(reportingAdmin)).status,200);
+});
+await check('Learner logout clears both old cookies and cannot resurrect an admin session',async()=>{
+ const res=await invoke(m.prototype,'POST','/api/prototype',{action:'logout'},reportingAdmin+'; '+userCookies['country-manager']);assert.equal(res.status,200);
+ assert(res.headers.get('set-cookie').includes('primark_admin=;'));assert(res.headers.get('set-cookie').includes('primark_session=;'));
+ assert.equal(await context.run({cookie:reportingAdmin},()=>m.auth.getAdminUser()),null);
+});
 console.log(`${passed} Netlify migration checks passed.`);await pg.close();rmSync(dir,{recursive:true,force:true});

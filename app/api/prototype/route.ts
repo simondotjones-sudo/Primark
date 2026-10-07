@@ -1,49 +1,52 @@
-import { allowLoginAttempt } from '@/lib/admin-auth';
+import { allowLoginAttempt, ADMIN_COOKIE } from '@/lib/admin-auth';
+import { getReportingAccess, reportingAccessFor, reportingFilter } from '@/lib/reporting-access';
 import type { PreparedStatement } from "@/lib/database";
 import { NextRequest, NextResponse } from "next/server";
 import stores from "@/lib/stores.json";
 import { modules, questions } from "@/lib/course";
 import { completeIfReady, currentLearner, db, hash, now, progressFor, randomCode, randomToken, storeById, withSession, type Learner } from "@/lib/server";
 
-import { isPlatformAdmin } from "@/lib/course-admin";
+import { isPlatformAdmin, CourseError } from "@/lib/course-admin";
 import { sameOrigin } from "@/lib/shot-server";
 
 export const dynamic = "force-dynamic";
 const fail = (message: string, status = 400) => NextResponse.json({ error: message }, { status });
 const emailAddress = (value: unknown) => typeof value === "string" && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim()) ? value.trim().toLowerCase() : "";
 
+const privateHeaders = { "Cache-Control": "private, no-store" };
 async function learnerState(request: NextRequest) {
   const learner = await currentLearner(request);
-  if (!learner) return NextResponse.json({ learner: null, viewed: [], platformAdmin: await isPlatformAdmin() });
+  const platformAdmin = await isPlatformAdmin();
+  const reportingAccess = platformAdmin ? { scope: 'organisation', country: null, siteId: null }
+    : learner ? await reportingAccessFor(learner.id) : null;
+  const identity = { platformAdmin, reportingAccess };
+  if (!learner) return NextResponse.json({ learner: null, viewed: [], ...identity }, { headers: privateHeaders });
   const viewed = await progressFor(learner.id);
   const legacy = await db().prepare("SELECT completed FROM legacy_completions WHERE email=?").bind(learner.email).first<{completed:number}>();
-  return NextResponse.json({ learner, viewed, platformAdmin: await isPlatformAdmin(), legacyCompleted: legacy?.completed === 1 });
+  return NextResponse.json({ learner, viewed, ...identity, legacyCompleted: legacy?.completed === 1 }, { headers: privateHeaders });
 }
 
 async function dashboard(request: NextRequest) {
+  const access = await getReportingAccess(request);
+  if (!access) return fail("Reporting access is required.", 403);
   const url = request.nextUrl;
-  const role = url.searchParams.get("role") || "global";
-  const country = url.searchParams.get("country") || "";
-  const site = url.searchParams.get("site") || "";
+  const { siteIds } = reportingFilter(access, url.searchParams);
   const year = url.searchParams.get("year") || String(new Date().getUTCFullYear());
   const month = url.searchParams.get("month") || "all";
-  if (!["global", "country", "site"].includes(role)) return fail("Unknown demo view.");
-  if (role === "country" && !country) return fail("Choose a country.");
-  if (role === "site" && !storeById.has(site)) return fail("Choose a store.");
   if (year !== "all" && (!/^\d{4}$/.test(year) || Number(year) < 2000 || Number(year) > new Date().getUTCFullYear() + 1)) return fail("Choose a valid year.");
   if (month !== "all" && (year === "all" || !/^(0?[1-9]|1[0-2])$/.test(month))) return fail("Choose a valid month.");
-  const all = await db().prepare("SELECT id,name,email,store_id,country,entered_at,started_at,completed_at,best_score FROM learners ORDER BY entered_at DESC").all<Learner>();
-  const legacy = await db().prepare("SELECT email,completed,completed_at,store_id FROM legacy_completions").all<{email:string;completed:number;completed_at:string|null;store_id:string|null}>();
-  const rows = all.results.filter((r) => role === "global" || (role === "country" ? r.country === country : r.store_id === site));
-  const inScope = new Set(rows.map((r) => r.email));
-  const past = legacy.results.filter((r) => {
-    if (!r.completed) return false;
-    if (role === "global") return true;
-    if (inScope.has(r.email)) return true;
-    const store = r.store_id ? storeById.get(r.store_id) : null;
-    return role === "site" ? r.store_id === site : store?.country === country;
-  });
-  return { rows, past, year, month };
+  // Apply scope before loading any names, history, counts or trend dates.
+  const placeholders = siteIds?.map(() => '?').join(',');
+  const peopleWhere = siteIds ? `l.store_id IN (${placeholders})` : '1=1';
+  const historyWhere = siteIds ? `COALESCE(l.store_id,c.store_id) IN (${placeholders})` : '1=1';
+  const [people, history] = await Promise.all([
+    db().prepare(`SELECT l.id,l.name,l.email,l.store_id,l.country,l.entered_at,l.started_at,l.completed_at,l.best_score
+      FROM learners l WHERE ${peopleWhere} ORDER BY l.entered_at DESC`).bind(...(siteIds || [])).all<Learner>(),
+    db().prepare(`SELECT c.email,c.completed,c.completed_at,COALESCE(l.store_id,c.store_id) AS store_id
+      FROM legacy_completions c LEFT JOIN learners l ON l.email=c.email
+      WHERE c.completed=1 AND ${historyWhere}`).bind(...(siteIds || [])).all<{email:string;completed:number;completed_at:string|null;store_id:string|null}>(),
+  ]);
+  return { rows: people.results, past: history.results, year, month };
 }
 
 const inPeriod = (date:string|null,year:string,month:string) =>
@@ -53,9 +56,8 @@ const inMonth = (date:string|null,key:string) => !!date && date.slice(0,7) === k
 export async function GET(request: NextRequest) {
   try {
     const view = request.nextUrl.searchParams.get("view");
-    if (view === "me") return learnerState(request);
+    if (view === "me") return await learnerState(request);
     if (view === "dashboard" || view === "export") {
-      if (!await isPlatformAdmin()) return fail("Platform admin sign-in is required.",403);
       const result = await dashboard(request);
       if (result instanceof NextResponse) return result;
       const { rows, past, year, month } = result;
@@ -72,7 +74,7 @@ export async function GET(request: NextRequest) {
         const lines = [["Name","Email","Country","Store","Entered","Started","Completed in new app","Best score","Completed in old LMS"].join(","),
           ...visible.map((r) => [r.name,r.email,r.country,storeById.get(r.store_id)?.name || "",r.entered_at,r.started_at,r.completed_at,r.best_score,legacyByEmail.has(r.email) ? "Yes" : "No"].map(cell).join(","))];
         for (const r of pastPeriod) if (!visible.some((x) => x.email === r.email)) lines.push(["",r.email,storeById.get(r.store_id || "")?.country || "",storeById.get(r.store_id || "")?.name || "","","","","","Yes"].map(cell).join(","));
-        return new NextResponse(lines.join("\r\n"), { headers: { "content-type": "text/csv; charset=utf-8", "content-disposition": 'attachment; filename="primark-induction-report.csv"' } });
+        return new NextResponse(lines.join("\r\n"), { headers: { ...privateHeaders, "content-type": "text/csv; charset=utf-8", "content-disposition": 'attachment; filename="primark-induction-report.csv"' } });
       }
       const today = new Date();
       const monthKeys = Array.from({length:12},(_,i) => {
@@ -91,10 +93,11 @@ export async function GET(request: NextRequest) {
         counts: { entered: visible.filter((r) => r.period_entered).length, started: visible.filter((r) => r.period_started).length, completed: visible.filter((r) => r.period_completed).length, legacy: pastPeriod.length },
         rows: visible.map((r) => ({ ...r, store_name: storeById.get(r.store_id)?.name || r.store_id, legacy_completed: legacyByEmail.has(r.email) })),
         trend, years,
-      });
+      }, { headers: privateHeaders });
     }
     return fail("Unknown view.");
   } catch (error) {
+    if (error instanceof CourseError) return fail(error.message, error.status);
     console.error("Primark prototype GET failed", error);
     return fail("The prototype is temporarily unavailable.", 503);
   }
@@ -134,7 +137,10 @@ export async function POST(request: NextRequest) {
       const cookie = request.cookies.get("primark_session")?.value;
       if (cookie) await database.prepare("DELETE FROM sessions WHERE token_hash=?").bind(await hash(cookie)).run();
       const response = NextResponse.json({ ok: true });
+      const adminToken = request.cookies.get(ADMIN_COOKIE)?.value;
+      if (adminToken) await database.prepare("DELETE FROM admin_sessions WHERE token_hash=?").bind(await hash(adminToken)).run();
       response.cookies.delete("primark_session");
+      response.cookies.delete(ADMIN_COOKIE);
       return response;
     }
     if (action === "view") {

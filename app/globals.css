@@ -274,3 +274,8 @@ footer strong{letter-spacing:.08em}
 .sidebar>.shot-list-nav{font-size:.93rem;padding:11px 12px;flex:none}
 @media(max-width:760px){.code-banner{flex-wrap:wrap}.code-banner>div{min-width:0;flex:1 1 180px}}
 .assigned-course{display:block;padding:25px;position:relative;color:inherit}.assigned-course>svg{color:#008bc9;margin-bottom:20px}.assigned-course>.status{position:absolute;top:23px;right:20px}.assigned-course h3{font-size:23px;font-weight:600;margin:0 0 12px}.assigned-course p{color:#617988}.assigned-course>strong{color:#007cb9}.assigned-courses{margin:25px 0 35px}.admin-nav-link{color:#007cb9;font-weight:600;padding:11px 16px;font-size:14px}
+
+/* Account controls wrap without crowding the learning header on small screens. */
+.topbar:has(nav[aria-label="Account navigation"]){height:auto;min-height:82px;flex-wrap:wrap;padding-block:14px}
+.top-controls:has(nav[aria-label="Account navigation"]){height:auto;flex-wrap:wrap}
+.topbar nav[aria-label="Account navigation"]{height:auto;flex-wrap:wrap}

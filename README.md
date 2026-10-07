@@ -50,6 +50,17 @@ from the old host. Admin sessions last eight hours, are stored as hashed tokens 
 and are revoked by logout or changing the configured credentials. Login attempts are rate
 limited. Never put real admin credentials in committed files or `NEXT_PUBLIC_*` variables.
 
+Platform admins assign reporting roles at `/admin/reporting-access`. Select an existing
+learner account, choose Site, Country or Primark reporting admin, then save. Reporting
+admins use their existing learner email and pass code and can view/export only the assigned
+scope. Only platform admins can manage courses, import historical completions, load sample
+records or assign/revoke reporting access. Choose Learner only to remove reporting access.
+
+Signing into a learner account revokes the current platform session; platform sign-in
+revokes the current learner session. Browsers with both old cookies default to learner
+permissions until the user signs into the platform account again. Reporting grants and
+revocations are checked on each request; refresh or revisit the tab to update the menu.
+
 Production uploads survive deployments. Preview branches write to separate blob stores;
 they may read immutable production files referenced by their copied database. Build-time
 context is embedded by `scripts/build-context.mjs`; it contains no secrets.
@@ -59,7 +70,7 @@ same-origin frame support is retained because many SCORM 1.2 players require it.
 
 Email pass-code recovery and approved final learning content remain separate launch tasks.
 Only chapter one currently has a video; the other chapters retain their existing sample
-content. Country/site reporting scopes are admin filters, not delegated manager roles.
+content. Reporting permissions are enforced for site, country and organisation scopes.
 The photo collection workspace retains its existing shared access for signed-in learners.
 
 ## Develop and verify
@@ -76,9 +87,10 @@ pnpm build
 to `.env` for local admin access. Never commit `.env`.
 
 Tests use an isolated in-memory PostgreSQL engine (PGlite) and simulated blob storage.
-The 29 checks cover course publication/assignment, SCORM saving/resume, transaction rollback,
+The 40 checks cover course publication/assignment, SCORM saving/resume, transaction rollback,
 admin authentication, learner registration/completion, multipart photos and streamed reads.
-They also cover public-host validation behind Netlify and incomplete admin configuration.
+They also cover public-host validation behind Netlify, account switching, navigation,
+reporting boundaries (including CSV, historical records and trends), and role revocation.
 The Next.js production build and serverless packaging passed. Local Edge configuration
 inspection could not reach Netlify’s type endpoint from this environment; the Edge source
 was compiled locally and its file-delivery handler passed the integration checks.

@@ -41,13 +41,20 @@ export async function learnerForSession(token: string | undefined): Promise<Lear
 export async function withSession(request: NextRequest, learnerId: string, data: unknown) {
   const token = randomToken();
   const expiry = new Date(Date.now() + 30 * 86400000);
-  await db().prepare("INSERT INTO sessions(token_hash,learner_id,expires_at) VALUES(?,?,?)")
-    .bind(await hash(token), learnerId, expiry.toISOString()).run();
+  const statements = [db().prepare("INSERT INTO sessions(token_hash,learner_id,expires_at) VALUES(?,?,?)")
+    .bind(await hash(token), learnerId, expiry.toISOString())];
+  const adminToken = request.cookies.get('primark_admin')?.value;
+  const previousToken = request.cookies.get('primark_session')?.value;
+  if (adminToken) statements.push(db().prepare('DELETE FROM admin_sessions WHERE token_hash=?').bind(await hash(adminToken)));
+  if (previousToken) statements.push(db().prepare('DELETE FROM sessions WHERE token_hash=?').bind(await hash(previousToken)));
+  await db().batch(statements);
   const response = NextResponse.json(data);
   response.cookies.set("primark_session", token, {
     httpOnly: true, secure: isSecureRequest(request), sameSite: "lax",
     path: "/", expires: expiry,
   });
+  response.cookies.delete('primark_admin');
+  response.headers.set('Cache-Control', 'private, no-store');
   return response;
 }
 export async function progressFor(learnerId: string) {
