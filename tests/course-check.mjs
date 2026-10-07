@@ -29,6 +29,7 @@ export * as content from '${process.cwd()}/app/scorm-content/[token]/[...path]/r
 export * as api from '${process.cwd()}/lib/scorm-runtime.ts';
 export * as manifest from '${process.cwd()}/lib/scorm-manifest.ts';
 export * as types from '${process.cwd()}/lib/course-types.ts';
+export * as rise from '${process.cwd()}/lib/rise-progress.ts';
 export {hash} from '${process.cwd()}/lib/server.ts';
 export {default as stores} from '${process.cwd()}/lib/stores.json';`);
 await build({entryPoints:[entry],outfile:join(dir,'bundle.mjs'),bundle:true,platform:'node',format:'esm',packages:'bundle',tsconfig:'tsconfig.json',plugins:[{name:'local-test-bindings',setup(b){
@@ -79,6 +80,37 @@ await check('player readiness does not wait for slow course media',async()=>{
 });
 await check('save ownership, idempotency and time are enforced',async()=>{assert.equal((await call(m.runtime,'POST',{action:'save',token:launch.token,sequence:2,data},{user:'uk-user'})).status,401);await call(m.runtime,'POST',{action:'save',token:launch.token,sequence:1,data},{user:'irish-user'});assert.equal((await first('SELECT total_centiseconds FROM scorm_progress WHERE learner_id=?','irish-user')).total_centiseconds,6250);});
 await check('relaunch restores bookmark and suspend data and invalidates stale tab saves',async()=>{const r=await call(m.runtime,'POST',{action:'launch',courseId:course.id},{user:'irish-user'});const seed=JSON.parse((await first('SELECT seed_json FROM scorm_launches WHERE token=?',r.data.token)).seed_json);assert.equal(seed['cmi.core.entry'],'resume');assert.equal(seed['cmi.core.lesson_location'],'slide-4');assert.equal(seed['cmi.suspend_data'],'saved-state');assert.equal(seed['cmi.core.total_time'],'0000:01:02.50');assert.equal((await call(m.runtime,'POST',{action:'save',token:launch.token,sequence:2,data},{user:'irish-user'})).status,409);});
+
+const riseFixture=JSON.parse(readFileSync('tests/fixtures/rise-v3-progress.json','utf8'));
+await check('Rise percentage matches a captured export and distinguishes course, lesson and quiz progress',async()=>{
+ assert.equal(m.rise.riseProgressPercent(riseFixture.suspendData),riseFixture.sidebarPercent);
+ assert.equal(m.rise.savedCourseProgress(JSON.stringify({'cmi.suspend_data':riseFixture.suspendData,'cmi.core.score.raw':'97'}),1),2);
+ assert.equal(m.rise.savedCourseProgress(JSON.stringify({'cmi.core.score.raw':'97'}),1),null);
+ assert.equal(m.rise.savedCourseProgress(JSON.stringify({'cmi.suspend_data':riseFixture.suspendData}),2),null);
+ const raw=progress=>JSON.stringify({v:3,d:JSON.stringify({cpv:'fixture',progress})});
+ assert.equal(m.rise.riseProgressPercent(raw({lessons:{'1':{p:86}}})),0);
+ for(const percent of [0,2,98,100])assert.equal(m.rise.riseProgressPercent(raw({lessons:{},p:percent})),percent);
+ for(const percent of [-1,101,'2',null,2.5])assert.equal(m.rise.riseProgressPercent(raw({lessons:{},p:percent})),null);
+});
+await check('unsupported and malformed suspend data cannot break course listing or expand without bounds',async()=>{
+ for(const data of ['',null,'saved-state','{}','null',JSON.stringify({v:4,d:'{}'}),JSON.stringify({v:3,d:[]}),JSON.stringify({v:3,d:[999]}),JSON.stringify({v:3,d:[123,999]}),JSON.stringify({v:3,d:[123,1.5]}),JSON.stringify({v:3,d:[123,...Array.from({length:800},(_,i)=>256+i)]}),JSON.stringify({v:3,d:'x'.repeat(65537)})])assert.equal(m.rise.riseProgressPercent(data),null);
+ assert.equal(m.rise.savedCourseProgress('{bad',1),null);
+});
+await check('saved Rise percentage is returned on the tile and survives launch without changing completion rules',async()=>{
+ const r=await call(m.runtime,'POST',{action:'launch',courseId:course.id},{user:'irish-user'});
+ const resume={...data,'cmi.core.lesson_status':'incomplete','cmi.core.score.raw':'97','cmi.suspend_data':riseFixture.suspendData};
+ const save=await call(m.runtime,'POST',{action:'save',token:r.data.token,sequence:1,data:resume},{user:'irish-user'});
+ assert.equal(save.status,200);
+ const tile=(await call(m.courses,'GET',undefined,{user:'irish-user'})).data.courses[0];
+ assert.equal(tile.progressPercent,2);assert.equal(tile.status,'In progress');assert.equal(Number(tile.scos[0].score),97);
+ const fresh=(await call(m.courses,'GET',undefined,{user:'uk-user'})).data.courses[0];
+ assert.equal(fresh.progressPercent,null);assert.equal(fresh.status,'Not started');
+ const next=await call(m.runtime,'POST',{action:'launch',courseId:course.id},{user:'irish-user'});
+ const seed=JSON.parse((await first('SELECT seed_json FROM scorm_launches WHERE token=?',next.data.token)).seed_json);
+ assert.equal(seed['cmi.suspend_data'],riseFixture.suspendData);assert.equal(seed['cmi.core.entry'],'resume');
+ const completed=await call(m.runtime,'POST',{action:'save',token:next.data.token,sequence:1,data:{...resume,'cmi.core.lesson_status':'passed'}},{user:'irish-user'});
+ assert.equal(completed.status,200);assert.equal((await call(m.courses,'GET',undefined,{user:'irish-user'})).data.courses[0].status,'Completed');
+});
 await check('admin preview never records learner progress',async()=>{const before=Number((await first('SELECT COUNT(*) n FROM scorm_progress')).n);const r=await call(m.runtime,'POST',{action:'launch',courseId:course.id,preview:true},{admin:true});assert.equal(r.status,200);assert.equal((await call(m.runtime,'POST',{action:'save',token:r.data.token,sequence:1,data},{admin:true})).status,200);assert.equal(Number((await first('SELECT COUNT(*) n FROM scorm_progress')).n),before);});
 await check('concurrent edits rejected and pausing removes course without deleting records',async()=>{assert.equal((await call(m.admin,'POST',{...course,revision:0,audience:JSON.parse(course.audience_json),status:'draft'},{admin:true})).status,409);const r=await call(m.admin,'POST',{...course,audience:JSON.parse(course.audience_json),status:'draft'},{admin:true});assert.equal(r.status,200);assert.equal((await call(m.courses,'GET',undefined,{user:'irish-user'})).data.courses.length,0);assert.equal(Number((await first('SELECT COUNT(*) n FROM scorm_progress')).n),1);});
 console.log(`${tests} course checks passed. All test data stayed in an in-memory PostgreSQL database.`);
