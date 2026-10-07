@@ -1,4 +1,5 @@
 import { additionalCopy } from "./locales";
+import { authCopy } from './auth-copy';
 import { contentLanguage, languageLocale, type ContentLanguage, type Language } from "./i18n";
 type Dictionary = Record<string,string>;
 export const ui: Record<Exclude<ContentLanguage,"en">,Dictionary> = {
@@ -92,7 +93,7 @@ Object.assign(ui.es,{"Language":"Idioma","Dismiss error":"Cerrar error","Prototy
 Object.assign(ui.fr,{"Language":"Langue","Dismiss error":"Fermer l’erreur","Prototype views":"Vues du prototype"});
 Object.assign(ui.de,{"Language":"Sprache","Dismiss error":"Fehler schließen","Prototype views":"Prototypansichten"});
 Object.assign(ui.it,{"Language":"Lingua","Dismiss error":"Chiudi errore","Prototype views":"Viste del prototipo"});
-export function tr(lang:Language,text:string){const copyLang=contentLanguage(lang);return copyLang==="en"?text:(ui[copyLang][text]||text);}
+export function tr(lang:Language,text:string){const copyLang=contentLanguage(lang);return copyLang==="en"?text:(authCopy[copyLang]?.[text]||ui[copyLang][text]||text);}
 export function formatDate(value:string|null,lang:Language){if(!value)return "—";return new Date(value).toLocaleDateString(languageLocale(lang),{day:"numeric",month:"short",year:"numeric"});}
 const countryCodes:Record<string,string>={Austria:"AT",Bahrain:"BH",Belgium:"BE","Czech Republic":"CZ",France:"FR",Germany:"DE",Hungary:"HU",Ireland:"IE",Italy:"IT",Kuwait:"KW",Netherlands:"NL",Poland:"PL",Portugal:"PT",Romania:"RO",Slovakia:"SK",Slovenia:"SI",Spain:"ES",UAE:"AE","United Kingdom":"GB","United States":"US"};
 export function countryName(country:string,lang:Language){if(lang==="en")return country;return countryCodes[country]?new Intl.DisplayNames([languageLocale(lang)],{type:"region"}).of(countryCodes[country])||country:country;}

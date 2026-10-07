@@ -2,8 +2,9 @@ import { NextRequest } from 'next/server';
 import { currentLearner, db, now, randomToken } from '@/lib/server';
 import { sameOrigin } from '@/lib/shot-server';
 import { bodyJson, failed, getCourse, isPlatformAdmin, json, CourseError } from '@/lib/course-admin';
-import { matchesAudience, type Course, type Sco } from '@/lib/course-types';
+import { type Course, type Sco } from '@/lib/course-types';
 import { initialData, timeCentiseconds, timeString } from '@/lib/scorm-runtime';
+import { canAccessCourse } from '@/lib/course-access';
 export const dynamic='force-dynamic';
 export async function POST(request:NextRequest) {try {
  if(!sameOrigin(request))throw new CourseError('Open the course from My Courses.',403);
@@ -17,7 +18,7 @@ export async function POST(request:NextRequest) {try {
   ]);
   if(preview?!admin:!learner)throw new CourseError('Sign in to launch this course.',401);
   if(!course?.package_id)throw new CourseError('Course not available.',404);
-  if(!preview&&(course.status!=='published'||!matchesAudience(JSON.parse(course.audience_json),learner!)))throw new CourseError('This course is not assigned to you.',403);
+  if(!preview&&!await canAccessCourse(course,learner!))throw new CourseError('This course is not assigned to you.',403);
   if(course.package_status!=='ready')throw new CourseError('This package is not ready.');
   const pack={id:course.package_id};
   const scos=JSON.parse(course.scos_json) as Sco[];const sco=scos.find(s=>s.id===b.scoId)||scos[0];
@@ -36,7 +37,7 @@ export async function POST(request:NextRequest) {try {
  if(!launch)throw new CourseError('Your course session expired. Reopen the course to continue.',401);
  if(launch.preview){if(!await isPlatformAdmin())throw new CourseError('Admin sign-in required.',403);return json({saved:true,preview:true});}
  if(!learner||learner.id!==launch.learner_id)throw new CourseError('Sign in again to save your progress.',401);
- const course=await getCourse(launch.course_id);if(!course||course.status!=='published'||course.package_id!==launch.package_id||!matchesAudience(JSON.parse(course.audience_json),learner))throw new CourseError('This course assignment has changed. Return to My Courses.',403);
+ const course=await getCourse(launch.course_id);if(!course||course.package_id!==launch.package_id||!await canAccessCourse(course,learner))throw new CourseError('This course assignment has changed. Return to My Courses.',403);
  if(!Number.isSafeInteger(b.sequence)||b.sequence<=0)throw new CourseError('Invalid save sequence.');
  if(b.sequence<=launch.sequence)return json({saved:true});
  const data=b.data as Record<string,string>;

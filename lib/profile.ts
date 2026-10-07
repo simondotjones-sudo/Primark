@@ -1,20 +1,22 @@
 import stores from '@/lib/stores.json';
 import type { ReportingAccess } from '@/lib/reporting-types';
 
-export type ProfileView = 'learn' | 'report' | 'courses' | 'access' | 'shots';
+export type ProfileView = 'learn' | 'report' | 'courses' | 'access' | 'shots' | 'store';
 export type ProfileAccount = {
   name: string; email: string; role: string; site: string;
   platformAdmin: boolean; reportingAccess: ReportingAccess | null;
+  managerStoreId?: string | null;
 };
 export type ReportFilter = { role: 'global' | 'country' | 'site'; country: string; site: string };
 
 export function profileViews(account: ProfileAccount): { value: ProfileView; label: string }[] {
   return [
     { value: 'learn' as const, label: 'Learning' },
+    ...(account.managerStoreId ? [{value:'store' as const,label:'My store'}] : []),
     ...(account.reportingAccess ? [{ value: 'report' as const, label: 'Reporting' }] : []),
     ...(account.platformAdmin ? [
       { value: 'courses' as const, label: 'Manage courses' },
-      { value: 'access' as const, label: 'Reporting access' },
+      { value: 'access' as const, label: 'User access' },
       { value: 'shots' as const, label: 'Shot list' },
     ] : []),
   ];
@@ -32,6 +34,7 @@ export function profileScope(access: ReportingAccess, desired: Partial<ReportFil
 }
 
 export function profileHref(view: ProfileView, filter?: ReportFilter) {
+  if (view === 'store') return '/store';
   if (view === 'courses') return '/admin/courses';
   if (view === 'access') return '/admin/reporting-access';
   if (view === 'shots') return '/shot-list';

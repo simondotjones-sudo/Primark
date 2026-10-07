@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { registrationChecks } from './registration-checks.mjs';
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { build } from 'esbuild';
@@ -25,6 +26,12 @@ export * as origin from '${process.cwd()}/lib/request-origin.ts';
 export * as session from '${process.cwd()}/app/api/admin/session/route.ts';
 export * as prototype from '${process.cwd()}/app/api/prototype/route.ts';
 export * as access from '${process.cwd()}/app/api/admin/reporting-access/route.ts';
+export * as learnerAuth from '${process.cwd()}/lib/learner-auth.ts';
+export * as courseAccess from '${process.cwd()}/lib/course-access.ts';
+export * as catalogue from '${process.cwd()}/lib/course-catalogue.ts';
+export * as manager from '${process.cwd()}/app/api/store/route.ts';
+export * as courses from '${process.cwd()}/app/api/courses/route.ts';
+export * as scorm from '${process.cwd()}/app/api/scorm/route.ts';
 export * as courseAdmin from '${process.cwd()}/app/api/admin/courses/route.ts';
 export * as packages from '${process.cwd()}/app/api/admin/packages/route.ts';
 export * as photos from '${process.cwd()}/app/api/shot-list/photos/route.ts';
@@ -76,8 +83,8 @@ await m.database.db().prepare('INSERT INTO learners(id,name,email,code_hash,stor
 await m.database.db().prepare('INSERT INTO sessions(token_hash,learner_id,expires_at) VALUES(?,?,?)').bind(await m.hash(learnerToken),learnerId,'2099-01-01').run();
 const learnerCookie='primark_session='+learnerToken;
 await check('Learner registration, returning sign-in, assessment and certificate persist in Postgres',async()=>{
- const registered=await m.prototype.POST(req('/api/prototype','POST',{action:'register',name:'New Learner',email:'new@example.test',storeId:store.id}));assert.equal(registered.status,200);const {code}=await registered.json();
- const logged=await m.prototype.POST(req('/api/prototype','POST',{action:'login',email:'new@example.test',code}));assert.equal(logged.status,200);const cookie=logged.headers.get('set-cookie').split(';')[0];
+ const registered=await m.prototype.POST(req('/api/prototype','POST',{action:'register',name:'New Learner',email:'new@example.test',storeId:store.id,country:store.country,registrationCode:' SaFeTy ',password:'My-fixture-password'}));assert.equal(registered.status,200);
+ const logged=await m.prototype.POST(req('/api/prototype','POST',{action:'login',email:'new@example.test',password:'My-fixture-password'}));assert.equal(logged.status,200);const cookie=logged.headers.get('set-cookie').split(';')[0];
  for(const chapter of m.lessons.modules){const r=await m.prototype.POST(req('/api/prototype','POST',{action:'view',key:chapter.key},cookie));assert.equal(r.status,200);}
  const duplicate=await m.prototype.POST(req('/api/prototype','POST',{action:'view',key:'welcome'},cookie));assert.equal((await duplicate.json()).viewed.length,6);
  const graded=await m.prototype.POST(req('/api/prototype','POST',{action:'submit',answers:m.lessons.questions.map(q=>q.correct)},cookie));assert.deepEqual(await graded.json(),{score:20,passed:true});
@@ -112,7 +119,7 @@ await check('Profile displays identity and only views permitted for each role',a
  const props={account,view:'learn',onView(){},onFilter(){},onSignOut(){}};
  const learner=renderToStaticMarkup(createElement(m.ProfileContent,props));assert(learner.includes('Photo User'));assert(learner.includes('Learner'));assert(learner.includes(store.name));assert(learner.includes('Sign out'));assert(!learner.includes('<select'));assert(!learner.includes('Shot list'));
  const reporting=renderToStaticMarkup(createElement(m.ProfileContent,{...props,account:{...account,reportingAccess:{scope:'country',country:'Ireland',siteId:null}}}));assert(reporting.includes('Reporting'));assert(!reporting.includes('Manage courses'));assert(!reporting.includes('Reporting access'));assert(!reporting.includes('Shot list'));
- const admin=renderToStaticMarkup(createElement(m.ProfileContent,{...props,account:{...account,platformAdmin:true,reportingAccess:{scope:'organisation',country:null,siteId:null}}}));for(const label of ['Learning','Reporting','Manage courses','Reporting access','Shot list'])assert(admin.includes(label));
+ const admin=renderToStaticMarkup(createElement(m.ProfileContent,{...props,account:{...account,platformAdmin:true,reportingAccess:{scope:'organisation',country:null,siteId:null}}}));for(const label of ['Learning','Reporting','Manage courses','User access','Shot list'])assert(admin.includes(label));
 });
 await check('Profile scope controls restrict sites and reporting levels and produce usable links',async()=>{
  const siteAccess={scope:'site',country:store.country,siteId:store.id},countryAccess={scope:'country',country:'Ireland',siteId:null},orgAccess={scope:'organisation',country:null,siteId:null};
@@ -200,9 +207,9 @@ await check('Existing dual-cookie sessions cannot inherit platform-admin permiss
  assert.equal((await getReport(cookie)).status,403);
 });
 await check('Learner registration and sign-in end and revoke the previous platform session',async()=>{
- const res=await invoke(m.prototype,'POST','/api/prototype',{action:'register',name:'Switch User',email:'switch@example.test',storeId:store.id},reportingAdmin);assert.equal(res.status,200);assert(res.headers.get('set-cookie').includes('primark_admin=;'));
+ const res=await invoke(m.prototype,'POST','/api/prototype',{action:'register',name:'Switch User',email:'switch@example.test',storeId:store.id,country:store.country,registrationCode:'safety',password:'My-fixture-password'},reportingAdmin);assert.equal(res.status,200);assert(res.headers.get('set-cookie').includes('primark_admin=;'));
  assert.equal(await context.run({cookie:reportingAdmin},()=>m.auth.getAdminUser()),null);
- reportingAdmin=await loginAdmin();const logged=await invoke(m.prototype,'POST','/api/prototype',{action:'login',email:'same-site@example.test',code:'TEST-CODE'},reportingAdmin);assert.equal(logged.status,200);assert(logged.headers.get('set-cookie').includes('primark_admin=;'));
+ await query('UPDATE learners SET password_hash=? WHERE id=?',await m.learnerAuth.hashPassword('My-fixture-password'),'same-site').run();reportingAdmin=await loginAdmin();const logged=await invoke(m.prototype,'POST','/api/prototype',{action:'login',email:'same-site@example.test',password:'My-fixture-password'},reportingAdmin);assert.equal(logged.status,200);assert(logged.headers.get('set-cookie').includes('primark_admin=;'));
  assert.equal(await context.run({cookie:reportingAdmin},()=>m.auth.getAdminUser()),null);
 });
 await check('Platform sign-in clears learner cookies and revokes the learner session',async()=>{
@@ -215,4 +222,6 @@ await check('Learner logout clears both old cookies and cannot resurrect an admi
  assert(res.headers.get('set-cookie').includes('primark_admin=;'));assert(res.headers.get('set-cookie').includes('primark_session=;'));
  assert.equal(await context.run({cookie:reportingAdmin},()=>m.auth.getAdminUser()),null);
 });
+await query('DELETE FROM auth_limits').run();
+await registrationChecks({m,check,query,invoke,loginAdmin,cookieFrom,store,uk,pg});
 console.log(`${passed} Netlify migration checks passed.`);await pg.close();rmSync(dir,{recursive:true,force:true});

@@ -11,7 +11,7 @@ const require=createRequire(import.meta.url);
 
 const dir=mkdtempSync(join(tmpdir(),'primark-course-check-'));
 const pg=new PGlite();
-await pg.exec(readFileSync('netlify/database/migrations/001_initial-schema/migration.sql','utf8'));
+for(const name of readdirSync('netlify/database/migrations').sort())await pg.exec(readFileSync('netlify/database/migrations/'+name+'/migration.sql','utf8'));
 const context=new AsyncLocalStorage();
 const pool={async query(sql,values=[]){const result=await pg.query(sql,values);return {rows:result.rows,rowCount:result.affectedRows};},async connect(){return {...this,release(){}};}};
 const blobs=new Map();

@@ -2,6 +2,8 @@ import { NextRequest } from 'next/server';
 import { db } from '@/lib/server';
 import { bodyJson, failed, getCourse, getPackage, json, now, requireAdmin, validateAudience, CourseError } from '@/lib/course-admin';
 import { type Course, type Person } from '@/lib/course-types';
+import stores from '@/lib/stores.json';
+import { courseLanguages } from '@/lib/course-catalogue';
 export const dynamic='force-dynamic';
 export async function GET() { try {
   await requireAdmin();
@@ -21,15 +23,30 @@ export async function POST(request: NextRequest) { try {
   const audience=await validateAudience(b.audience);
   const existing=b.id?await getCourse(b.id):null;
   if (b.id && !existing) throw new CourseError('Course not found.',404);
+  const englishTitle=typeof b.englishTitle==='string'?b.englishTitle.trim():existing?.english_title||title;
+  const category=typeof b.category==='string'?b.category.trim():existing?.category||'';
+  const languageCode=b.languageCode??existing?.language_code??'en';
+  const catalogueScope=b.catalogueScope??existing?.catalogue_scope??'unconfigured';
+  const availableCountries=b.availableCountries??JSON.parse(existing?.available_countries_json||'[]');
+  const inductionRole=b.inductionRole??existing?.induction_role??'none';
+  if(englishTitle.length>150||category.length>80||!Object.hasOwn(courseLanguages,languageCode))throw new CourseError('Check the English title, category and language.');
+  if(!['unconfigured','countries','global'].includes(catalogueScope)||!Array.isArray(availableCountries)||availableCountries.length>30||availableCountries.some(c=>typeof c!=='string'||!stores.some(s=>s.country===c)))throw new CourseError('Choose valid catalogue countries.');
+  const linkedCountries=catalogueScope==='countries'?[...new Set(availableCountries)]:[];
+  if(catalogueScope==='countries'&&!linkedCountries.length)throw new CourseError('Select at least one country.');
+  if(!['none','country','default'].includes(inductionRole)||(inductionRole==='country'&&catalogueScope!=='countries')||(inductionRole==='default'&&(languageCode!=='en'||catalogueScope!=='global')))throw new CourseError('Country induction needs country availability. The default induction must be English and available in all countries.');
   if (b.status==='published') {
     if (!existing?.package_id || (await getPackage(existing.package_id))?.status!=='ready') throw new CourseError('Upload and validate a SCORM package before publishing.');
-    if (!audience.countries.length&&!audience.sites.length&&!audience.users.length) throw new CourseError('Choose at least one country, site or user before publishing.');
+    if (!audience.countries.length&&!audience.sites.length&&!audience.users.length&&catalogueScope==='unconfigured') throw new CourseError('Choose an audience or make the course available in the country library before publishing.');
+    if(inductionRole!=='none'){
+      const others=await db().prepare("SELECT * FROM courses WHERE status='published' AND induction_role=? AND id<>?").bind(inductionRole,existing!.id).all<Course>();
+      if(others.results.some(c=>inductionRole==='default'||JSON.parse(c.available_countries_json).some((country:string)=>linkedCountries.includes(country))))throw new CourseError('Another published induction already uses this default or country. Pause it before publishing this version.',409);
+    }
   }
   const id=existing?.id||crypto.randomUUID(); const date=now();
   if (existing) {
-    const result=await db().prepare('UPDATE courses SET title=?,description=?,audience_json=?,status=?,revision=revision+1,updated_at=? WHERE id=? AND revision=?')
-      .bind(title,description,JSON.stringify(audience),b.status,date,id,b.revision).run();
+    const result=await db().prepare('UPDATE courses SET title=?,description=?,audience_json=?,status=?,english_title=?,category=?,language_code=?,catalogue_scope=?,available_countries_json=?,induction_role=?,revision=revision+1,updated_at=? WHERE id=? AND revision=?')
+      .bind(title,description,JSON.stringify(audience),b.status,englishTitle,category,languageCode,catalogueScope,JSON.stringify(linkedCountries),inductionRole,date,id,b.revision).run();
     if (!result.meta.changes) throw new CourseError('This course changed in another session. Reload it before saving.',409);
-  } else await db().prepare('INSERT INTO courses(id,title,description,status,audience_json,created_at,updated_at) VALUES(?,?,?,?,?,?,?)').bind(id,title,description,b.status,JSON.stringify(audience),date,date).run();
+  } else await db().prepare('INSERT INTO courses(id,title,description,status,audience_json,created_at,updated_at,english_title,category,language_code,catalogue_scope,available_countries_json,induction_role) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)').bind(id,title,description,b.status,JSON.stringify(audience),date,date,englishTitle,category,languageCode,catalogueScope,JSON.stringify(linkedCountries),inductionRole).run();
   return json({course:await getCourse(id)});
 } catch(e) { return failed(e); } }

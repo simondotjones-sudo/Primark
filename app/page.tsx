@@ -11,6 +11,7 @@ import dataProtectionCover from "@/public/course-images/data-protection.png";
 import accessibilityCover from "@/public/course-images/accessibility.png";
 import safeguardingCover from "@/public/course-images/safeguarding.png";
 import type { ReportingAccess } from "@/lib/reporting-types";
+import AuthForm from "@/components/auth-form";
 import ProfileMenu from "@/components/profile-menu";
 import { profileHref, profileScope, type ProfileAccount, type ReportFilter } from "@/lib/profile";
 import AssignedCourses from "@/components/assigned-courses";
@@ -26,7 +27,7 @@ import { NativeSelect } from "@/components/ui/native-select";
 import { Progress } from "@/components/ui/progress";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
-type Learner = {id:string;name:string;email:string;store_id:string;country:string;entered_at:string;started_at:string|null;completed_at:string|null;best_score:number|null;certificate_token:string|null};
+type Learner = {id:string;name:string;email:string;store_id:string;country:string;entered_at:string;started_at:string|null;completed_at:string|null;best_score:number|null;certificate_token:string|null;induction_enrolled:boolean};
 type Row = Learner & {store_name:string;legacy_completed:boolean;period_entered:boolean;period_started:boolean;period_completed:boolean};
 type Dashboard = {counts:{entered:number;started:number;completed:number;legacy:number};rows:Row[];trend:{month:string;entered:number;started:number;completed:number}[];years:number[]};
 type Screen = "home"|"courses"|"module"|"quiz"|"result"|"pass";
@@ -63,17 +64,10 @@ export default function Home() {
   const [learner,setLearner]=useState<Learner|null>(null);
   const [viewed,setViewed]=useState<string[]>([]);
   const [legacyCompleted,setLegacyCompleted]=useState(false);
-  const [code,setCode]=useState("");
   const [account,setAccount]=useState<ProfileAccount|null>(null);
   const [busy,setBusy]=useState(false);
   const [error,setError]=useState("");
   const [loading,setLoading]=useState(true);
-  const [name,setName]=useState("");
-  const [email,setEmail]=useState("");
-  const [country,setCountry]=useState("");
-  const [site,setSite]=useState("");
-  const [loginEmail,setLoginEmail]=useState("");
-  const [loginCode,setLoginCode]=useState("");
   const [moduleIndex,setModuleIndex]=useState(0);
   const [questionIndex,setQuestionIndex]=useState(0);
   const [answers,setAnswers]=useState<number[]>(Array(20).fill(-1));
@@ -109,6 +103,7 @@ export default function Home() {
   const refreshDashboard=async()=>{setDashboard(null);setDashboard(await loadDashboard());};
   useEffect(()=>{const refresh=()=>{refreshMe().catch(()=>{setPlatformAdmin(false);setReportingAccess(null);setAccount(null);setDashboard(null);setArea("learn");});};window.addEventListener("focus",refresh);return()=>window.removeEventListener("focus",refresh);},[refreshMe]);
   useEffect(()=>{if(new URLSearchParams(location.search).get("courses")==="1")setScreen("courses");},[]);
+  useEffect(()=>{if(learner?.induction_enrolled&&screen!=="courses")setScreen("courses");},[learner?.induction_enrolled,screen]);
 
   useEffect(()=>{refreshMe().catch(e=>setError(e.message)).finally(()=>setLoading(false));},[refreshMe]);
   useEffect(()=>{const saved=localStorage.getItem("primark-language");if(languageOptions.some(option=>option.code===saved))setLang(saved as Language);},[]);
@@ -145,26 +140,17 @@ export default function Home() {
     <header className="topbar"><button className="brand" onClick={()=>{setArea("learn");setScreen("home");}}><strong>PRIMARK</strong></button><div className="top-controls">{!platformAdmin&&!learner&&!loading&&<a className="admin-nav-link" href="/admin/sign-in">Admin sign-in</a>}<label className="language-picker"><Globe2 size={17}/><span className="sr-only">{t("Language")}</span><select aria-label={t("Language")} lang={lang} dir={languageDirection(lang)} value={lang} onChange={e=>setLang(e.target.value as Language)}>{languageOptions.map(option=><option key={option.code} value={option.code} lang={option.code} dir={languageDirection(option.code)}>{option.name}</option>)}</select></label><ProfileMenu account={account} view={area} filter={{role,country:scopeCountry,site:scopeSite}} onOpen={()=>{void refreshMe().catch(()=>{});}}
       onViewChange={next=>{if(next==="learn"||next==="report"){setArea(next);}else location.assign(profileHref(next));}}
       onFilterChange={next=>{setRole(next.role);setScopeCountry(next.country);setScopeSite(next.site);setArea("report");}}
-      onSignOut={async()=>{if(platformAdmin){const response=await fetch("/api/admin/session",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"logout"})});if(!response.ok)throw new Error("Could not sign out. Please try again.");}else await post("logout");await refreshMe();setCode("");setArea("learn");setScreen("home");}}/></div></header>
+      onSignOut={async()=>{if(platformAdmin){const response=await fetch("/api/admin/session",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"logout"})});if(!response.ok)throw new Error("Could not sign out. Please try again.");}else await post("logout");await refreshMe();setArea("learn");setScreen("home");}}/></div></header>
     <main className="main">
     {error&&<div className="error" role="alert">{t(error)}<button onClick={()=>setError("")} aria-label={t("Dismiss error")}>×</button></div>}
     {(area==="learn"||!reportingAccess) ? loading?<div className="paper loading">{t("Loading induction…")}</div> : !learner?
       <div className="entry">
-        <div className="entry-copy"><span className="eyebrow">{t("FOR NEW STORE COLLEAGUES")}</span><h1>{t("Start safe.")}<br/>{t("Feel ready for day one.")}</h1><p>{t("Six short chapters, one quick assessment, and a pass to show your manager.")}</p><div className="steps"><span><b>01</b> {t("Choose your store")}</span><span><b>02</b> {t("Learn at your pace")}</span><span><b>03</b> {t("Show your pass")}</span></div><div className="soft-note"><ShieldCheck/>{t("Your progress is saved so you can come back.")}</div></div>
-        <div className="paper entry-form"><Tabs defaultValue="new"><TabsList className="auth-tabs"><TabsTrigger value="new">{t("I’m new here")}</TabsTrigger><TabsTrigger value="return">{t("I have a code")}</TabsTrigger></TabsList>
-          <TabsContent value="new"><h2 className="form-heading">{t("Let’s get you started")}</h2><form onSubmit={e=>{e.preventDefault();run(async()=>{const r=await post("register",{name,email,storeId:site});setCode(r.code);setArea("learn");await refreshMe();});}}>
-            <label>{t("Full name")}<Input dir="auto" required maxLength={100} value={name} onChange={e=>setName(e.target.value)} placeholder={t("Your full name")}/></label>
-            <label>{t("Email address")}<Input required type="email" value={email} onChange={e=>setEmail(e.target.value)} dir="ltr" placeholder="you@example.com"/></label>
-            <label>{t("Country")}<NativeSelect required value={country} onChange={e=>{setCountry(e.target.value);setSite("");}}><option value="">{t("Choose a country")}</option>{countries.map(c=><option key={c} value={c} lang={lang} dir={languageDirection(lang)}>{countryName(c,lang)}</option>)}</NativeSelect></label>
-            <label>{t("Primark store")}<NativeSelect required value={site} disabled={!country} onChange={e=>setSite(e.target.value)}><option value="">{t("Choose your store")}</option>{stores.filter(s=>s.country===country).map(s=><option key={s.id} value={s.id}>{s.name}</option>)}</NativeSelect></label>
-            <Button className="blue-button" size="lg" disabled={busy}>{t("Get started")}</Button>
-          </form></TabsContent>
-          <TabsContent value="return"><h2>{t("Welcome back")}</h2><p>{t("Use the code you saved when you first joined.")}</p><form onSubmit={e=>{e.preventDefault();run(async()=>{await post("login",{email:loginEmail,code:loginCode});setArea("learn");await refreshMe();});}}><label>{t("Email address")}<Input required type="email" dir="ltr" value={loginEmail} onChange={e=>setLoginEmail(e.target.value)}/></label><label>{t("Pass code")}<Input required dir="ltr" value={loginCode} onChange={e=>setLoginCode(e.target.value)} placeholder="PR-XXXXXXXXXX"/></label><Button className="blue-button" size="lg" disabled={busy}>{t("Continue learning")}</Button><small>{t("Keep your pass code safe. Email code recovery is not yet available.")}</small></form></TabsContent>
-        </Tabs></div>
+        <div className="entry-copy"><span className="eyebrow">{t("FOR NEW STORE COLLEAGUES")}</span><h1>{t("Start safe.")}<br/>{t("Feel ready for day one.")}</h1><p>{t("Your safety training, ready when you are.")}</p><div className="steps"><span><b>01</b> {t("Choose your store")}</span><span><b>02</b> {t("Learn at your pace")}</span><span><b>03</b> {t("Show your pass")}</span></div><div className="soft-note"><ShieldCheck/>{t("Your progress is saved so you can come back.")}</div></div>
+        <AuthForm lang={lang} busy={busy} onAuthenticate={(action,fields)=>{void run(async()=>{await post(action,fields);setArea("learn");setScreen("courses");await refreshMe();});}}/>
       </div> :
-      <div className="learn-layout"><aside className="sidebar"><small>{t("YOUR LEARNING")}</small><button className={screen==="courses"?"selected":""} onClick={()=>setScreen("courses")}><LayoutGrid/>{t("My Courses")}</button><hr className="course-divider"/><button className={screen==="home"?"selected":""} onClick={()=>setScreen("home")}><BookOpen/>{t("Safety Passport")}</button>{shownModules.map((m,i)=><button key={m.key} className={"chapter-nav "+(screen==="module"&&moduleIndex===i?"selected":"")} onClick={()=>{setModuleIndex(i);setScreen("module");}}><span className={"number "+(viewed.includes(m.key)?"checked":"")}>{viewed.includes(m.key)?<Check/>:i+1}</span>{m.short}</button>)}<button className={screen==="quiz"?"selected":""} onClick={()=>{setScreen("quiz");setQuestionIndex(0);}}><ClipboardCheck/>{t("Assessment")}</button>{complete&&<button className={screen==="pass"?"selected":""} onClick={()=>setScreen("pass")}><ShieldCheck/>{t("My Safety Passport")}</button>}</aside>
+      <div className="learn-layout"><aside className="sidebar"><small>{t("YOUR LEARNING")}</small><button className={screen==="courses"?"selected":""} onClick={()=>setScreen("courses")}><LayoutGrid/>{t("My Courses")}</button>{!learner.induction_enrolled&&<><hr className="course-divider"/><button className={screen==="home"?"selected":""} onClick={()=>setScreen("home")}><BookOpen/>{t("Safety Passport")}</button>{shownModules.map((m,i)=><button key={m.key} className={"chapter-nav "+(screen==="module"&&moduleIndex===i?"selected":"")} onClick={()=>{setModuleIndex(i);setScreen("module");}}><span className={"number "+(viewed.includes(m.key)?"checked":"")}>{viewed.includes(m.key)?<Check/>:i+1}</span>{m.short}</button>)}<button className={screen==="quiz"?"selected":""} onClick={()=>{setScreen("quiz");setQuestionIndex(0);}}><ClipboardCheck/>{t("Assessment")}</button>{complete&&<button className={screen==="pass"?"selected":""} onClick={()=>setScreen("pass")}><ShieldCheck/>{t("My Safety Passport")}</button>}</>}</aside>
         <div className="learner-main">
-          {code&&<div className="code-banner"><div><strong>{t("Your pass code:")} <bdi dir="ltr">{code}</bdi></strong><span>{t("Save it to sign in on another device.")}</span></div><Button variant="outline" onClick={()=>navigator.clipboard.writeText(code)}>{t("Copy code")}</Button><button onClick={()=>setCode("")}>×</button></div>}
+
           {screen==="home"&&<section><div className="welcome"><h1>{t("Hello,")} {learner.name.split(" ")[0]}.</h1>{!complete&&<div className="progress-count"><strong>{viewed.length}<small>/6</small></strong><span>{t("chapters viewed")}</span></div>}</div>
             {!complete&&<div className="next-step"><div><span className="eyebrow">{nextChapter<0?t("Final assessment"):t("Continue learning")}</span><h2>{nextChapter<0?t("Show what you know."):shownModules[nextChapter].title}</h2></div><Button className="blue-button" onClick={()=>{if(nextChapter<0){setQuestionIndex(0);setScreen("quiz");}else{setModuleIndex(nextChapter);setScreen("module");}}}>{nextChapter<0?t("Open assessment"):viewed.length?t("Continue learning"):t("Open chapter")}</Button></div>}
             {legacyCompleted&&<div className="legacy-note"><CheckCircle2/>{t("A completion from the previous LMS is on your record, shown separately.")}</div>}
@@ -173,15 +159,15 @@ export default function Home() {
           </section>}
           {screen==="courses"&&<section className="courses-page">
             <span className="eyebrow">{t("YOUR LEARNING")}</span><h1>{t("My Courses")}</h1>
-            <button className="course-feature" onClick={()=>setScreen(complete?"pass":"home")}>
+            {!learner.induction_enrolled&&<button className="course-feature" onClick={()=>setScreen(complete?"pass":"home")}>
               <Image src={safetyPassCover} alt="" placeholder="blur" loading="eager" fetchPriority="high" sizes="(max-width: 760px) calc(100vw - 36px), (max-width: 1340px) calc(43vw - 135px), 420px" />
               <span className="course-feature-copy"><small>{complete?t("Completed"):t("Available now")}</small><strong>{t("Primark Safety Passport")}</strong><span>{complete?t("View my pass"):t("Continue learning")}</span></span>
-            </button>
-            <AssignedCourses/><div className="section-title"><h2>{t("More courses")}</h2><span>{t("Coming soon")}</span></div>
+            </button>}
+            <AssignedCourses/>{!learner.induction_enrolled&&<><div className="section-title"><h2>{t("More courses")}</h2><span>{t("Coming soon")}</span></div>
             <div className="course-catalog-grid">{sampleCourses.map((course,index)=><article className="course-tile" key={course.image}>
               <Image src={course.cover} alt="" placeholder="blur" loading={index<2?"eager":"lazy"} sizes="(max-width: 760px) calc(100vw - 36px), (max-width: 1340px) calc(50vw - 178px), 480px"/>
               <div><small>{t("Coming soon")}</small><h3>{t(course.title)}</h3>{course.image==="manual-handling"&&<p>{t("Includes a practical element")}</p>}</div>
-            </article>)}</div>
+            </article>)}</div></>}
           </section>}
           {screen==="module"&&<section className="chapter"><button className="back" onClick={()=>setScreen("home")}><ArrowLeft/>{t("All chapters")}</button><span className="eyebrow">{t("CHAPTER")} {String(moduleIndex+1).padStart(2,"0")} {t("OF 06")} · {formatDuration(modules[moduleIndex].duration,lang)}</span><h1>{shownModules[moduleIndex].title}</h1><p>{shownModules[moduleIndex].description}</p>{modules[moduleIndex].key==="manual"&&<p className="course-separate-note">{t("This is an introduction only. Manual Handling is a separate course with a practical element.")}</p>}{moduleIndex===0?<video className="chapter-video" lang="en" dir="ltr" controls playsInline preload="metadata" poster="/lesson-covers/chapter-1.webp" aria-label={shownModules[moduleIndex].title}><source src="/videos/chapter-1.mp4" type="video/mp4"/><track kind="captions" src="/videos/chapter-1.en.vtt" srcLang="en" label="English" default/></video>:<div className="video-placeholder"><div className="play"><Play fill="currentColor"/></div><strong>{t("SYNTHESIA VIDEO GOES HERE")}</strong><small>{t("SAMPLE CHAPTER · VIDEO CONTENT WILL BE ADDED LATER")}</small><span><Video/> {formatDuration(modules[moduleIndex].duration,lang)} {t("estimated")}</span></div>}<div className="paper remember"><h2>{t("Remember")}</h2>{shownModules[moduleIndex].points.map(p=><p key={p}><CheckCircle2/>{p}</p>)}</div><div className="chapter-actions"><Button className="blue-button" disabled={busy} onClick={()=>run(async()=>{await post("view",{key:modules[moduleIndex].key});await refreshMe();if(moduleIndex<5)setModuleIndex(moduleIndex+1);else setScreen("home");})}>{viewed.includes(modules[moduleIndex].key)?t("Next chapter"):t("Mark sample chapter viewed")}</Button><small>{t("You can open any chapter at any time.")}</small></div></section>}
           {screen==="quiz"&&<section className="quiz"><button className="back" onClick={()=>setScreen("home")}><ArrowLeft/>{t("Back to induction")}</button><span className="eyebrow">{t("FINAL ASSESSMENT · SAMPLE QUESTIONS")}</span><h1>{t("Show what you know.")}</h1><p>{t("Answer all 20 questions. You need 18 correct to pass.")}</p><div className="quiz-count"><span>{t("Question")} {questionIndex+1} {t("of")} 20</span><span>{answers.filter(x=>x>=0).length} {t("answered")}</span></div><Progress value={(questionIndex+1)*5}/><div className="paper question"><span>{String(questionIndex+1).padStart(2,"0")}</span><h2>{shownQuestions[questionIndex].q}</h2>{shownQuestions[questionIndex].a.map((answer,i)=><button key={answer} className={answers[questionIndex]===i?"chosen":""} onClick={()=>setAnswers(prev=>{const next=[...prev];next[questionIndex]=i;return next;})}><i/>{answer}</button>)}</div><div className="quiz-buttons"><Button variant="outline" disabled={questionIndex===0} onClick={()=>setQuestionIndex(questionIndex-1)}>{t("Previous")}</Button>{questionIndex<19?<Button className="blue-button" onClick={()=>setQuestionIndex(questionIndex+1)}>{t("Next question")}</Button>:<Button className="blue-button" disabled={busy||answers.some(x=>x<0)} onClick={()=>run(async()=>{const r=await post("submit",{answers});setResult(r);setScreen("result");await refreshMe();})}>{t("Submit answers")}</Button>}</div></section>}

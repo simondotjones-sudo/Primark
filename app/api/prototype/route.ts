@@ -6,14 +6,19 @@ import type { PreparedStatement } from "@/lib/database";
 import { NextRequest, NextResponse } from "next/server";
 import stores from "@/lib/stores.json";
 import { modules, questions } from "@/lib/course";
-import { completeIfReady, currentLearner, db, hash, now, progressFor, randomCode, randomToken, storeById, withSession, type Learner } from "@/lib/server";
+import { completeIfReady, currentLearner, db, hash, now, progressFor, randomToken, storeById, withSession, type Learner } from "@/lib/server";
 
 import { isPlatformAdmin, CourseError } from "@/lib/course-admin";
 import { sameOrigin } from "@/lib/shot-server";
+import { hashPassword, validPassword, verifyPassword } from '@/lib/learner-auth';
+import { bodyJson } from '@/lib/course-admin';
+import { managerStoreFor } from '@/lib/store-manager';
+import { readyCourses } from '@/lib/course-access';
+import { inductionFor } from '@/lib/course-catalogue';
 
 export const dynamic = "force-dynamic";
 const fail = (message: string, status = 400) => NextResponse.json({ error: message }, { status });
-const emailAddress = (value: unknown) => typeof value === "string" && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim()) ? value.trim().toLowerCase() : "";
+const emailAddress = (value: unknown) => typeof value === "string" && value.trim().length<=254 && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim()) ? value.trim().toLowerCase() : "";
 
 const privateHeaders = { "Cache-Control": "private, no-store" };
 async function learnerState(request: NextRequest) {
@@ -23,9 +28,11 @@ async function learnerState(request: NextRequest) {
   const reportingAccess: ReportingAccess | null = platformAdmin ? { scope: 'organisation', country: null, siteId: null }
     : learner ? await reportingAccessFor(learner.id) : null;
   const adminPerson = admin ? await db().prepare('SELECT name FROM learners WHERE email=?').bind(admin.email).first<{name:string}>() : null;
+  const managerStore = learner ? await managerStoreFor(learner.id) : null;
   const account: ProfileAccount | null = learner ? {
     name: learner.name, email: learner.email,
-    role: !reportingAccess ? 'Learner' : reportingAccess.scope === 'site' ? 'Site reporting admin' : reportingAccess.scope === 'country' ? 'Country reporting admin' : 'Primark reporting admin',
+    role: managerStore ? 'Store Manager' : !reportingAccess ? 'Learner' : reportingAccess.scope === 'site' ? 'Site reporting admin' : reportingAccess.scope === 'country' ? 'Country reporting admin' : 'Primark reporting admin',
+    managerStoreId: managerStore?.id || null,
     site: storeById.get(learner.store_id)?.name || learner.store_id, platformAdmin: false, reportingAccess,
   } : admin ? { name: adminPerson?.name || admin.email, email: admin.email, role: 'Platform admin', site: 'All Primark', platformAdmin: true, reportingAccess } : null;
   const identity = { platformAdmin, reportingAccess, account };
@@ -115,7 +122,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     if (!sameOrigin(request)) return fail("Please use the Safety Passport page.",403);
-    const body = await request.json() as Record<string, unknown>;
+    const body = await bodyJson(request, 100000) as Record<string, unknown>;
     const action = body.action;
     if ((action === "seed" || action === "import") && !await isPlatformAdmin()) return fail("Platform admin sign-in is required.",403);
     const database = db();
@@ -125,22 +132,43 @@ export async function POST(request: NextRequest) {
       const storeId = typeof body.storeId === "string" ? body.storeId : "";
       const store = storeById.get(storeId);
       if (!email || name.length < 2 || name.length > 100 || !store) return fail("Enter your name, a valid email and a store.");
+      if (!await allowLoginAttempt('register:'+email, 10)) return fail('Too many attempts. Try again in 15 minutes.',429);
+      if (typeof body.registrationCode !== 'string' || body.registrationCode.trim().toLowerCase() !== 'safety') return fail('Enter the registration code provided by Primark.');
+      if (!validPassword(body.password)) return fail('Create a password with 8–128 characters.');
+      if (body.country !== store.country) return fail('Choose a store in your selected country.');
       const existing = await database.prepare("SELECT id FROM learners WHERE email=?").bind(email).first();
-      if (existing) return fail("This email already has a pass. Choose ‘I have a code’ to continue.", 409);
+      if (existing) return fail('This email is already registered. Choose Login to continue.', 409);
       const id = crypto.randomUUID();
-      const code = randomCode();
-      await database.prepare("INSERT INTO learners(id,name,email,code_hash,store_id,country,entered_at) VALUES(?,?,?,?,?,?,?)")
-        .bind(id,name,email,await hash(code),storeId,store.country,now()).run();
-      return withSession(request,id,{ code });
+      const induction=inductionFor(await readyCourses(),store.country);
+      const changes=[database.prepare("INSERT INTO learners(id,name,email,code_hash,store_id,country,entered_at,password_hash,induction_enrolled) VALUES(?,?,?,?,?,?,?,?,true) ON CONFLICT(email) DO NOTHING")
+        .bind(id,name,email,await hash(randomToken()),storeId,store.country,now(),await hashPassword(body.password))];
+      if(induction)changes.push(database.prepare('INSERT INTO learner_inductions(learner_id,course_id,assigned_at) SELECT id,?,? FROM learners WHERE id=?').bind(induction.id,now(),id));
+      const inserted=await database.batch(changes);
+      if (!inserted[0].meta.changes) return fail('This email is already registered. Choose Login to continue.',409);
+      return withSession(request,id,{ ok: true });
     }
     if (action === "login") {
       const email = emailAddress(body.email);
-      const code = typeof body.code === "string" ? body.code.trim().toUpperCase() : "";
-      if (!email || !code) return fail("Enter your email and pass code.");
+      const password = typeof body.password === 'string' ? body.password : '';
+      if (!email || !password || password.length > 128) return fail('Enter your email and password.');
       if (!await allowLoginAttempt("learner:"+email)) return fail("Too many attempts. Try again in 15 minutes.",429);
-      const learner = await database.prepare("SELECT id,code_hash FROM learners WHERE email=?").bind(email).first<{id:string;code_hash:string}>();
-      if (!learner || learner.code_hash !== await hash(code)) return fail("Those details did not match.", 401);
+      const learner = await database.prepare('SELECT id,password_hash FROM learners WHERE email=?').bind(email).first<{id:string;password_hash:string|null}>();
+      const correct = await verifyPassword(password, learner?.password_hash || null);
+      if (!learner || !correct) return fail('Those details did not match.',401);
       return withSession(request,learner.id,{ ok: true });
+    }
+    if (action === 'set-password') {
+      const email = emailAddress(body.email);
+      const code = typeof body.code === 'string' ? body.code.trim().toUpperCase() : '';
+      if (!email || !code || !validPassword(body.password)) return fail('Enter your email, existing pass code and a new password with 8–128 characters.');
+      if (!await allowLoginAttempt('learner:'+email)) return fail('Too many attempts. Try again in 15 minutes.',429);
+      const learner = await database.prepare('SELECT id FROM learners WHERE email=? AND code_hash=? AND password_hash IS NULL').bind(email,await hash(code)).first<{id:string}>();
+      if (!learner) return fail('Those details did not match, or a password is already set. Use Login if you already have a password.',401);
+      const saved = await database.prepare('UPDATE learners SET password_hash=?,code_hash=? WHERE id=? AND password_hash IS NULL')
+        .bind(await hashPassword(body.password),await hash(randomToken()),learner.id).run();
+      if (!saved.meta.changes) return fail('A password is already set. Use Login.',409);
+      await database.prepare('DELETE FROM sessions WHERE learner_id=?').bind(learner.id).run();
+      return withSession(request,learner.id,{ok:true});
     }
     if (action === "logout") {
       const cookie = request.cookies.get("primark_session")?.value;
@@ -230,6 +258,7 @@ export async function POST(request: NextRequest) {
     }
     return fail("Unknown action.");
   } catch (error) {
+    if (error instanceof CourseError) return fail(error.message,error.status);
     console.error("Primark prototype POST failed", error);
     return fail("We could not save that change. Please try again.", 503);
   }

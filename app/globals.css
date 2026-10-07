@@ -299,3 +299,5 @@ footer strong{letter-spacing:.08em}
 .topbar:has(.profile-menu){height:82px;flex-wrap:nowrap}
 @media(max-width:760px){.topbar:has(.profile-menu){padding:16px 20px;gap:12px}.topbar:has(.profile-menu) .top-controls{width:auto;gap:12px;margin-inline-start:auto}.topbar:has(.profile-menu) .language-picker select{max-width:120px}.access-admin .topbar:has(.profile-menu){flex-direction:row;align-items:center}}
 @media(max-width:390px){.topbar:has(.profile-menu) .language-picker>svg{display:none}.topbar:has(.profile-menu) .language-picker select{max-width:106px}.topbar:has(.profile-menu) .top-controls{gap:8px}}
+
+.auth-help{color:#007cb9;font-size:14px;text-align:center;padding:8px}.entry-form small{font-size:13px;color:#617988;font-weight:400}
