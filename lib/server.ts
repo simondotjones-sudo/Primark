@@ -2,6 +2,7 @@ import { db } from "@/lib/database";
 export { db } from "@/lib/database";
 import { NextRequest, NextResponse } from "next/server";
 import stores from "@/lib/stores.json";
+import { isSecureRequest } from '@/lib/request-origin';
 
 export type Learner = {
   id: string; name: string; email: string; store_id: string; country: string;
@@ -44,7 +45,7 @@ export async function withSession(request: NextRequest, learnerId: string, data:
     .bind(await hash(token), learnerId, expiry.toISOString()).run();
   const response = NextResponse.json(data);
   response.cookies.set("primark_session", token, {
-    httpOnly: true, secure: request.nextUrl.protocol === "https:", sameSite: "lax",
+    httpOnly: true, secure: isSecureRequest(request), sameSite: "lax",
     path: "/", expires: expiry,
   });
   return response;

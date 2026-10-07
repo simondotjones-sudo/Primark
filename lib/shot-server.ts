@@ -5,10 +5,7 @@ import type { ShotPhoto, ShotState } from "@/lib/shot-list";
 
 export const shotFail = (error: string, status = 400) => NextResponse.json({ error }, { status, headers: { "Cache-Control": "private, no-store" } });
 export const photoColumns = "p.id,p.module_number,p.slide_number,p.filename,p.mime_type,p.size,CASE WHEN p.thumbnail_key IS NOT NULL THEN 1 ELSE 0 END AS has_thumbnail,p.uploaded_at,p.uploaded_by,l.name AS uploader_name";
-export function sameOrigin(request: NextRequest) {
-  const origin = request.headers.get("origin");
-  return request.headers.get("sec-fetch-site") !== "cross-site" && (!origin || origin === request.nextUrl.origin);
-}
+export { sameOrigin } from '@/lib/request-origin';
 export async function shotData() {
   const [photos, states] = await Promise.all([
     db().prepare(`SELECT ${photoColumns} FROM shot_photos p JOIN learners l ON l.id=p.uploaded_by ORDER BY p.uploaded_at DESC`).all<ShotPhoto>(),

@@ -15,6 +15,7 @@ const dir=mkdtempSync(join(tmpdir(),'primark-netlify-test-')),entry=join(dir,'en
 writeFileSync(entry,`export * as storage from '${process.cwd()}/lib/storage.ts';
 export * as database from '${process.cwd()}/lib/database.ts';
 export * as auth from '${process.cwd()}/lib/admin-auth.ts';
+export * as origin from '${process.cwd()}/lib/request-origin.ts';
 export * as session from '${process.cwd()}/app/api/admin/session/route.ts';
 export * as prototype from '${process.cwd()}/app/api/prototype/route.ts';
 export * as photos from '${process.cwd()}/app/api/shot-list/photos/route.ts';
@@ -35,6 +36,20 @@ async function session(body,cookie='',extra={}){return context.run({cookie},()=>
 await check('Postgres batch rolls back a partially failed write',async()=>{await assert.rejects(m.database.db().batch([m.database.db().prepare("INSERT INTO courses(id,title,audience_json,created_at,updated_at) VALUES('rollback','Test','{}','now','now')"),m.database.db().prepare('INSERT INTO missing_table VALUES(1)')]));assert.equal(await m.database.db().prepare("SELECT id FROM courses WHERE id='rollback'").first(),null);});
 await check('SQL placeholders preserve quoted question marks',async()=>assert.equal(m.database.postgresSql("SELECT '?' AS literal, ? AS value, 'it''s ?' AS quoted"),"SELECT '?' AS literal, $1 AS value, 'it''s ?' AS quoted"));
 let adminCookie;
+await check('Netlify public Host works when Next.js retains another hostname, without trusting forwarded hosts',async()=>{
+ const r=req('/api/admin/session','POST',{email:'admin@example.test',password:process.env.PRIMARK_ADMIN_PASSWORD},'',{host:'primark-induction.netlify.app',origin:'https://primark-induction.netlify.app','x-forwarded-proto':'https','sec-fetch-site':'same-origin'});
+ r.nextUrl=new URL('http://deploy-alias.netlify.app:443/api/admin/session');
+ assert.equal(m.origin.sameOrigin(r),true);
+ const res=await context.run({cookie:''},()=>m.session.POST(r));
+ assert.equal(res.status,200);assert(res.headers.get('set-cookie').includes('secure=true'));
+ r.headers.set('origin','https://evil.invalid');r.headers.set('x-forwarded-host','evil.invalid');assert.equal(m.origin.sameOrigin(r),false);
+ r.headers.set('origin','https://deploy-alias.netlify.app');assert.equal(m.origin.sameOrigin(r),false);
+ r.headers.set('origin','https://primark-induction.netlify.app');r.headers.set('sec-fetch-site','cross-site');assert.equal(m.origin.sameOrigin(r),false);
+ r.headers.set('sec-fetch-site','same-origin');r.headers.set('host','primark-induction.netlify.app,evil.invalid');assert.equal(m.origin.sameOrigin(r),false);
+ const local=req('/');local.nextUrl=new URL('http://localhost:8888/');local.headers.set('host','localhost:8888');local.headers.set('origin','http://localhost:8888');assert.equal(m.origin.sameOrigin(local),true);assert.equal(m.origin.isSecureRequest(local),false);
+ local.headers.set('origin','http://localhost:9999');assert.equal(m.origin.sameOrigin(local),false);
+});
+await check('Missing or short admin credentials explain how to configure Netlify',async()=>{const old=process.env.PRIMARK_ADMIN_PASSWORD;try{process.env.PRIMARK_ADMIN_PASSWORD='too-short';const res=await session({email:'admin@example.test',password:'too-short'});assert.equal(res.status,503);assert.match((await res.json()).error,/at least 16 characters/);}finally{process.env.PRIMARK_ADMIN_PASSWORD=old;}});
 await check('Admin rejects wrong password, cross-origin sign-in and spoofed identity headers',async()=>{assert.equal((await session({email:'admin@example.test',password:'wrong'})).status,401);assert.equal((await session({email:'admin@example.test',password:process.env.PRIMARK_ADMIN_PASSWORD},'',{origin:'https://evil.invalid'})).status,403);assert.equal(await context.run({cookie:''},()=>m.auth.getAdminUser()),null);});
 await check('Admin sign-in sets a secure session and password rotation revokes it',async()=>{const res=await session({email:'admin@example.test',password:process.env.PRIMARK_ADMIN_PASSWORD,returnTo:'//evil.invalid'});assert.equal(res.status,200);assert.equal((await res.json()).returnTo,'/admin/courses');assert(res.headers.get('set-cookie').includes('httpOnly=true'));assert(res.headers.get('set-cookie').includes('secure=true'));adminCookie=res.headers.get('set-cookie').split(';')[0];assert.equal((await context.run({cookie:adminCookie},()=>m.auth.getAdminUser())).email,'admin@example.test');const old=process.env.PRIMARK_ADMIN_PASSWORD;process.env.PRIMARK_ADMIN_PASSWORD='a-different-long-admin-secret';assert.equal(await context.run({cookie:adminCookie},()=>m.auth.getAdminUser()),null);process.env.PRIMARK_ADMIN_PASSWORD=old;});
 await check('Admin logout revokes the database session',async()=>{assert.equal((await session({action:'logout'},adminCookie)).status,200);assert.equal(await context.run({cookie:adminCookie},()=>m.auth.getAdminUser()),null);});

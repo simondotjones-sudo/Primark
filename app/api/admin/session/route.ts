@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { ADMIN_COOKIE, allowLoginAttempt, credentialFingerprint, credentials, passwordMatches, safeReturnTo } from '@/lib/admin-auth';
 import { db, hash, randomToken, now } from '@/lib/server';
-import { sameOrigin } from '@/lib/shot-server';
+import { sameOrigin, isSecureRequest } from '@/lib/request-origin';
 export const dynamic = 'force-dynamic';
 export async function POST(request: NextRequest) {
   if (!sameOrigin(request)) return NextResponse.json({ error: 'Please use the sign-in page.' }, { status: 403 });
@@ -12,7 +12,7 @@ export async function POST(request: NextRequest) {
       if (token) await db().prepare('DELETE FROM admin_sessions WHERE token_hash=?').bind(await hash(token)).run();
       const response = NextResponse.json({ ok: true }); response.cookies.delete(ADMIN_COOKIE); return response;
     }
-    if (!credentials()) return NextResponse.json({ error: 'Admin sign-in has not been configured yet.' }, { status: 503 });
+    if (!credentials()) return NextResponse.json({ error: 'Set PRIMARK_ADMIN_EMAIL and PRIMARK_ADMIN_PASSWORD (at least 16 characters) in Netlify, make them available to Functions, then redeploy.' }, { status: 503 });
     if (!await allowLoginAttempt('platform-admin')) return NextResponse.json({ error: 'Too many attempts. Try again in 15 minutes.' }, { status: 429 });
     if (typeof body.email !== 'string' || typeof body.password !== 'string' || body.password.length > 1024 || !passwordMatches(body.email.trim(), body.password))
       return NextResponse.json({ error: 'Those sign-in details did not match.' }, { status: 401 });
@@ -22,7 +22,7 @@ export async function POST(request: NextRequest) {
       db().prepare('INSERT INTO admin_sessions(token_hash,email,credential_hash,expires_at) VALUES(?,?,?,?)').bind(await hash(token), credentials()!.email, credentialFingerprint(), expires.toISOString()),
     ]);
     const response = NextResponse.json({ returnTo: safeReturnTo(body.returnTo) });
-    response.cookies.set(ADMIN_COOKIE, token, { httpOnly: true, secure: request.nextUrl.protocol === 'https:', sameSite: 'strict', path: '/', expires });
+    response.cookies.set(ADMIN_COOKIE, token, { httpOnly: true, secure: isSecureRequest(request), sameSite: 'strict', path: '/', expires });
     response.headers.set('Cache-Control', 'private, no-store');
     return response;
   } catch (error) { console.error('Admin sign-in failed', error); return NextResponse.json({ error: 'Sign-in is temporarily unavailable.' }, { status: 503 }); }

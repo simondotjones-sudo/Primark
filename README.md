@@ -76,8 +76,9 @@ pnpm build
 to `.env` for local admin access. Never commit `.env`.
 
 Tests use an isolated in-memory PostgreSQL engine (PGlite) and simulated blob storage.
-The 27 checks cover course publication/assignment, SCORM saving/resume, transaction rollback,
+The 29 checks cover course publication/assignment, SCORM saving/resume, transaction rollback,
 admin authentication, learner registration/completion, multipart photos and streamed reads.
+They also cover public-host validation behind Netlify and incomplete admin configuration.
 The Next.js production build and serverless packaging passed. Local Edge configuration
 inspection could not reach Netlify’s type endpoint from this environment; the Edge source
 was compiled locally and its file-delivery handler passed the integration checks.
