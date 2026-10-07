@@ -1,5 +1,10 @@
 // Columns: es, fr, de, it, nl, pt, pl, ro, cs, sk, sl, hu, ar.
 export const words:Record<string,string>={
+'All':'Todos|Tous|Alle|Tutti|Alles|Todos|Wszystkie|Toate|Vše|Všetky|Vsi|Összes|الكل',
+'To do':'Pendientes|À faire|Offen|Da fare|Te doen|Por fazer|Do zrobienia|De făcut|K dokončení|Na dokončenie|Za opraviti|Teendők|للإنجاز',
+'Certs':'Certificados|Certificats|Zertifikate|Certificati|Certificaten|Certificados|Certyfikaty|Certificate|Certifikáty|Certifikáty|Potrdila|Tanúsítványok|الشهادات',
+'You\'re all caught up.':'¡Todo al día!|Tout est à jour.|Alles erledigt.|È tutto aggiornato.|Je bent helemaal bij.|Está tudo em dia.|Wszystko zrobione.|Ești la zi.|Máte vše hotovo.|Máte všetko hotové.|Vse je opravljeno.|Minden kész.|أكملت كل المهام.',
+'Loading your certificates…':'Cargando tus certificados…|Chargement de vos certificats…|Deine Zertifikate werden geladen…|Caricamento dei tuoi certificati…|Je certificaten laden…|A carregar os seus certificados…|Ładowanie Twoich certyfikatów…|Se încarcă certificatele tale…|Načítají se vaše certifikáty…|Načítavajú sa vaše certifikáty…|Nalaganje vaših potrdil…|Tanúsítványok betöltése…|جارٍ تحميل شهاداتك…',
 'Course library':'Biblioteca de cursos|Catalogue de cours|Kursbibliothek|Catalogo corsi|Cursusbibliotheek|Biblioteca de cursos|Biblioteka kursów|Biblioteca de cursuri|Knihovna kurzů|Knižnica kurzov|Knjižnica tečajev|Tanfolyamtár|مكتبة الدورات',
 'Reload':'Recargar|Recharger|Neu laden|Ricarica|Opnieuw laden|Recarregar|Odśwież|Reîncarcă|Načíst znovu|Načítať znova|Znova naloži|Újratöltés|إعادة التحميل',
 'Loading courses…':'Cargando cursos…|Chargement des cours…|Kurse werden geladen…|Caricamento corsi…|Cursussen laden…|A carregar cursos…|Ładowanie kursów…|Se încarcă cursurile…|Načítání kurzů…|Načítavajú sa kurzy…|Nalaganje tečajev…|Tanfolyamok betöltése…|جارٍ تحميل الدورات…',
