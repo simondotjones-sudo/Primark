@@ -1,5 +1,5 @@
 "use client";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import QRCode from "qrcode";
 import Image from "next/image";
 import safetyPassCover from "@/public/course-images/safety-pass.png";
@@ -14,24 +14,19 @@ import type { ReportingAccess } from "@/lib/reporting-types";
 import AuthForm from "@/components/auth-form";
 import ProfileMenu from "@/components/profile-menu";
 import { profileHref, profileScope, type ProfileAccount, type ReportFilter } from "@/lib/profile";
+import TrainingReporting from "@/components/training-report";
 import AssignedCourses from "@/components/assigned-courses";
-import { ArrowLeft, BookOpen, Check, CheckCircle2, ClipboardCheck, Download, Globe2, LayoutGrid, Play, Printer, Search, ShieldCheck, Store, Video } from "lucide-react";
-import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { ArrowLeft, BookOpen, Check, CheckCircle2, ClipboardCheck, Globe2, LayoutGrid, Play, Printer, ShieldCheck, Video } from "lucide-react";
 import stores from "@/lib/stores.json";
 import { modules, questions } from "@/lib/course";
-import { contentLanguage, languageDirection, languageLocale, languageOptions, moduleCopy, questionCopy, type Language } from "@/lib/i18n";
+import { contentLanguage, languageDirection, languageOptions, moduleCopy, questionCopy, type Language } from "@/lib/i18n";
 import { tr, formatDate, formatDuration, countryName } from "@/lib/ui-copy";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { NativeSelect } from "@/components/ui/native-select";
 import { Progress } from "@/components/ui/progress";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 type Learner = {id:string;name:string;email:string;store_id:string;country:string;entered_at:string;started_at:string|null;completed_at:string|null;best_score:number|null;certificate_token:string|null;induction_enrolled:boolean};
-type Row = Learner & {store_name:string;legacy_completed:boolean;period_entered:boolean;period_started:boolean;period_completed:boolean};
-type Dashboard = {counts:{entered:number;started:number;completed:number;legacy:number};rows:Row[];trend:{month:string;entered:number;started:number;completed:number}[];years:number[]};
 type Screen = "home"|"courses"|"module"|"quiz"|"result"|"pass";
-const countries = [...new Set(stores.map(s => s.country))].sort((a,b) => a.localeCompare(b));
 const storeName = (id:string) => stores.find(s => s.id === id)?.name || id;
 const sampleCourses = [
   {title:"Manual Handling",image:"manual-handling",cover:manualHandlingCover,alt:"Colleagues moving stock on a trolley"},
@@ -76,12 +71,6 @@ export default function Home() {
   const [role,setRole]=useState<"global"|"country"|"site">("global");
   const [scopeCountry,setScopeCountry]=useState("Ireland");
   const [scopeSite,setScopeSite]=useState(stores.find(s=>s.country==="Ireland")?.id || "");
-  const [reportYear,setReportYear]=useState(String(new Date().getUTCFullYear()));
-  const [reportMonth,setReportMonth]=useState("all");
-  const [dashboard,setDashboard]=useState<Dashboard|null>(null);
-  const [search,setSearch]=useState("");
-  const [csv,setCsv]=useState("");
-  const [imported,setImported]=useState("");
   const refreshMe=useCallback(async()=>{
     const data=await api("?view=me");
     const access:ReportingAccess|null=data.reportingAccess||null;
@@ -92,7 +81,7 @@ export default function Home() {
     setViewed(data.viewed||[]);setLegacyCompleted(!!data.legacyCompleted);
     const key=JSON.stringify([data.learner?.id,!!data.platformAdmin,access]);
     if(key!==accessKey.current){
-      accessKey.current=key;setDashboard(null);
+      accessKey.current=key;
       if(!access){setArea("learn");}else{
         const params=new URLSearchParams(location.search);
         const selected=profileScope(access,{role:params.get("role") as ReportFilter['role'],country:params.get("country")||undefined,site:params.get("site")||undefined}).filter;
@@ -102,21 +91,13 @@ export default function Home() {
     }
     return !!access;
   },[]);
-  const loadDashboard=useCallback(async()=>{const p=new URLSearchParams({view:"dashboard",role,country:scopeCountry,site:scopeSite,year:reportYear,month:reportMonth});return api("?"+p.toString());},[role,scopeCountry,scopeSite,reportYear,reportMonth]);
-  const refreshDashboard=async()=>{setDashboard(null);setDashboard(await loadDashboard());};
-  useEffect(()=>{const refresh=()=>{refreshMe().catch(()=>{setPlatformAdmin(false);setReportingAccess(null);setAccount(null);setDashboard(null);setArea("learn");});};window.addEventListener("focus",refresh);return()=>window.removeEventListener("focus",refresh);},[refreshMe]);
+  useEffect(()=>{const refresh=()=>{refreshMe().catch(()=>{setPlatformAdmin(false);setReportingAccess(null);setAccount(null);setArea("learn");});};window.addEventListener("focus",refresh);return()=>window.removeEventListener("focus",refresh);},[refreshMe]);
   useEffect(()=>{if(new URLSearchParams(location.search).get("courses")==="1")setScreen("courses");},[]);
   useEffect(()=>{if(learner?.induction_enrolled&&screen!=="courses")setScreen("courses");},[learner?.induction_enrolled,screen]);
 
   useEffect(()=>{refreshMe().catch(e=>setError(e.message)).finally(()=>setLoading(false));},[refreshMe]);
   useEffect(()=>{const saved=localStorage.getItem("primark-language");if(languageOptions.some(option=>option.code===saved))setLang(saved as Language);},[]);
   useEffect(()=>{document.documentElement.lang=copyLang;document.documentElement.dir=languageDirection(lang);localStorage.setItem("primark-language",lang);},[lang,copyLang]);
-  useEffect(()=>{
-    if(area!=="report"||!reportingAccess)return;
-    let active=true;setDashboard(null);
-    loadDashboard().then(data=>{if(active)setDashboard(data);}).catch(e=>{if(active){setDashboard(null);setError(e.message);}});
-    return()=>{active=false;};
-  },[area,loadDashboard,reportingAccess,account?.email]);
   useEffect(()=>{if(learner?.certificate_token)QRCode.toDataURL(location.origin+"/verify/"+learner.certificate_token+"?lang="+lang,{margin:1,width:260,color:{dark:"#173046",light:"#ffffff"}}).then(setQr).catch(()=>setQr(""));},[learner?.certificate_token,lang]);
   useEffect(()=>{
     type ToolContext={registerTool:(tool:{name:string;title:string;description:string;inputSchema:object;annotations:{readOnlyHint:boolean;untrustedContentHint:boolean};execute:(input:unknown)=>unknown},options:{signal:AbortSignal})=>void|Promise<void>};
@@ -134,10 +115,6 @@ export default function Home() {
   async function run(fn:()=>Promise<void>){setBusy(true);setError("");try{await fn();}catch(e){setError(e instanceof Error?e.message:"Please try again.");}finally{setBusy(false);}}
   const complete=!!learner?.completed_at;
   const nextChapter=shownModules.findIndex(m=>!viewed.includes(m.key));
-  const rows=dashboard?.rows.filter(r=>(r.name+" "+r.email+" "+r.store_name).toLowerCase().includes(search.toLowerCase()))||[];
-  const grouped=useMemo(()=>{const map=new Map<string,{label:string;entered:number;started:number;completed:number}>();for(const r of dashboard?.rows||[]){const key=role==="global"?r.country:r.store_id;const v=map.get(key)||{label:role==="global"?r.country:r.store_name,entered:0,started:0,completed:0};if(r.period_entered)v.entered++;if(r.period_started)v.started++;if(r.period_completed)v.completed++;map.set(key,v);}return [...map.values()].sort((a,b)=>b.entered-a.entered||a.label.localeCompare(b.label));},[dashboard,role]);
-  const chartLocale=languageLocale(lang);
-  const trendData=useMemo(()=>dashboard?.trend.map(row=>({...row,label:new Intl.DateTimeFormat(chartLocale,{month:"short",...(reportYear==="all"?{year:"2-digit" as const}:{})}).format(new Date(row.month+"-01T00:00:00Z"))}))||[],[dashboard,chartLocale,reportYear]);
 
   return <div className={"shell"+(!account&&!loading?" login-screen":"")} lang={lang} dir={languageDirection(lang)}>
     <header className="topbar"><button className="brand" onClick={()=>{setArea(platformAdmin?"report":"learn");setScreen("home");}}><strong>PRIMARK</strong></button><div className="top-controls"><label className="language-picker"><Globe2 size={17}/><span className="sr-only">{t("Language")}</span><select aria-label={t("Language")} lang={lang} dir={languageDirection(lang)} value={lang} onChange={e=>setLang(e.target.value as Language)}>{languageOptions.map(option=><option key={option.code} value={option.code} lang={option.code} dir={languageDirection(option.code)}>{option.name}</option>)}</select></label><ProfileMenu account={account} view={area} filter={{role,country:scopeCountry,site:scopeSite}} onOpen={()=>{void refreshMe().catch(()=>{});}}
@@ -177,19 +154,9 @@ export default function Home() {
           {screen==="result"&&result&&<div className="paper result"><div className={"result-mark "+(result.passed?"passed":"failed")}>{result.passed?<Check/>:"↻"}</div><span className="eyebrow">{t("ASSESSMENT RESULT")}</span><h1>{result.passed?t("You passed. Well done."):t("You can try again.")}</h1><p>{t("You scored")} <strong>{result.score}/20</strong>. {t("The pass mark is 18/20.")}</p>{result.passed&&viewed.length<6&&<p>{t("View all six chapters to get your Safety Passport.")}</p>}<Button className="blue-button" onClick={()=>{setAnswers(Array(20).fill(-1));setQuestionIndex(0);setScreen(result.passed?"home":"quiz");}}>{result.passed?t("Back to chapters"):t("Retry assessment")}</Button>{complete&&<Button variant="outline" onClick={()=>setScreen("pass")}>{t("View my pass")}</Button>}</div>}
           {screen==="pass"&&(complete?<Pass learner={learner} qr={qr} lang={lang}/>:<div className="paper result"><ShieldCheck/><h2>{t("Your pass is almost ready")}</h2><p>{t("View all six chapters and pass the assessment.")}</p><Button onClick={()=>setScreen("home")}>{t("Back to induction")}</Button></div>)}
         </div></div>
-    : <section className="report"><div className="report-header"><div><span className="eyebrow">{t("PRIMARK · INDUCTION OVERSIGHT")}</span><h1>{t("New starter progress")}</h1><p>{t("Filter by location and date to see activity over time.")}</p></div><div className="report-actions">{platformAdmin&&<Button variant="outline" disabled={busy} onClick={()=>run(async()=>{await post("seed");await refreshDashboard();})}>{t("Load sample learners")}</Button>}<Button variant="outline" onClick={()=>{const p=new URLSearchParams({view:"export",role,country:scopeCountry,site:scopeSite,year:reportYear,month:reportMonth});location.href="/api/prototype?"+p.toString();}}><Download/> {t("Export CSV")}</Button></div></div>
-      <div className="scope"><span><Globe2/>{role==="global"?"All Primark":role==="country"?countryName(scopeCountry,lang):storeName(scopeSite)}</span><small>Change view or site in your profile.</small></div>
-      <div className="date-filters"><label>{t("Year")}<NativeSelect value={reportYear} onChange={e=>{setReportYear(e.target.value);setReportMonth("all");}}><option value="all">{t("All time")}</option>{[...new Set([Number(reportYear),new Date().getUTCFullYear(),...(dashboard?.years||[])])].filter(Number.isFinite).sort((a,b)=>b-a).map(y=><option value={y} key={y}>{y}</option>)}</NativeSelect></label><label>{t("Month")}<NativeSelect value={reportMonth} disabled={reportYear==="all"} onChange={e=>setReportMonth(e.target.value)}><option value="all">{t("All months")}</option>{Array.from({length:12},(_,i)=><option value={i+1} key={i}>{new Intl.DateTimeFormat(chartLocale,{month:"long"}).format(new Date(Date.UTC(2024,i,1)))}</option>)}</NativeSelect></label><span>{reportYear==="all"?t("All recorded activity"):reportMonth==="all"?reportYear:new Intl.DateTimeFormat(chartLocale,{month:"long",year:"numeric"}).format(new Date(Date.UTC(Number(reportYear),Number(reportMonth)-1,1)))}</span></div>
-      <div className="metrics"><Metric label={t("Entered")} value={dashboard?.counts.entered} detail={t("Joined in period")}/><Metric label={t("Started")} value={dashboard?.counts.started} detail={t("Started in period")}/><Metric label={t("Completed")} value={dashboard?.counts.completed} detail={t("Completed in period")} blue/><Metric label={t("Previous LMS")} value={dashboard?.counts.legacy} detail={reportYear==="all"?t("All historical completions"):t("Dated historical completions")}/></div>
-      <div className="paper trend-card"><div className="card-head"><div><h2>{t("Monthly trend")}</h2><p>{reportYear==="all"?t("Last 12 months"):reportYear}</p></div><div className="trend-key"><span><i className="entered-key"/>{t("Entered")}</span><span><i className="started-key"/>{t("Started")}</span><span><i className="completed-key"/>{t("Completed")}</span></div></div><div className="trend-chart" dir="ltr" role="img" aria-label={t("Monthly trend of entries, starts and completions")}><ResponsiveContainer width="100%" height="100%"><LineChart data={trendData} margin={{top:14,right:15,bottom:0,left:-18}}><CartesianGrid stroke="#e9eff3" vertical={false}/><XAxis dataKey="label" tickLine={false} axisLine={false} tick={{fill:"#748a97",fontSize:12}} minTickGap={18}/><YAxis allowDecimals={false} tickLine={false} axisLine={false} tick={{fill:"#748a97",fontSize:12}}/><Tooltip contentStyle={{borderRadius:12,border:"1px solid #dce8ef",fontFamily:"Gellix, Arial, sans-serif"}}/><Line isAnimationActive={false} type="monotone" dataKey="entered" name={t("Entered")} stroke="#9bb8c8" strokeWidth={2.5} dot={false}/><Line isAnimationActive={false} type="monotone" dataKey="started" name={t("Started")} stroke="#4b92b4" strokeWidth={2.5} dot={false}/><Line isAnimationActive={false} type="monotone" dataKey="completed" name={t("Completed")} stroke="#008bc9" strokeWidth={3} dot={{r:3}}/></LineChart></ResponsiveContainer></div></div>
-      <div className="report-grid"><div className="paper breakdown"><div className="card-head"><div><h2>{role==="global"?t("By country"):t("By store")}</h2><p>{t("New app activity")}</p></div><Store/></div>{grouped.length?<div className="table-scroll"><table><thead><tr><th>{role==="global"?t("Country"):t("Store")}</th><th>{t("Entered")}</th><th>{t("Started")}</th><th>{t("Completed")}</th></tr></thead><tbody>{grouped.map(g=><tr key={g.label} onClick={()=>{if(role==="global"){setRole("country");setScopeCountry(g.label);setScopeSite(stores.find(s=>s.country===g.label)?.id||"");}}}><td>{role==="global"?countryName(g.label,lang):g.label}</td><td>{g.entered}</td><td>{g.started}</td><td><b className="count-pill">{g.completed}</b></td></tr>)}</tbody></table></div>:<div className="empty">{t("No learners match this view.")}</div>}</div><div className="paper definitions"><div className="card-head"><h2>{t("How the counts work")}</h2><ClipboardCheck/></div><p><strong>{t("Entered")}</strong> {t("People who created a pass in the selected period.")}</p><p><strong>{t("Started")}</strong> {t("People who first started in the selected period.")}</p><p><strong>{t("Completed")}</strong> {t("People who completed in the selected period.")}</p><p><strong>{t("Previous LMS")}</strong> {t("Dated imports follow the filter; undated imports appear in All time.")}</p></div></div>
-      <div className="paper people"><div className="people-head"><div><h2>{t("Learners")}</h2><p>{t("Names and progress in this reporting view")}</p></div><div className="search"><Search/><Input value={search} onChange={e=>setSearch(e.target.value)} placeholder={t("Search learners")}/></div></div><div className="table-scroll"><table><thead><tr><th>{t("Name")}</th><th>{t("Store")}</th><th>{t("Entered")}</th><th>{t("Status")}</th><th>{t("Score")}</th><th>{t("Old LMS")}</th></tr></thead><tbody>{rows.map(r=><tr key={r.id}><td><strong dir="auto">{r.name}</strong><small dir="ltr">{r.email}</small></td><td>{r.store_name}<small>{countryName(r.country,lang)}</small></td><td>{formatDate(r.entered_at,lang)}</td><td><span className={"status "+(r.completed_at?"done":"")}>{r.completed_at?t("Completed"):r.started_at?t("In progress"):t("Not started")}</span></td><td>{r.best_score===null?"—":r.best_score+"/20"}</td><td>{r.legacy_completed?t("Yes"):"—"}</td></tr>)}</tbody></table>{!rows.length&&<div className="empty">{t("No learners match this view.")}</div>}</div></div>
-      {platformAdmin&&<details className="paper import"><summary>{t("Import previous LMS completions")}</summary><p>{t("CSV columns:")} <code dir="ltr">email,completed,completed_at,site_id</code>. {t("Completed accepts 1 or 0. Date and store ID are optional.")}</p><textarea dir="ltr" value={csv} onChange={e=>setCsv(e.target.value)} placeholder={"email,completed,completed_at,site_id\nexample@example.com,1,2026-09-01,"}/><div><label className="file-label">{t("Choose CSV file")}<input type="file" accept=".csv,text/csv" onChange={async e=>{const f=e.target.files?.[0];if(f)setCsv(await f.text());}}/></label><Button disabled={!csv||busy} onClick={()=>run(async()=>{const r=await post("import",{records:parseCsv(csv)});setImported(r.imported+" "+t("historical rows imported."));await refreshDashboard();})}>{t("Import CSV")}</Button><span>{imported}</span></div></details>}<p className="report-note">Reporting access: {reportingAccess?.scope==="organisation"?"All Primark":reportingAccess?.scope==="country"?countryName(reportingAccess.country||"",lang):storeName(reportingAccess?.siteId||"")}</p>
-    </section>}
+    : <TrainingReporting key={account?.email||"report"} access={reportingAccess} platformAdmin={platformAdmin} filter={{role,country:scopeCountry,site:scopeSite}} onFilterChange={next=>{setRole(next.role);setScopeCountry(next.country);setScopeSite(next.site);}} lang={lang}/>}
     </main><footer><strong><bdi dir="ltr">PRIMARK</bdi> · {t("Safety Passport")}</strong>{platformAdmin&&<a href="/admin/courses/">Platform admin</a>}<span>{t("Private working prototype · Sample content is not approved training")}</span></footer>
   </div>;
 }
 
-function Metric({label,value,detail,blue=false}:{label:string;value:number|undefined;detail:string;blue?:boolean}){return <div className={"metric "+(blue?"metric-blue":"")}><span>{label}</span><strong>{value??"—"}</strong><small>{detail}</small></div>;}
 function Pass({learner,qr,lang}:{learner:Learner;qr:string;lang:Language}){const t=(value:string)=>tr(lang,value);return <section className="pass-view"><button className="back no-print" onClick={()=>window.print()}><Printer/>{t("Print or save PDF")}</button><div className="pass-paper"><div className="pass-top"><strong>PRIMARK</strong><span>{t("HEALTH, SAFETY & ENVIRONMENT")}</span></div><div className="pass-body"><div className="big-tick"><Check/></div><span className="eyebrow">{t("CERTIFICATE OF COMPLETION")}</span><h1>{t("Primark Safety Passport")}</h1><p>{t("Ready to show your site manager on day one.")}</p><div className="pass-person"><span>{t("AWARDED TO")}</span><strong dir="auto">{learner.name}</strong><p>{storeName(learner.store_id)} · {countryName(learner.country,lang)}</p></div><div className="pass-facts"><div><span>{t("DATE PASSED")}</span><strong>{formatDate(learner.completed_at,lang)}</strong></div><div><span>{t("ASSESSMENT")}</span><strong><bdi dir="ltr">{learner.best_score}/20</bdi> · {t("Passed")}</strong></div></div><div className="pass-verify">{qr&&<img src={qr} alt={t("QR code to verify the Safety Passport")}/>}<div><strong>{t("Scan to verify")}</strong><p>{t("Scan to view this live certificate record.")}</p><small>{t("Certificate ID")} · <bdi dir="ltr">{learner.certificate_token?.slice(0,12).toUpperCase()}</bdi></small></div></div></div></div><div className="pass-actions no-print"><Button className="blue-button" onClick={()=>window.print()}><Printer/>{t("Print / Save PDF")}</Button><p>{t("Keep this pass ready for your first day.")}</p></div></section>;}
-function parseCsv(text:string){const rows:string[][]=[];let row:string[]=[];let field="",quoted=false;for(let i=0;i<text.length;i++){const c=text[i];if(c==='"'){if(quoted&&text[i+1]==='"'){field+='"';i++;}else quoted=!quoted;}else if(c===","&&!quoted){row.push(field);field="";}else if((c==="\n"||c==="\r")&&!quoted){if(c==="\r"&&text[i+1]==="\n")i++;row.push(field);if(row.some(v=>v.trim()))rows.push(row);row=[];field="";}else field+=c;}row.push(field);if(row.some(v=>v.trim()))rows.push(row);if(!rows.length)throw new Error("The CSV is empty.");const headers=rows.shift()!.map(h=>h.trim().toLowerCase().replace(/^\uFEFF/,""));if(!headers.includes("email")||!headers.includes("completed"))throw new Error("CSV needs email and completed columns.");return rows.map(values=>Object.fromEntries(headers.map((h,i)=>[h,values[i]?.trim()||""])));}
