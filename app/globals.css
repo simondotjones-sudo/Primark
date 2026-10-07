@@ -368,3 +368,8 @@ footer strong{letter-spacing:.08em}
 .course-view-switch.pill-switch{width:100%;max-width:650px;margin-inline:0}
 @media(max-width:760px){.pill-switch.pill-switch{width:100%;max-width:none;padding:5px;justify-self:stretch}.shell .pill-switch.pill-switch>button{min-height:46px;padding:9px 5px;font-size:.96rem}}
 @media(prefers-reduced-motion:reduce){.shell .pill-switch.pill-switch>button{transition:none}}
+
+.admin-summary{margin:0 0 24px}.admin-summary .metric{min-width:0;align-content:start;min-height:130px}.admin-summary .metric>span{overflow-wrap:anywhere}.admin-summary .metric strong{font-variant-numeric:tabular-nums}.course-admin .shot-list-link{margin:32px 0 0}.organisation-form+section{margin-top:24px}
+.course-admin .main>.course-editor+.course-editor{margin-top:24px}
+
+@media(min-width:1051px){.admin-summary[data-count="3"]{grid-template-columns:repeat(3,minmax(0,1fr))}}
