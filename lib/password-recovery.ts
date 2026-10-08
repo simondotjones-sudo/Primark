@@ -26,11 +26,13 @@ function mailSettings() {
 export async function requestPasswordReset(email: string, requestedLanguage: Language = 'en') {
   const lang = isLanguage(requestedLanguage) ? requestedLanguage : 'en';
   const settings = mailSettings();
-  const learner = await db().prepare('SELECT id,password_hash,code_hash FROM learners WHERE email=?').bind(email)
-    .first<{id:string; password_hash:string|null; code_hash:string}>();
+  const learner = await db().prepare(`SELECT id,password_hash,code_hash,
+    EXISTS(SELECT 1 FROM platform_admins p WHERE p.learner_id=learners.id) AS platform_admin
+    FROM learners WHERE email=?`).bind(email)
+    .first<{id:string; password_hash:string|null; code_hash:string; platform_admin:boolean}>();
   const accounts: {type:string; id:string; fingerprint:string; label:string}[] = [];
   if (email === credentials()?.email) accounts.push({type:'admin',id:email,fingerprint:await sessionCredentialFingerprint(),label:'Platform admin'});
-  if (learner) accounts.push({type:'learner',id:learner.id,fingerprint:learnerFingerprint(learner),label:'Learning account'});
+  if (learner) accounts.push({type:'learner',id:learner.id,fingerprint:learnerFingerprint(learner),label:learner.platform_admin ? 'Platform admin' : 'Learning account'});
   await db().prepare('DELETE FROM password_resets WHERE expires_at<NOW()').run();
   if (!accounts.length) return;
   const links: string[] = [], tokenHashes: string[] = [];

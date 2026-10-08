@@ -3,6 +3,7 @@ import { reportingChecks } from './reporting-checks.mjs';
 import { registrationChecks } from './registration-checks.mjs';
 import { passwordRecoveryChecks } from './password-recovery-checks.mjs';
 import { coursePanelChecks } from './course-panel-checks.mjs';
+import { platformAdminChecks } from './platform-admin-checks.mjs';
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { build } from 'esbuild';
@@ -299,5 +300,6 @@ await check('Organisation store lifecycle enforces admin access and preserves hi
  assert((await m.directory.storeDirectory(false)).some(s=>s.id===store.id));
  assert.equal((await query('SELECT COUNT(*) AS n FROM organisation_store_audit WHERE store_id=?',store.id).first()).n,2);
 });
+await platformAdminChecks({m,check,query,invoke,loginAdmin,cookieFrom,store});
 await passwordRecoveryChecks({m,check,query,invoke,loginAdmin,cookieFrom,store});
 console.log(`${passed} Netlify migration checks passed.`);await pg.close();rmSync(dir,{recursive:true,force:true});

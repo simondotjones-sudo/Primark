@@ -45,21 +45,34 @@ chapter-one video are included (the build reassembles its checksum-verified part
 progress and dynamically uploaded files are not committed. Transfer those privately after
 the Netlify project is available, if required; never put database exports into this public repo.
 
-Admin access uses the server-configured email/password, not learner registration or headers
-from the old host. Admin sessions last eight hours, are stored as hashed tokens in Postgres,
+Initial admin access uses the server-configured email/password. Registration alone and
+headers from the old host never grant admin access. Configured-admin sessions last eight
+hours, are stored as hashed tokens in Postgres,
 and are revoked by logout or changing the configured credentials. Login attempts are rate
 limited. Never put real admin credentials in committed files or `NEXT_PUBLIC_*` variables.
 
-Platform admins assign Store Manager and reporting roles under User access at `/admin/reporting-access`. Select an existing
+Platform admins assign Platform admin, Store Manager and reporting roles under **Manage Users → Access** at `/admin/reporting-access`. Select an existing
 learner account, choose Site, Country or Primark reporting admin, then save. Reporting
 admins use their learner email and password and can view/export only the assigned
 scope. Only platform admins can create or publish courses, import historical completions, load sample
 records, use the shot list or assign/revoke access. Store Managers can assign published courses in their country to existing store users. Choose Learner only to remove reporting access.
 
-Signing into a learner account revokes the current platform session; platform sign-in
-revokes the current learner session. Browsers with both old cookies default to learner
-permissions until the user signs into the platform account again. Reporting grants and
-revocations are checked on each request; refresh or revisit the tab to update the menu.
+To add another platform admin, register the account normally, then use **Edit access →
+Platform admin → Save access**. The account keeps its normal email/Workday ID, password,
+learning records and assignments. The server checks its explicit `platform_admins` grant
+and unexpired session on every admin request. Selecting another role removes platform
+access immediately; invalid changes leave the current role intact. A granted admin must
+ask another admin to remove their own platform access. The hosting-configured admin is
+unchanged and remains the recovery account. Merely sharing its email never grants access.
+Sign-out and password recovery revoke the registered account's sessions normally.
+Migration `20261008073000_platform-admins` adds the grant table without promoting anyone;
+it must be applied before the new code serves requests.
+
+Signing into a registered account revokes the current configured-admin session; signing
+into the configured admin revokes the current registered-account session. If both cookies
+are present, only the registered account's own grants apply. Registered accounts retain
+their normal session lifecycle. Grants and revocations are checked on each request;
+refresh or revisit the tab to update the menu.
 
 The top-right profile icon contains name, role, site, sign out and permitted views.
 Reporting admins can switch between the reporting levels and sites within their assigned
@@ -190,8 +203,10 @@ while restoring the current authentication routes. Do not reverse/drop these mig
 ### Shared login and stable reporting
 
 The home-page Login tab accepts learner, manager, reporting-admin and platform-admin
-credentials. Platform admins continue to use the server-configured password and a
-separate secure session; a learner with the same email never inherits admin rights.
+credentials. The original platform admin continues to use the server-configured password
+and a separate secure session. Additional platform admins use their registered account's
+password and an explicit server-side grant; a learner with the same email as the original
+admin never inherits admin rights.
 Old `/admin/sign-in` links redirect to the Login tab, preserving a safe return path.
 Opening the profile or returning to the browser rechecks permissions without clearing
 the dashboard when access is unchanged. Actual scope/filter changes still reload reports.

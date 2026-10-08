@@ -11,7 +11,8 @@ export async function GET() {
   try {
     await requireAdmin();
     const people = await db().prepare(`SELECT l.id,l.name,l.email,l.country,l.store_id,
-      r.scope,r.country AS reporting_country,r.site_id AS reporting_site_id,r.updated_at,m.store_id AS manager_store_id
+      r.scope,r.country AS reporting_country,r.site_id AS reporting_site_id,r.updated_at,m.store_id AS manager_store_id,
+      EXISTS(SELECT 1 FROM platform_admins p WHERE p.learner_id=l.id) AS platform_admin
       FROM learners l LEFT JOIN reporting_access r ON r.learner_id=l.id LEFT JOIN store_managers m ON m.learner_id=l.id ORDER BY l.name,l.email`).all();
     return json({ people: people.results });
   } catch (error) { return failed(error); }
@@ -25,8 +26,20 @@ export async function POST(request: NextRequest) {
     const body = await bodyJson(request, 10000);
     if (typeof body.learnerId !== 'string' || !await db().prepare('SELECT id FROM learners WHERE id=?').bind(body.learnerId).first())
       throw new CourseError('Choose an existing learner account.');
-    if (!['none', 'organisation', 'country', 'site'].includes(body.scope)) throw new CourseError('Choose a reporting scope.');
-    const changes:PreparedStatement[]=[];
+    if (!['none', 'organisation', 'country', 'site', 'platform'].includes(body.scope)) throw new CourseError('Choose a reporting scope.');
+    if (admin?.learnerId === body.learnerId && body.scope !== 'platform')
+      throw new CourseError('Ask another platform admin to remove your platform admin access.');
+    if (body.scope === 'platform') {
+      await db().batch([
+        db().prepare(`INSERT INTO platform_admins(learner_id,assigned_by,updated_at) VALUES(?,?,?)
+          ON CONFLICT(learner_id) DO UPDATE SET assigned_by=excluded.assigned_by,updated_at=excluded.updated_at`)
+          .bind(body.learnerId,admin!.email,now()),
+        db().prepare('DELETE FROM reporting_access WHERE learner_id=?').bind(body.learnerId),
+        db().prepare('DELETE FROM store_managers WHERE learner_id=?').bind(body.learnerId),
+      ]);
+      return json({ok:true});
+    }
+    const changes:PreparedStatement[]=[db().prepare('DELETE FROM platform_admins WHERE learner_id=?').bind(body.learnerId)];
     if(body.managerStoreId!==undefined){
       if(body.managerStoreId===null)changes.push(db().prepare('DELETE FROM store_managers WHERE learner_id=?').bind(body.learnerId));
       else{

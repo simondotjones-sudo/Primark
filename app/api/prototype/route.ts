@@ -1,4 +1,4 @@
-import { allowLoginAttempt, ADMIN_COOKIE, credentials, getAdminUser, passwordMatches } from '@/lib/admin-auth';
+import { allowLoginAttempt, ADMIN_COOKIE, credentials, getAdminUser, passwordMatches, safeReturnTo } from '@/lib/admin-auth';
 import { createAdminSession } from '@/lib/admin-session';
 import { getReportingAccess, reportingAccessFor, reportingFilter } from '@/lib/reporting-access';
 import type { ReportingAccess } from "@/lib/reporting-types";
@@ -33,9 +33,9 @@ async function learnerState(request: NextRequest) {
   const managerStore = learner ? await managerStoreFor(learner.id) : null;
   const account: ProfileAccount | null = learner ? {
     name: learner.name, email: learner.email,
-    role: managerStore ? 'Store Manager' : !reportingAccess ? 'Learner' : reportingAccess.scope === 'site' ? 'Site reporting admin' : reportingAccess.scope === 'country' ? 'Country reporting admin' : 'Primark reporting admin',
-    managerStoreId: managerStore?.id || null,
-    site: storeById.get(learner.store_id)?.name || learner.store_id, platformAdmin: false, reportingAccess,
+    role: platformAdmin ? 'Platform admin' : managerStore ? 'Store Manager' : !reportingAccess ? 'Learner' : reportingAccess.scope === 'site' ? 'Site reporting admin' : reportingAccess.scope === 'country' ? 'Country reporting admin' : 'Primark reporting admin',
+    managerStoreId: platformAdmin ? null : managerStore?.id || null,
+    site: platformAdmin ? 'All Primark' : storeById.get(learner.store_id)?.name || learner.store_id, platformAdmin, reportingAccess,
   } : admin ? { name: adminPerson?.name || admin.email, email: admin.email, role: 'Platform admin', site: 'All Primark', platformAdmin: true, reportingAccess } : null;
   const identity = { platformAdmin, reportingAccess, account };
   if (!learner) return NextResponse.json({ learner: null, viewed: [], ...identity }, { headers: privateHeaders });
@@ -174,12 +174,15 @@ export async function POST(request: NextRequest) {
         if (await passwordMatches(email,password)) return await createAdminSession(request,body.returnTo);
       }
       if (password.length > 128) return fail('Those details did not match.',401);
-      const learner = await database.prepare(email ? 'SELECT id,password_hash FROM learners WHERE email=?' : 'SELECT id,password_hash FROM learners WHERE workday_id=?').bind(email||workdayId).first<{id:string;password_hash:string|null}>();
+      const learner = await database.prepare(`SELECT id,password_hash,
+        EXISTS(SELECT 1 FROM platform_admins p WHERE p.learner_id=learners.id) AS platform_admin
+        FROM learners WHERE ${email ? 'email' : 'workday_id'}=?`)
+        .bind(email||workdayId).first<{id:string;password_hash:string|null;platform_admin:boolean}>();
       // Both aliases share an account limit, so alternating identifiers cannot bypass it.
       if (learner && !await allowLoginAttempt('learner-account:'+learner.id)) return fail('Too many attempts. Try again in 15 minutes.',429);
       const correct = await verifyPassword(password, learner?.password_hash || null);
       if (!learner || !correct) return fail('Those details did not match.',401);
-      return withSession(request,learner.id,{ ok: true });
+      return withSession(request,learner.id,{ ok: true, ...(learner.platform_admin ? {returnTo:safeReturnTo(body.returnTo)} : {}) });
     }
     if (action === 'set-password') {
       const email = emailAddress(body.email);

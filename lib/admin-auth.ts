@@ -34,10 +34,17 @@ export async function passwordMatches(email: string, password: string) {
   const correctPassword = timingSafeEqual(hash(password), hash(configured.password));
   return email.toLowerCase() === configured.email && correctPassword;
 }
-export async function getAdminUser() {
+export async function getAdminUser(): Promise<{email: string; learnerId?: string} | null> {
   const jar = await cookies();
-  // Fail closed for browsers with both cookies from before session separation.
-  if (jar.get('primark_session')?.value) return null;
+  // A learner session can use only its own explicit grant, never a second admin cookie.
+  const learnerToken = jar.get('primark_session')?.value;
+  if (learnerToken) {
+    return db().prepare(`SELECT l.email,l.id AS "learnerId" FROM sessions s
+      JOIN learners l ON l.id=s.learner_id JOIN platform_admins p ON p.learner_id=l.id
+      WHERE s.token_hash=? AND s.expires_at>?`)
+      .bind(createHash('sha256').update(learnerToken).digest('hex'), new Date().toISOString())
+      .first<{email: string; learnerId: string}>();
+  }
   const token = jar.get(ADMIN_COOKIE)?.value;
   if (!token || !credentials()) return null;
   const row = await db().prepare('SELECT email FROM admin_sessions WHERE token_hash=? AND credential_hash=? AND expires_at>?')

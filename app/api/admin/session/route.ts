@@ -10,8 +10,15 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     if (body.action === 'logout') {
       const token = request.cookies.get(ADMIN_COOKIE)?.value;
-      if (token) await db().prepare('DELETE FROM admin_sessions WHERE token_hash=?').bind(await hash(token)).run();
-      const response = NextResponse.json({ ok: true }); response.cookies.delete(ADMIN_COOKIE); return response;
+      const learnerToken = request.cookies.get('primark_session')?.value;
+      const changes = [];
+      if (token) changes.push(db().prepare('DELETE FROM admin_sessions WHERE token_hash=?').bind(await hash(token)));
+      if (learnerToken) changes.push(db().prepare('DELETE FROM sessions WHERE token_hash=?').bind(await hash(learnerToken)));
+      await db().batch(changes);
+      const response = NextResponse.json({ ok: true });
+      response.cookies.delete(ADMIN_COOKIE); response.cookies.delete('primark_session');
+      response.headers.set('Cache-Control', 'private, no-store');
+      return response;
     }
     if (!credentials()) return NextResponse.json({ error: 'Set PRIMARK_ADMIN_EMAIL and PRIMARK_ADMIN_PASSWORD (at least 16 characters) in Netlify, make them available to Functions, then redeploy.' }, { status: 503 });
     if (!await allowLoginAttempt('platform-admin')) return NextResponse.json({ error: 'Too many attempts. Try again in 15 minutes.' }, { status: 429 });
