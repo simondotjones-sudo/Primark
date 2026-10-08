@@ -33,6 +33,48 @@ export async function userAdministrationChecks({m,check,query,invoke,loginAdmin,
     assert.equal((await list(accounts.country.cookie,'type=invalid')).status,400);
     const local=await read(accounts.store.cookie,'search=management-');assert.equal(local.canEdit,false);assert(local.people.every(p=>!p.canEdit));assert(!local.people.find(p=>p.id===accounts.store.id).canArchive);
   });
+  await check('Admins edit names and emails within scope with duplicate, stale and archived protections',async()=>{
+    const person=await find(accounts.learner.id);
+    assert((await read(accounts.store.cookie,'search='+person.id)).people[0].canEditDetails);
+    for(const cookie of ['',accounts.learner.cookie])assert.equal((await update(cookie,person,{action:'details',name:'New name',email:person.email})).status,403);
+    assert.equal((await update(accounts.store.cookie,await find(accounts.uk.id),{action:'details',name:'New name',email:'new@example.test'})).status,403);
+    assert.equal((await update(accounts.country.cookie,await find(accounts.org.id),{action:'details',name:'New name',email:'new@example.test'})).status,403);
+    assert.equal((await update(accounts.store.cookie,person,{action:'details',name:'New name',email:person.email},{origin:'https://evil.invalid'})).status,403);
+    assert.equal((await update(accounts.store.cookie,person,{action:'details',name:'X',email:person.email})).status,400);
+    assert.equal((await update(accounts.store.cookie,person,{action:'details',name:'New name',email:'invalid'})).status,400);
+    assert.equal((await update(accounts.store.cookie,person,{action:'details',name:'New name',email:accounts.other.email})).status,409);
+    assert.equal((await update(accounts.store.cookie,person,{action:'details',name:'New name',email:process.env.PRIMARK_ADMIN_EMAIL})).status,409);
+    const before=await query('SELECT * FROM learners WHERE id=?',person.id).first();
+    assert.equal((await update(accounts.store.cookie,person,{action:'details',name:'  New   name  ',email:person.email})).status,200);
+    const current=await find(person.id);assert.equal(current.name,'New name');
+    assert(await query('SELECT * FROM sessions WHERE learner_id=?',person.id).first(),'Name-only edit retains login');
+    assert.equal((await update(accounts.store.cookie,person,{action:'details',name:'Stale name',email:person.email})).status,409);
+    assert.equal((await update(accounts.country.cookie,current,{action:'details',name:'New name',email:'  Management-Learner-Corrected@Example.test  '})).status,200);
+    const corrected=await query('SELECT * FROM learners WHERE id=?',person.id).first();assert.equal(corrected.email,'management-learner-corrected@example.test');assert.equal(corrected.password_hash,before.password_hash);assert.equal(corrected.store_id,before.store_id);
+    assert.equal(await query('SELECT * FROM sessions WHERE learner_id=?',person.id).first(),null);
+    accounts.learner.email=corrected.email;
+    // Existing downstream checks search the original name.
+    assert.equal((await update(bootstrap,await find(person.id),{action:'details',name:person.id,email:before.email})).status,200);accounts.learner.email=before.email;
+    await query('DELETE FROM user_access_audit WHERE learner_id=?',person.id).run();
+  });
+  await check('Admin password reset is scoped, honest about configuration/delivery, and throttled',async()=>{
+    const person=await find(accounts.learner.id),keys=['POSTMARK_SERVER_TOKEN','POSTMARK_FROM_EMAIL','PRIMARK_APP_URL'],env=keys.map(k=>process.env[k]),fetch=globalThis.fetch;let mails=[];
+    try{
+      keys.forEach(k=>delete process.env[k]);
+      assert.equal((await update(accounts.store.cookie,person,{action:'password-reset'})).status,503);
+      assert.equal((await query('SELECT * FROM password_resets WHERE account_id=?',person.id).all()).results.length,0);
+      process.env.POSTMARK_SERVER_TOKEN='fixture';process.env.POSTMARK_FROM_EMAIL='fixture@example.test';process.env.PRIMARK_APP_URL='https://test.invalid';
+      globalThis.fetch=async(url,options)=>{mails.push(JSON.parse(options.body));return Response.json({ErrorCode:0});};
+      assert.equal((await update(accounts.store.cookie,await find(accounts.uk.id),{action:'password-reset'})).status,403);assert.equal(mails.length,0);
+      assert.equal((await update(accounts.store.cookie,person,{action:'password-reset',email:accounts.uk.email})).status,200);assert.equal(mails.length,1);assert.equal(mails[0].To,person.email);assert(mails[0].TextBody.includes('#token='));
+      globalThis.fetch=async()=>Response.json({ErrorCode:1},{status:500});assert.equal((await update(accounts.store.cookie,person,{action:'password-reset'})).status,503);
+      globalThis.fetch=async()=>Response.json({ErrorCode:0});
+      await query('DELETE FROM auth_limits').run();
+      for(let i=0;i<3;i++)assert.equal((await update(accounts.country.cookie,person,{action:'password-reset'})).status,200);
+      assert.equal((await update(accounts.country.cookie,person,{action:'password-reset'})).status,429);
+      const audit=await query("SELECT * FROM user_access_audit WHERE learner_id=? AND action='password-reset'",person.id).all();assert.equal(audit.results.length,4);assert(!JSON.stringify(audit).includes('#token='));
+    }finally{globalThis.fetch=fetch;keys.forEach((k,i)=>{if(env[i]===undefined)delete process.env[k];else process.env[k]=env[i];});await query('DELETE FROM auth_limits').run();await query('DELETE FROM user_access_audit WHERE learner_id=?',person.id).run();}
+  });
   await check('Country and organisation admins edit only permitted roles and locations; self-changes and CSRF are denied',async()=>{
     const learner=await find(accounts.learner.id);
     for(const cookie of ['',accounts.learner.cookie,accounts.store.cookie])assert.equal((await update(cookie,learner)).status,403);
@@ -41,7 +83,7 @@ export async function userAdministrationChecks({m,check,query,invoke,loginAdmin,
     assert.equal((await update(accounts.org.cookie,learner,{role:'platform'})).status,403);
     for(const role of ['learner','site','manager','country'])assert.equal((await update(accounts.country.cookie,learner,{role,storeId:uk.id,country:uk.country})).status,403);
     for(const key of ['org','platform','uk','uk-admin'])assert.equal((await update(accounts.country.cookie,await find(accounts[key].id))).status,403);
-    for(const key of ['store','country','org','platform'])for(const action of ['access','archive','restore'])assert.equal((await update(accounts[key].cookie,await find(accounts[key].id),{action})).status,403);
+    for(const key of ['store','country','org','platform'])for(const action of ['access','archive','restore','details','password-reset'])assert.equal((await update(accounts[key].cookie,await find(accounts[key].id),{action})).status,403);
     assert.equal((await update(accounts.country.cookie,learner,{role:'manager'})).status,200);
     assert.equal((await query('SELECT store_id FROM store_managers WHERE learner_id=?',learner.id).first()).store_id,store.id);
     assert.equal((await update(accounts.country.cookie,learner,{role:'learner'})).status,409,'An old editor must not overwrite a role change');
@@ -63,6 +105,9 @@ export async function userAdministrationChecks({m,check,query,invoke,loginAdmin,
     assert.equal((await invoke(m.users,'GET','/api/users',undefined,accounts['store-peer'].cookie)).status,403);
     const archived=await find(peer.id,'archived');assert(archived.archived_at);assert.equal(archived.canEdit,false);
     assert.equal((await update(accounts.country.cookie,archived,{role:'learner'})).status,400);
+    assert.equal(archived.canEditDetails,false);
+    assert.equal((await update(accounts.country.cookie,archived,{action:'details',name:'Changed',email:archived.email})).status,400);
+    assert.equal((await update(accounts.country.cookie,archived,{action:'password-reset'})).status,400);
     assert.equal((await update(accounts.country.cookie,archived,{action:'restore'})).status,200);
     assert.equal((await invoke(m.users,'GET','/api/users',undefined,accounts['store-peer'].cookie)).status,403,'Restore must not revive old sessions');
     const fresh=await login(accounts['store-peer']);assert.equal(fresh.status,200);

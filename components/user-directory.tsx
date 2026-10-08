@@ -15,7 +15,8 @@ export default function UserDirectory({type,onAssign,onAssignAll,onPermissions}:
   const [country,setCountry]=useState(''),[storeId,setStoreId]=useState(''),[status,setStatus]=useState('active');
   const [loading,setLoading]=useState(true),[creating,setCreating]=useState(false),[editing,setEditing]=useState<UserPerson|null>(null),[archiving,setArchiving]=useState<UserPerson|null>(null);
   const [error,setError]=useState(''),[message,setMessage]=useState(''),[busy,setBusy]=useState(false);
-  useEffect(()=>{setPage(1);setCreating(false);setEditing(null);setArchiving(null);},[type]);
+  const [details,setDetails]=useState<UserPerson|null>(null);
+  useEffect(()=>{setPage(1);setCreating(false);setEditing(null);setDetails(null);setArchiving(null);},[type]);
   useEffect(()=>{
     const controller=new AbortController();setLoading(true);setError('');
     const timer=setTimeout(()=>{fetch('/api/users?'+new URLSearchParams({search,page:String(page),type,status,country,storeId}),{cache:'no-store',signal:controller.signal}).then(async r=>{
@@ -23,7 +24,7 @@ export default function UserDirectory({type,onAssign,onAssignAll,onPermissions}:
     }).then(result=>{if(controller.signal.aborted)return;const last=Math.max(1,Math.ceil(result.total/result.pageSize));if(page>last){setPage(last);return;}setData(result);onPermissions(result);setLoading(false);}).catch(e=>{if(e.name!=='AbortError'){setData(null);setError(e.message);setLoading(false);}});},200);
     return()=>{clearTimeout(timer);controller.abort();};
   },[search,page,type,status,country,storeId,refresh,onPermissions]);
-  function changed(message:string){setCreating(false);setEditing(null);setArchiving(null);setMessage(message);setRefresh(v=>v+1);}
+  function changed(message:string){setCreating(false);setEditing(null);setDetails(null);setArchiving(null);setMessage(message);setRefresh(v=>v+1);}
   async function archive(){
     if(!archiving)return;setBusy(true);setError('');
     try{const response=await fetch('/api/users',{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:archiving.id,revision:archiving.revision,action:archiving.archived_at?'restore':'archive'})});const result=await response.json();if(!response.ok)throw new Error(result.error);changed(archiving.archived_at?'Account restored.':'Account archived.');}
@@ -32,11 +33,11 @@ export default function UserDirectory({type,onAssign,onAssignAll,onPermissions}:
   }
   const countries=[...new Set(data?.stores.map(s=>s.country)||[])].sort();
   return <div className="user-directory">
-    {!creating&&!editing&&data?.platformAdmin&&<AdminSummary items={[{label:t('Users'),value:data.summary.total,blue:true},{label:t('Stores'),value:data.summary.stores},{label:t('Countries'),value:data.summary.countries}]}/>}
+    {!creating&&!editing&&!details&&data?.platformAdmin&&<AdminSummary items={[{label:t('Users'),value:data.summary.total,blue:true},{label:t('Stores'),value:data.summary.stores},{label:t('Countries'),value:data.summary.countries}]}/>}
     <section className="paper user-panel">
     {error&&!archiving&&<p className="error" role="alert">{t(error)}</p>}
     {message&&<p className="admin-success" role="status">{t(message)}</p>}
-    {creating&&data?<AddUser initialType={type==='admin'?'admin':'learner'} options={data} onCancel={()=>setCreating(false)} onCreated={()=>{changed('Account created.');setStatus('active');setSearch('');setPage(1);}}/>:editing&&data?<EditAccess key={editing.id} person={editing} options={data} onCancel={()=>{setEditing(null);setRefresh(v=>v+1);}} onSaved={()=>changed('Access saved.')}/>:<>
+    {creating&&data?<AddUser initialType={type==='admin'?'admin':'learner'} options={data} onCancel={()=>setCreating(false)} onCreated={()=>{changed('Account created.');setStatus('active');setSearch('');setPage(1);}}/>:details?<EditDetails key={details.id} person={details} onCancel={()=>{setDetails(null);setRefresh(v=>v+1);}} onSaved={()=>changed('Details saved.')}/>:editing&&data?<EditAccess key={editing.id} person={editing} options={data} onCancel={()=>{setEditing(null);setRefresh(v=>v+1);}} onSaved={()=>changed('Access saved.')}/>:<>
       <div className="directory-toolbar"><Input type="search" aria-label={t('Search users')} placeholder={t('Name, email or Workday ID')} value={search} onChange={e=>{setSearch(e.target.value);setPage(1);}}/>
         <div className="directory-actions">{data?.canAssign&&<Button variant="outline" onClick={onAssignAll}>{t('Assign courses')}</Button>}<Button className="blue-button" disabled={!data||loading} onClick={()=>{setMessage('');setCreating(true);}}>{t('Add user')}</Button></div></div>
       <div className="directory-filters">
@@ -50,6 +51,7 @@ export default function UserDirectory({type,onAssign,onAssignAll,onPermissions}:
           <small>{data.stores.find(s=>s.id===(person.manager_store_id||person.reporting_site_id||person.store_id))?.name||countryLabel(person.reporting_country||person.country)||t('All Primark')}</small></div>
           <div className="employee-actions">
             {data.canAssign&&!person.admin_only&&!person.archived_at&&<Button variant="outline" onClick={()=>onAssign(person)}>{t('Assign courses')}</Button>}
+            {person.canEditDetails&&<Button variant="outline" onClick={()=>{setDetails(person);setMessage('');setError('');}}>{t('Edit details')}</Button>}
             {person.canEdit&&<Button variant="outline" aria-label={t('Edit access for {name}',{name:person.name})} onClick={()=>{setEditing(person);setMessage('');setError('');}}>{t('Edit access')}</Button>}
             {person.canArchive&&<Button variant="outline" aria-label={t(person.archived_at?'Restore {name}':'Archive {name}',{name:person.name})} onClick={()=>{setArchiving(person);setError('');setMessage('');}}>{t(person.archived_at?'Restore':'Archive')}</Button>}
           </div>
@@ -65,6 +67,24 @@ export default function UserDirectory({type,onAssign,onAssignAll,onPermissions}:
   </div>;
 }
 
+function EditDetails({person,onCancel,onSaved}:{person:UserPerson;onCancel:()=>void;onSaved:()=>void}){
+  const {t,lang}=useLanguage();
+  const [name,setName]=useState(person.name),[email,setEmail]=useState(person.email);
+  const [busy,setBusy]=useState(''),[error,setError]=useState(''),[message,setMessage]=useState('');
+  const dirty=name!==person.name||email!==person.email;
+  async function act(action:'details'|'password-reset'){
+    setBusy(action);setError('');setMessage('');
+    try{const response=await fetch('/api/users',{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:person.id,revision:person.revision,action,name,email,lang})});const result=await response.json();if(!response.ok)throw new Error(result.error);if(action==='details')onSaved();else setMessage('Password reset email sent.');}
+    catch(e){setError(e instanceof Error?e.message:'Please try again.');}finally{setBusy('');}
+  }
+  return <form className="add-user-form" onSubmit={event=>{event.preventDefault();void act('details');}}>
+    <h2>{t('Edit details')}</h2>{error&&<p className="error" role="alert">{t(error)}</p>}{message&&<p className="admin-success" role="status">{t(message)}</p>}
+    <fieldset disabled={!!busy}><label>{t('Name')}<Input value={name} onChange={e=>setName(e.target.value)} required minLength={2} maxLength={101}/></label><label>{t('Email')}<Input type="email" value={email} onChange={e=>setEmail(e.target.value)} required maxLength={254}/></label></fieldset>
+    <p className="access-note">{t('Changing the email signs the user out. Use the new email to sign in.')}</p>
+    <div className="editor-actions"><Button type="button" variant="outline" disabled={!!busy} onClick={onCancel}>{t('Cancel')}</Button><Button className="blue-button" disabled={!!busy||!dirty}>{t(busy==='details'?'Saving…':'Save details')}</Button></div>
+    <div className="user-recovery"><h3>{t('Password')}</h3><p className="access-note">{t('Send a secure reset link to the saved email address. Email delivery must be configured.')}</p>{dirty&&<p className="access-note">{t('Save your changes before sending a reset email.')}</p>}<Button type="button" variant="outline" disabled={!!busy||dirty} onClick={()=>void act('password-reset')}>{t(busy==='password-reset'?'Sending…':'Send password reset email')}</Button></div>
+  </form>;
+}
 function EditAccess({person,options,onCancel,onSaved}:{person:UserPerson;options:UserOptions;onCancel:()=>void;onSaved:()=>void}){
   const {t,country:countryLabel}=useLanguage();
   const [role,setRole]=useState<UserRole>(userRole(person));

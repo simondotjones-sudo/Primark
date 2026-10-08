@@ -4,9 +4,12 @@ import {inTransaction,postgresSql} from '@/lib/database';
 import {storeDirectory} from '@/lib/store-directory';
 import {allowedAdminRoles,canEditUsers,managedUsersSql,userColumns,userJoins,userRevision,type UserAdministrator} from '@/lib/user-administration';
 import type {UserPerson} from '@/lib/user-administration-types';
+import {allowLoginAttempt} from '@/lib/admin-auth';
+import {RecoveryError,requestPasswordReset} from '@/lib/password-recovery';
+import {isLanguage} from '@/lib/i18n';
 
 export async function changeUserAccess(originalActor:UserAdministrator,body:Record<string,unknown>){
-  if(!body||typeof body!=='object'||Array.isArray(body)||typeof body.id!=='string'||typeof body.revision!=='string'||!['access','archive','restore'].includes(String(body.action)))throw new CourseError('Choose an existing learner account.');
+  if(!body||typeof body!=='object'||Array.isArray(body)||typeof body.id!=='string'||typeof body.revision!=='string'||!['details','password-reset','access','archive','restore'].includes(String(body.action)))throw new CourseError('Choose an existing learner account.');
   const stores=await storeDirectory(),activeStores=stores.filter(s=>s.active);
   await inTransaction(async client=>{
     // Serialize changes to the actor and target, including archive/restore races.
@@ -26,7 +29,24 @@ export async function changeUserAccess(originalActor:UserAdministrator,body:Reco
     const allowed=(await client.query(postgresSql(`SELECT l.id FROM learners l WHERE l.id=? AND ${scope.sql}`),[target.id,...scope.args])).rows[0];
     if(!allowed)throw new CourseError('You can manage accounts only within your assigned scope.',403);
     if(body.revision!==userRevision(target))throw new CourseError('This account changed. Refresh the list and try again.',409);
-    if(body.action==='access'){
+    let invalidateSessions=true;
+    if(body.action==='details'){
+      if(target.archived_at)throw new CourseError('Restore this account before editing details.');
+      const name=typeof body.name==='string'?body.name.trim().replace(/\s+/g,' '):'';
+      const email=typeof body.email==='string'?body.email.trim().toLowerCase():'';
+      if(name.length<2||name.length>101)throw new CourseError('Enter a name with 2–101 characters.');
+      if(email.length>254||/[<>,;:"\\]/.test(email)||! /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))throw new CourseError('Enter a valid email address.');
+      if(email===credentials()?.email)throw new CourseError('This email is already registered.',409);
+      try{await client.query('UPDATE learners SET name=$1,email=$2 WHERE id=$3',[name,email,target.id]);}
+      catch(error){if((error as {code?:string}).code==='23505')throw new CourseError('This email is already registered.',409);throw error;}
+      invalidateSessions=email!==target.email;
+    }else if(body.action==='password-reset'){
+      if(target.archived_at)throw new CourseError('Restore this account before sending a password reset email.');
+      if(!await allowLoginAttempt('admin-recovery-actor:'+actor.email,30)||!await allowLoginAttempt('recovery-email:'+target.email,3))throw new CourseError('Too many attempts. Try again in 15 minutes.',429);
+      try{await requestPasswordReset(target.email,isLanguage(body.lang)?body.lang:'en',true);}
+      catch(error){if(error instanceof RecoveryError)throw new CourseError(error.message,503);throw error;}
+      invalidateSessions=false;
+    }else if(body.action==='access'){
       if(!canEditUsers(actor))throw new CourseError('You cannot edit account access.',403);
       if(target.archived_at)throw new CourseError('Restore this account before editing access.');
       const role=String(body.role);
@@ -51,9 +71,11 @@ export async function changeUserAccess(originalActor:UserAdministrator,body:Reco
       // Keep grants and all learning evidence. Restore never revives old sessions.
       await client.query('UPDATE learners SET archived_at=$1 WHERE id=$2',[archive?new Date().toISOString():null,target.id]);
     }
-    await client.query('DELETE FROM sessions WHERE learner_id=$1',[target.id]);
-    await client.query('DELETE FROM scorm_launches WHERE learner_id=$1',[target.id]);
-    await client.query("DELETE FROM password_resets WHERE account_type='learner' AND account_id=$1",[target.id]);
+    if(invalidateSessions){
+      await client.query('DELETE FROM sessions WHERE learner_id=$1',[target.id]);
+      await client.query('DELETE FROM scorm_launches WHERE learner_id=$1',[target.id]);
+      await client.query("DELETE FROM password_resets WHERE account_type='learner' AND account_id=$1",[target.id]);
+    }
     await client.query('INSERT INTO user_access_audit(learner_id,actor_email,action,previous_state,next_state) VALUES($1,$2,$3,$4::jsonb,$5::jsonb)',[target.id,actor.email,body.action,JSON.stringify(target),JSON.stringify(await read(target.id))]);
   });
 }

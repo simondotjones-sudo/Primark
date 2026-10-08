@@ -329,3 +329,23 @@ The API rechecks authority inside a transaction, locks actor/target identities,
 rejects stale editors and writes a before/after audit record for each access,
 archive or restore action. Migration `20261008120000_user-archive` adds nullable
 archive metadata and the audit table; no existing user is archived by deployment.
+
+### User details and admin password reset
+
+All admin levels can use **Edit details** for active users within their scope,
+excluding their own account and the configured bootstrap identity. Name and email
+changes retain the same user ID, roles, assignments, progress and certificates.
+Email changes revoke sessions, SCORM launches and old reset links; name-only changes
+keep sessions active. Email addresses are normalized and duplicates are rejected.
+Stale editors and scope changes are rechecked inside the locked transaction.
+
+**Send password reset email** appears inside Edit details. Save any edits first;
+the reset always uses the stored email, never a client-supplied recipient. It uses
+the existing single-use, 30-minute recovery links and requires
+`POSTMARK_SERVER_TOKEN`, `POSTMARK_FROM_EMAIL` and an HTTPS `PRIMARK_APP_URL`.
+Missing configuration or failed delivery displays an error, never a sent confirmation.
+Sending is rate-limited per recipient and administrator and does not change the
+password or sign the user out until they complete the reset. Both details changes
+and successful reset requests are audited without passwords or reset tokens.
+Migration `20261008130000_user-details-audit` extends the existing audit action
+constraint; it does not change existing accounts.

@@ -23,7 +23,7 @@ function mailSettings() {
   return {token, from, origin: origin.origin};
 }
 
-export async function requestPasswordReset(email: string, requestedLanguage: Language = 'en') {
+export async function requestPasswordReset(email: string, requestedLanguage: Language = 'en', reportDeliveryFailure = false) {
   const lang = isLanguage(requestedLanguage) ? requestedLanguage : 'en';
   const settings = mailSettings();
   const learner = await db().prepare(`SELECT id,password_hash,code_hash,
@@ -59,6 +59,7 @@ export async function requestPasswordReset(email: string, requestedLanguage: Lan
     await db().batch(tokenHashes.map(token => db().prepare('DELETE FROM password_resets WHERE token_hash=?').bind(token)));
     // Do not expose whether an address exists, delivery responses, or secret links.
     console.error('Primark password recovery email could not be delivered. Check the sender configuration.');
+    if (reportDeliveryFailure) throw new RecoveryError('The password reset email could not be sent. Please try again later.');
   }
 }
 

@@ -35,7 +35,7 @@ export async function GET(request:NextRequest) {try {
     db().prepare(`SELECT ${userColumns},NOT (${learnerOnlySql()}) AS admin_only ${userJoins} WHERE ${where} ORDER BY lower(l.name),l.id LIMIT ? OFFSET ?`).bind(...args,pageSize,(page-1)*pageSize).all<UserPerson>(),
     db().prepare(`SELECT COUNT(*)::int AS total,COUNT(DISTINCT NULLIF(l.store_id,''))::int AS stores,COUNT(DISTINCT NULLIF(l.country,''))::int AS countries ${userJoins} WHERE ${where}`).bind(...args).first<{total:number;stores:number;countries:number}>(),
   ]);
-  return json({...options,people:people.results.map(p=>({...p,revision:userRevision(p),canEdit:options.canEdit&&!p.archived_at&&p.id!==actor.id&&p.email!==actor.email&&p.email!==credentials()?.email,canArchive:p.id!==actor.id&&p.email!==actor.email&&p.email!==credentials()?.email})),total:count?.total||0,summary:count,page,pageSize});
+  return json({...options,people:people.results.map(p=>({...p,revision:userRevision(p),canEdit:options.canEdit&&!p.archived_at&&p.id!==actor.id&&p.email!==actor.email&&p.email!==credentials()?.email,canEditDetails:!p.archived_at&&p.id!==actor.id&&p.email!==actor.email&&p.email!==credentials()?.email,canArchive:p.id!==actor.id&&p.email!==actor.email&&p.email!==credentials()?.email})),total:count?.total||0,summary:count,page,pageSize});
 }catch(error){return failed(error);}}
 
 export async function PATCH(request:NextRequest){try{
