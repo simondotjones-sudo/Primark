@@ -3,7 +3,7 @@ import {readFileSync,readdirSync} from 'node:fs';
 import {PGlite} from '@electric-sql/pglite';
 const pg=new PGlite();
 const names=readdirSync('netlify/database/migrations').sort();
-for(const name of names.filter(n=>!n.endsWith('_certificates')))await pg.exec(readFileSync('netlify/database/migrations/'+name+'/migration.sql','utf8'));
+for(const name of names.filter(n=>n<names.find(m=>m.endsWith('_certificates'))))await pg.exec(readFileSync('netlify/database/migrations/'+name+'/migration.sql','utf8'));
 await pg.exec(`
 INSERT INTO learners(id,name,email,code_hash,store_id,country,entered_at,completed_at,certificate_token)
 VALUES('historic','Original Name','history@example.test','unused','store','Ireland','2024-01-01','2024-01-31T10:00:00.000Z',repeat('a',64));

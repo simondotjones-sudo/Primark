@@ -1,3 +1,5 @@
+import {inTransaction} from '@/lib/database';
+import {creditError} from '@/lib/credits';
 import { activeLearnerSql } from '@/lib/account-type';
 import { NextRequest } from 'next/server';
 import { db } from '@/lib/server';
@@ -22,7 +24,7 @@ export async function GET() { try {
     db().prepare('SELECT learner_id,package_id,sco_id,status,score,updated_at FROM scorm_progress').all<any>(),
   ]);
   return json({courses:courses.results,people:people.results,packages:packages.results,progress:progress.results});
-} catch(e) { return failed(e); } }
+} catch(e) { return failed(creditError(e)); } }
 export async function POST(request: NextRequest) { try {
   await requireAdmin(request);
  const stores=await storeDirectory(false);const storeById=new Map(stores.map(s=>[s.id,s]));
@@ -55,10 +57,14 @@ export async function POST(request: NextRequest) { try {
     }
   }
   const id=existing?.id||crypto.randomUUID(); const date=now();
+  await inTransaction(async client=>{
   if (existing) {
-    const result=await db().prepare('UPDATE courses SET title=?,description=?,audience_json=?,status=?,english_title=?,category=?,language_code=?,catalogue_scope=?,available_countries_json=?,induction_role=?,estimated_duration_minutes=?,lesson_count=?,validity_months=?,revision=revision+1,updated_at=? WHERE id=? AND revision=?')
-      .bind(title,description,JSON.stringify(audience),b.status,englishTitle,category,languageCode,catalogueScope,JSON.stringify(linkedCountries),inductionRole,duration,lessonCount,validityMonths,date,id,b.revision).run();
-    if (!result.meta.changes) throw new CourseError('This course changed in another session. Reload it before saving.',409);
-  } else await db().prepare('INSERT INTO courses(id,title,description,status,audience_json,created_at,updated_at,english_title,category,language_code,catalogue_scope,available_countries_json,induction_role,estimated_duration_minutes,lesson_count,validity_months) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)').bind(id,title,description,b.status,JSON.stringify(audience),date,date,englishTitle,category,languageCode,catalogueScope,JSON.stringify(linkedCountries),inductionRole,duration,lessonCount,validityMonths).run();
+    const statement=db().prepare('UPDATE courses SET title=?,description=?,audience_json=?,status=?,english_title=?,category=?,language_code=?,catalogue_scope=?,available_countries_json=?,induction_role=?,estimated_duration_minutes=?,lesson_count=?,validity_months=?,revision=revision+1,updated_at=? WHERE id=? AND revision=?')
+      .bind(title,description,JSON.stringify(audience),b.status,englishTitle,category,languageCode,catalogueScope,JSON.stringify(linkedCountries),inductionRole,duration,lessonCount,validityMonths,date,id,b.revision);
+    const result=await statement.execute(client);
+    if (!result.rowCount) throw new CourseError('This course changed in another session. Reload it before saving.',409);
+  } else await db().prepare('INSERT INTO courses(id,title,description,status,audience_json,created_at,updated_at,english_title,category,language_code,catalogue_scope,available_countries_json,induction_role,estimated_duration_minutes,lesson_count,validity_months) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)').bind(id,title,description,b.status,JSON.stringify(audience),date,date,englishTitle,category,languageCode,catalogueScope,JSON.stringify(linkedCountries),inductionRole,duration,lessonCount,validityMonths).execute(client);
+  if(b.status==='published')await client.query('SELECT sync_credit_assignments()');
+  });
   return json({course:await getCourse(id)});
-} catch(e) { return failed(e); } }
+} catch(e) { return failed(creditError(e)); } }

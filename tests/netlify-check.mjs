@@ -18,6 +18,8 @@ import { AsyncLocalStorage } from 'node:async_hooks';
 import { createRequire } from 'node:module';
 const resolve=createRequire(import.meta.url).resolve;
 const pg=new PGlite();for(const name of readdirSync('netlify/database/migrations').sort())await pg.exec(readFileSync('netlify/database/migrations/'+name+'/migration.sql','utf8'));
+// Reporting fixtures deliberately create thousands of assignments in a few stores.
+await pg.exec("INSERT INTO credit_ledger(id,store_id,kind,credits,recorded_at,actor) SELECT gen_random_uuid()::text,store_id,'manual_topup',50000,now(),'test fixture capacity' FROM store_credit_accounts; UPDATE store_credit_accounts SET balance=balance+50000");
 const context=new AsyncLocalStorage(), maps=new Map();
 const pool={async query(sql,values=[]){const r=await pg.query(sql,values);return {rows:r.rows,rowCount:r.affectedRows};},async connect(){return {...this,release(){}};}};
 function getStore(options){const name=typeof options==='string'?options:options.name;if(!maps.has(name))maps.set(name,new Map());const data=maps.get(name);return {async set(k,v){data.set(k,await new Response(v).arrayBuffer());},async setJSON(k,v){data.set(k,structuredClone(v));},async get(k,o){const v=data.get(k);return v===undefined?null:o?.type==='json'?structuredClone(v):v.slice(0);}};}

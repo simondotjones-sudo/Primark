@@ -1,3 +1,6 @@
+import {inTransaction} from '@/lib/database';
+import {activeLearnerSql} from '@/lib/account-type';
+import {creditError} from '@/lib/credits';
 import { issueCourseCertificate } from '@/lib/certificate-server';
 import { NextRequest } from 'next/server';
 import { currentLearner, db, now, randomToken } from '@/lib/server';
@@ -23,12 +26,24 @@ export async function POST(request:NextRequest) {try {
   if(course.package_status!=='ready')throw new CourseError('This package is not ready.');
   const pack={id:course.package_id};
   const scos=JSON.parse(course.scos_json) as Sco[];const sco=scos.find(s=>s.id===b.scoId)||scos[0];
-  const old=preview?null:await db().prepare('SELECT * FROM scorm_progress WHERE learner_id=? AND package_id=? AND sco_id=?').bind(learner!.id,pack.id,sco.id).first<any>();
   const token=randomToken(),expires=new Date(Date.now()+8*3600000).toISOString();
-  const data=initialData(preview?'preview':learner!.id,preview?'Course preview':learner!.name,sco.mastery,sco.launchData,old?JSON.parse(old.data_json):{},timeString(old?.total_centiseconds||0));
-  const statements=[db().prepare('INSERT INTO scorm_launches(token,course_id,package_id,learner_id,sco_id,preview,seed_json,base_time,expires_at) VALUES(?,?,?,?,?,?,?,?,?)').bind(token,course.id,pack.id,preview?null:learner!.id,sco.id,preview?1:0,JSON.stringify(data),old?.total_centiseconds||0,expires)];
-  if(!preview)statements.push(db().prepare(`INSERT INTO scorm_progress(learner_id,package_id,sco_id,active_launch,updated_at) VALUES(?,?,?,?,?) ON CONFLICT(learner_id,package_id,sco_id) DO UPDATE SET active_launch=excluded.active_launch,updated_at=excluded.updated_at`).bind(learner!.id,pack.id,sco.id,token,now()));
-  await db().batch(statements);
+  await inTransaction(async client=>{
+    let historyId:string|null=null;
+    if(!preview){
+      const {rows:[person]}=await client.query(`SELECT l.id FROM learners l WHERE l.id=$1 AND ${activeLearnerSql()} FOR UPDATE`,[learner!.id]);
+      const {rows:[assignment]}=await client.query(`SELECT a.history_id FROM course_assignments a JOIN courses c ON c.id=a.course_id
+        WHERE a.learner_id=$1 AND a.course_id=$2 AND c.package_id=$3 AND c.status='published'`,[learner!.id,course.id,pack.id]);
+      if(!person||!assignment?.history_id)throw new CourseError('This course is not assigned to you.',403);
+      historyId=String(assignment.history_id);
+    }
+    const old=preview?null:(await client.query('SELECT * FROM scorm_progress WHERE learner_id=$1 AND package_id=$2 AND sco_id=$3',[learner!.id,pack.id,sco.id])).rows[0];
+    const data=initialData(preview?'preview':learner!.id,preview?'Course preview':learner!.name,sco.mastery,sco.launchData,old?JSON.parse(String(old.data_json)):{},timeString(Number(old?.total_centiseconds)||0));
+    await client.query('INSERT INTO scorm_launches(token,course_id,package_id,learner_id,sco_id,preview,seed_json,base_time,expires_at,assignment_id) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)',[token,course.id,pack.id,preview?null:learner!.id,sco.id,preview?1:0,JSON.stringify(data),old?.total_centiseconds||0,expires,historyId]);
+    if(!preview){
+      await client.query('INSERT INTO scorm_progress(learner_id,package_id,sco_id,active_launch,updated_at) VALUES($1,$2,$3,$4,$5) ON CONFLICT(learner_id,package_id,sco_id) DO UPDATE SET active_launch=excluded.active_launch,updated_at=excluded.updated_at',[learner!.id,pack.id,sco.id,token,now()]);
+      await client.query('UPDATE assignment_history SET started_at=COALESCE(started_at,now()) WHERE id=$1',[historyId]);
+    }
+  });
   const split=sco.href.search(/[?#]/);const path=split<0?sco.href:sco.href.slice(0,split),suffix=split<0?'':sco.href.slice(split);
   return json({token,title:course.title,scos,scoId:sco.id,preview,url:`/scorm-content/${token}/${path.split('/').map(encodeURIComponent).join('/')}${suffix}`});
  }
@@ -46,14 +61,16 @@ export async function POST(request:NextRequest) {try {
  const status=data['cmi.core.lesson_status']||'incomplete';if(!['passed','completed','failed','incomplete','browsed','not attempted'].includes(status))throw new CourseError('The course sent an invalid completion status.');
  const raw=data['cmi.core.score.raw']||'';if(raw!==''&&!Number.isFinite(Number(raw)))throw new CourseError('The course sent an invalid score.');
  const duration=data['cmi.core.session_time']||'0000:00:00.00';if(!/^\d{2,4}:[0-5]\d:[0-5]\d(?:\.\d{1,2})?$/.test(duration))throw new CourseError('Invalid session duration.');
- const result=await db().batch([
-  db().prepare("SELECT id FROM learners WHERE id=? FOR UPDATE").bind(learner.id),
-  db().prepare("SELECT token FROM scorm_launches WHERE token=? FOR UPDATE").bind(b.token),
-  db().prepare(`UPDATE scorm_progress SET data_json=?,status=?,score=?,total_centiseconds=?,updated_at=?,completed_at=CASE WHEN ? IN ('passed','completed') THEN COALESCE(completed_at,?) ELSE completed_at END WHERE learner_id=? AND package_id=? AND sco_id=? AND active_launch=? AND EXISTS(SELECT 1 FROM scorm_launches WHERE token=? AND sequence<?)`)
-  .bind(JSON.stringify(data),status,raw||null,launch.base_time+timeCentiseconds(duration),now(),status,now(),learner.id,launch.package_id,launch.sco_id,b.token,b.token,b.sequence),
-  db().prepare('UPDATE scorm_launches SET sequence=? WHERE token=? AND sequence<?').bind(b.sequence,b.token,b.sequence),
-  issueCourseCertificate(learner.id,launch.package_id)
- ]);
- if(!result[2].meta.changes)throw new CourseError('This lesson was opened in another tab. Reopen it here to continue saving.',409);
+ await inTransaction(async client=>{
+  const {rows:[person]}=await client.query(`SELECT l.id FROM learners l WHERE l.id=$1 AND ${activeLearnerSql()} FOR UPDATE`,[learner.id]);
+  const {rows:[current]}=await client.query('SELECT s.* FROM scorm_launches s JOIN course_assignments a ON a.history_id=s.assignment_id WHERE s.token=$1 AND s.expires_at>$2 FOR UPDATE OF s',[b.token,now()]);
+  if(!person||!current)throw new CourseError('This course assignment has changed. Return to My Courses.',403);
+  if(b.sequence<=Number(current.sequence))return;
+  const result=await db().prepare(`UPDATE scorm_progress SET data_json=?,status=?,score=?,total_centiseconds=?,updated_at=?,completed_at=CASE WHEN ? IN ('passed','completed') THEN COALESCE(completed_at,?) ELSE completed_at END WHERE learner_id=? AND package_id=? AND sco_id=? AND active_launch=?`)
+   .bind(JSON.stringify(data),status,raw||null,launch.base_time+timeCentiseconds(duration),now(),status,now(),learner.id,launch.package_id,launch.sco_id,b.token).execute(client);
+  if(!result.rowCount)throw new CourseError('This lesson was opened in another tab. Reopen it here to continue saving.',409);
+  await client.query('UPDATE scorm_launches SET sequence=$1 WHERE token=$2',[b.sequence,b.token]);
+  await issueCourseCertificate(learner.id,launch.package_id).execute(client);
+ });
  return json({saved:true,status});
-}catch(e){return failed(e);} }
+}catch(e){return failed(creditError(e));} }

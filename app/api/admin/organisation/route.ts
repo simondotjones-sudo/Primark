@@ -52,6 +52,8 @@ export async function POST(request:NextRequest){try{
       await client.query('INSERT INTO store_managers(learner_id,store_id,assigned_by,updated_at) VALUES($1,$2,$3,$4)',[adminId,id,actor.email,date]);
     }
     await client.query('INSERT INTO organisation_stores(id,name,country,active,updated_by,updated_at,store_code,admin_learner_id) VALUES($1,$2,$3,$4,$5,$6,$7,$8) ON CONFLICT(id) DO UPDATE SET active=excluded.active,updated_by=excluded.updated_by,updated_at=excluded.updated_at',[id,name,country,body.action!=='archive',actor.email,date,code||null,adminId]);
+    await client.query('SELECT ensure_store_credits($1,$2,$3,$4)',[id,name,country,code||existing?.storeCode||null]);
+    await client.query('UPDATE store_credit_accounts SET active=$2 WHERE store_id=$1',[id,body.action!=='archive']);
     await client.query('INSERT INTO organisation_store_audit(id,store_id,actor,action,recorded_at) VALUES($1,$2,$3,$4,$5)',[crypto.randomUUID(),id,actor.email,body.action,date]);
   });
   return json({stores:visible(acting,await storeDirectory(true,true)),adminCreated:!!email,passwordSetupPending:!!email&&!initialPassword});

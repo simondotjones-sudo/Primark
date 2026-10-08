@@ -161,7 +161,7 @@ export async function registrationChecks({m,check,query,invoke,loginAdmin,cookie
   await check('Managers can assign one or many courses to selected/all store users without cross-store access or duplicate records',async()=>{
     const body={courseIds:['legacy-2509'],userIds:[irishId]};
     assert.equal((await invoke(m.manager,'POST','/api/store',{...body,userIds:[irishId,germanId]},managerCookie)).status,403);
-    assert.equal(await query('SELECT * FROM course_assignments WHERE learner_id=?',irishId).first(),null);
+    assert.equal(await query('SELECT * FROM course_assignments WHERE learner_id=? AND course_id=?',irishId,'legacy-2509').first(),null);
     assert.equal((await invoke(m.manager,'POST','/api/store',{courseIds:['legacy-264'],userIds:[irishId]},managerCookie)).status,403);
     assert.equal((await invoke(m.manager,'POST','/api/store',{courseIds:['legacy-169'],allUsers:true},managerCookie)).status,403);
     assert.equal((await invoke(m.manager,'POST','/api/store',body,managerCookie,{origin:'https://evil.invalid'})).status,403);
@@ -182,7 +182,7 @@ export async function registrationChecks({m,check,query,invoke,loginAdmin,cookie
     assert.equal(Number((await query('SELECT COUNT(*) AS n FROM course_assignments').first()).n)-beforeAssignments,outcome.added);
     const expected=Number((await query('SELECT COUNT(*) AS n FROM learners l WHERE store_id=? AND NOT EXISTS(SELECT 1 FROM reporting_access r WHERE r.learner_id=l.id) AND NOT EXISTS(SELECT 1 FROM platform_admins p WHERE p.learner_id=l.id) AND NOT EXISTS(SELECT 1 FROM store_managers m WHERE m.learner_id=l.id)',store.id).first()).n);
     assert.equal(Number((await query('SELECT COUNT(*) AS n FROM course_assignments WHERE course_id=?','legacy-2509').first()).n),expected);
-    assert.equal(await query('SELECT * FROM course_assignments WHERE learner_id=?',germanId).first(),null);
+    assert.equal(await query('SELECT * FROM course_assignments WHERE learner_id=? AND course_id=?',germanId,'legacy-2509').first(),null);
   });
   await check('Manage Users assigns within the selected store for admins and rejects manager store spoofing',async()=>{
     assert.equal((await invoke(m.manager,'GET','/api/store?storeId='+uk.id,undefined,managerCookie)).status,403);
@@ -196,7 +196,7 @@ export async function registrationChecks({m,check,query,invoke,loginAdmin,cookie
     const german=await query('SELECT store_id FROM learners WHERE id=?',germanId).first();
     const body={storeId:german.store_id,courseIds:['legacy-154'],userIds:[germanId]};
     for(let i=0;i<2;i++){const response=await invoke(m.manager,'POST','/api/store',body,admin);assert.equal(response.status,200);const outcome=await response.json();assert.equal(outcome.added,0);assert.equal(outcome.alreadyAssigned,1);assert.equal(outcome.unavailable,0);}
-    assert.equal(Number((await query('SELECT COUNT(*) AS n FROM course_assignments WHERE learner_id=? AND course_id=?',germanId,'legacy-154').first()).n),0,'Pinned induction is already assigned and does not need a duplicate manual assignment');
+    assert.equal(Number((await query('SELECT COUNT(*) AS n FROM course_assignments WHERE learner_id=? AND course_id=?',germanId,'legacy-154').first()).n),1,'Pinned induction has one materialised assignment and does not need a duplicate manual assignment');
     const roster=await (await invoke(m.manager,'GET','/api/store?storeId='+german.store_id,undefined,admin)).json();assert(roster.assignments.some(a=>a.learner_id===germanId&&a.course_id==='legacy-154'));
   });
   await check('Revoking Store Manager access takes effect on the existing session immediately',async()=>{

@@ -15,6 +15,7 @@ import { countryName, formatDate } from '@/lib/ui-copy';
 import { languageLocale, type Language } from '@/lib/i18n';
 import './training-report.css';
 import {useLanguage} from '@/components/language-provider';
+import PeriodReporting from '@/components/period-report';
 import UserActivity from '@/components/user-activity';
 
 type Props={access:ReportingAccess;platformAdmin:boolean;filter:ReportFilter;onFilterChange:(filter:ReportFilter)=>void;lang:Language};
@@ -36,7 +37,7 @@ export default function TrainingReporting({access,platformAdmin,filter,onFilterC
   const [refresh,setRefresh]=useState(0);
   const [category,setCategory]=useState('all');
   const [courseId,setCourseId]=useState('all');
-  const [view,setView]=useState<'overview'|'matrix'|'activity'>('overview');
+  const [view,setView]=useState<'overview'|'matrix'|'activity'|'period'>('overview');
   const [search,setSearch]=useState('');
   const [year,setYear]=useState(String(new Date().getUTCFullYear()));
   const [month,setMonth]=useState('all');
@@ -46,11 +47,13 @@ export default function TrainingReporting({access,platformAdmin,filter,onFilterC
   const [busy,setBusy]=useState(false);
   const isMatrix=view==='matrix'&&filter.role==='site';
   const isActivity=view==='activity';
+  const isPeriod=view==='period';
   useEffect(()=>{
+    if(isPeriod)return;
     const controller=new AbortController();setLoading(true);setError('');setCell(null);
     fetch('/api/reporting?'+new URLSearchParams({...filter,category,course:courseId}),{cache:'no-store',signal:controller.signal}).then(async r=>{const result=await r.json();if(!r.ok)throw new Error(result.error||'Could not load reporting.');return result;}).then(result=>{if(!controller.signal.aborted){setOverview(result);setLoading(false);}}).catch(e=>{if(e.name!=='AbortError'){setOverview(null);setError(e.message);setLoading(false);}});
     return()=>controller.abort();
-  },[filter.role,filter.country,filter.site,access.scope,access.country,access.siteId,category,courseId,refresh]);
+  },[filter.role,filter.country,filter.site,access.scope,access.country,access.siteId,category,courseId,refresh,isPeriod]);
   useEffect(()=>{
     if(!isMatrix){setData(null);return;}
     const controller=new AbortController();setMatrixLoading(true);setData(null);setError('');
@@ -114,13 +117,14 @@ export default function TrainingReporting({access,platformAdmin,filter,onFilterC
   const statusText=(r?:TrainingRecord)=>r?t(statusLabels[r.status]):t('Not assigned');
   return <section className="report training-report">
     <div className="scope report-scope">
-      <div className="report-view-tabs pill-switch" role="group" aria-label={t('Report format')}><button aria-pressed={view==='overview'} className={view==='overview'?'selected':''} onClick={()=>setView('overview')}>{t('Overview')}</button>{filter.role==='site'&&<button aria-pressed={isMatrix} className={isMatrix?'selected':''} onClick={()=>setView('matrix')}>{t('Site matrix')}</button>}<button aria-pressed={isActivity} className={isActivity?'selected':''} onClick={()=>setView('activity')}>{t('User activity')}</button></div>
+      <div className="report-view-tabs pill-switch" role="group" aria-label={t('Report format')}><button aria-pressed={view==='overview'} className={view==='overview'?'selected':''} onClick={()=>setView('overview')}>{t('Overview')}</button>{filter.role==='site'&&<button aria-pressed={isMatrix} className={isMatrix?'selected':''} onClick={()=>setView('matrix')}>{t('Site matrix')}</button>}<button aria-pressed={isActivity} className={isActivity?'selected':''} onClick={()=>setView('activity')}>{t('User activity')}</button><button aria-pressed={isPeriod} className={isPeriod?'selected':''} onClick={()=>setView('period')}>{t('Period report')}</button></div>
       <div className="report-location">
         <label><span className="sr-only">{t('Country')}</span><NativeSelect aria-label={t('Reporting country')} value={filter.role==='global'?'all':filter.country} disabled={filter.role==='global'||scope.countries.length<2} onChange={e=>changeScope({country:e.target.value})}>{filter.role==='global'?<option value="all">{t('All countries')}</option>:scope.countries.map(c=><option key={c} value={c}>{countryName(c,lang)}</option>)}</NativeSelect></label>
         <label className="store-picker"><span className="sr-only">{t('Store')}</span><NativeSelect aria-label={t('Reporting store')} value={filter.role==='site'?filter.site:'all'} disabled={filter.role!=='site'||scope.sites.length<2} onChange={e=>changeScope({site:e.target.value})}>{filter.role!=='site'?<option value="all">{t('All stores')}</option>:scope.sites.map(s=><option key={s.id} value={s.id}>{s.name}</option>)}</NativeSelect></label>
       </div>
       <div className="scope-buttons pill-switch" role="group" aria-label={t('Reporting view')}>{scope.roles.map(role=><button key={role} aria-pressed={filter.role===role} className={filter.role===role?'selected':''} onClick={()=>changeScope({role})}>{t(role==='global'?'Global':role==='country'?'Country':'Store')}</button>)}</div>
     </div>
+    {isPeriod?<PeriodReporting filter={filter} platformAdmin={platformAdmin}/>:<>
     <div className={"report-filters"+(isActivity?" activity-filters":"")}>
       <label>{t('Category')}<NativeSelect aria-label={t('Course category')} disabled={loading} value={activeCategory} onChange={e=>{setCategory(e.target.value);setCourseId('all');setCell(null);}}><option value="all">{t('All categories')}</option>{categories.map(c=><option key={c} value={c}>{t(c)}</option>)}</NativeSelect></label>
       <label className="course-filter">{t('Course')}<NativeSelect aria-label={t('Reporting course')} disabled={loading} value={activeCourse} onChange={e=>{setCourseId(e.target.value);setCell(null);}}><option value="all">{t('All courses')}</option>{options.map(c=><option key={c.id} value={c.id}>{c.title}{c.paused?' · '+t('Paused'):''}</option>)}</NativeSelect></label>
@@ -155,6 +159,7 @@ export default function TrainingReporting({access,platformAdmin,filter,onFilterC
     {platformAdmin&&view==='overview'&&<details className="paper import original-tools"><summary>{t('Original induction tools')}</summary><Button variant="outline" disabled={busy} onClick={()=>originalAction('seed')}>{t('Load sample learners')}</Button><p>{t('Import previous LMS completions')} · <code>email,completed,completed_at,site_id</code></p><textarea aria-label={t('Previous LMS CSV')} value={csv} onChange={e=>setCsv(e.target.value)} placeholder="email,completed,completed_at,site_id"/><div><label className="file-label">{t('Choose CSV file')}<input type="file" accept=".csv,text/csv" onChange={async e=>{const f=e.target.files?.[0];if(f)setCsv(await f.text());}}/></label><Button disabled={!csv||busy} onClick={()=>{try{void originalAction('import',{records:parseCsv(csv)});}catch(e){setError(e instanceof Error?e.message:'Check the CSV.');}}}>{t('Import CSV')}</Button><span role="status">{t(message)}</span></div></details>}
     <div className="report-export"><Button variant="outline" disabled={loading||!overview||exporting||(isMatrix&&matrixLoading)||(isActivity&&!search.trim())} onClick={()=>void exportReport()}><Download/>{t('Export CSV')}</Button></div>
     <Dialog open={!!cell} onOpenChange={open=>{if(!open)setCell(null);}}><DialogContent className="training-detail"><DialogHeader><DialogTitle>{cell?.person.name}</DialogTitle><DialogDescription>{cell?.course.title}</DialogDescription></DialogHeader>{cell&&<><div className="training-status detail-status">{cell.record?<i aria-hidden="true" className={'training-dot '+cell.record.status}/>:<span aria-hidden="true">—</span>}{statusText(cell.record)}</div><dl><div><dt>{t('Completed')}</dt><dd>{formatDate(cell.record?.completedAt||null,lang)}</dd></div><div><dt>{t('Expires')}</dt><dd>{cell.record?.expiresAt?formatDate(cell.record.expiresAt,lang):cell.record?.completedAt&&!cell.course.validityMonths?t('No expiry'):'—'}</dd></div>{cell.record?.score&&<div><dt>{t('Score')}</dt><dd>{cell.record.score}</dd></div>}<div><dt>{t('Language')}</dt><dd>{languageName(cell.course.language)}</dd></div></dl></>}</DialogContent></Dialog>
+    </>}
   </section>;
 }
 function ReportMetric({label,value,detail,blue=false}:{label:string;value:number;detail:string;blue?:boolean}){return <div className={'metric '+(blue?'metric-blue':'')}><span>{label}</span><strong>{value}</strong><small>{detail}</small></div>;}

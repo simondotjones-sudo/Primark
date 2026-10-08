@@ -1,3 +1,4 @@
+import {syncAssignments,creditError} from '@/lib/credits';
 import type { NextRequest } from 'next/server';
 import { credentials } from '@/lib/admin-auth';
 import { learnerOnlySql } from '@/lib/account-type';
@@ -36,13 +37,13 @@ export async function GET(request:NextRequest) {try {
     db().prepare(`SELECT COUNT(*)::int AS total,COUNT(DISTINCT NULLIF(l.store_id,''))::int AS stores,COUNT(DISTINCT NULLIF(l.country,''))::int AS countries ${userJoins} WHERE ${where}`).bind(...args).first<{total:number;stores:number;countries:number}>(),
   ]);
   return json({...options,people:people.results.map(p=>({...p,revision:userRevision(p),canEdit:options.canEdit&&!p.archived_at&&p.id!==actor.id&&p.email!==actor.email&&p.email!==credentials()?.email,canEditDetails:!p.archived_at&&p.id!==actor.id&&p.email!==actor.email&&p.email!==credentials()?.email,canArchive:p.id!==actor.id&&p.email!==actor.email&&p.email!==credentials()?.email})),total:count?.total||0,summary:count,page,pageSize});
-}catch(error){return failed(error);}}
+}catch(error){return failed(creditError(error));}}
 
 export async function PATCH(request:NextRequest){try{
   const actor=await requireUserAdministrator(request);
   await changeUserAccess(actor,await bodyJson(request,10000));
   return json({ok:true});
-}catch(error){return failed(error);}}
+}catch(error){return failed(creditError(error));}}
 
 export async function POST(request:NextRequest) {try {
   const actor=await requireUserAdministrator(request);
@@ -80,9 +81,10 @@ export async function POST(request:NextRequest) {try {
     if(role==='site')changes.push(db().prepare('INSERT INTO store_managers(learner_id,store_id,assigned_by,updated_at) VALUES(?,?,?,?)').bind(id,storeId,actor.email,date));
   }
   // Account and grant are committed together: an admin can never briefly become a learner.
+  if(!adminOnly)changes.push(syncAssignments(id));
   try {await db().batch(changes);}catch(error){
     if((error as {code?:string}).code==='23505')throw new CourseError('An account with these details already exists.',409);
     throw error;
   }
   return json({id,adminOnly},201);
-}catch(error){return failed(error);}}
+}catch(error){return failed(creditError(error));}}
