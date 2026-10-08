@@ -12,7 +12,7 @@ export async function periodWorkbook(report:PeriodReport){
   ['Country','Store code','Store','Assignments','Refunds','Net chargeable','Completions','Non completions','Removed','Opening credits','Top-ups','Closing credits',...(priced?['Recorded value EUR','Export value EUR']:[]),'Last assignment (Europe/London)','Days since last assignment']];
  const numeric=(r:PeriodRow)=>[r.assignments,r.refunds,r.net,r.completed,r.nonCompletions,r.removed,r.opening,r.topups,r.closing];
  const countryTotals:number[]=[],storeRows:number[]=[];
- const groups=report.sort==='inactive'?[{rows:report.rows,total:null}]:report.countries.map(country=>({rows:report.rows.filter(r=>r.country===country.country),total:country}));
+ const groups=report.sort!=='store'?[{rows:report.rows,total:null}]:report.countries.map(country=>({rows:report.rows.filter(r=>r.country===country.country),total:country}));
  for(const group of groups){
   const start=rows.length+1;
   for(const r of group.rows){

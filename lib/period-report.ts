@@ -4,7 +4,7 @@ import {periodReportView,totalPeriodRows} from '@/lib/period-report-view';
 export type AccountingPeriod={id:string;yearLabel:string;number:number;startsOn:string;endsOn:string;state:'complete'|'current'|'future'};
 export type ReportingRange=AccountingPeriod&{kind:'period'|'quarter'|'fytd';firstPeriod:number;lastPeriod:number};
 export type PeriodRow={storeId:string;storeCode:string|null;storeName:string;country:string;active:boolean;assignments:number;refunds:number;net:number;completed:number;nonCompletions:number;removed:number;opening:number;topups:number;closing:number;currentBalance:number;lastAssignedAt:string|null;daysSinceAssignment:number|null;valueCents?:number};
-export type PeriodReport={period:ReportingRange;periods:AccountingPeriod[];ranges:ReportingRange[];asOf:string;sort:'store'|'inactive';rows:PeriodRow[];countries:(PeriodRow&{stores:number})[];totals:PeriodRow&{stores:number};platformAdmin:boolean;generatedAt:string;currentRateCents?:number};
+export type PeriodReport={period:ReportingRange;periods:AccountingPeriod[];ranges:ReportingRange[];asOf:string;sort:'store'|'inactive'|'assignments';rows:PeriodRow[];countries:(PeriodRow&{stores:number})[];totals:PeriodRow&{stores:number};platformAdmin:boolean;generatedAt:string;currentRateCents?:number};
 
 export function reportingRanges(periods:AccountingPeriod[],today:string):ReportingRange[]{
  const state=(start:string,end:string)=>end<today?'complete' as const:start>today?'future' as const:'current' as const;

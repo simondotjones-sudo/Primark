@@ -7,6 +7,7 @@ import {AsyncLocalStorage} from 'node:async_hooks';
 import {PGlite} from '@electric-sql/pglite';
 import {build} from 'esbuild';
 import {ZipReader,Uint8ArrayReader,TextWriter} from '@zip.js/zip.js';
+import {XMLParser} from 'fast-xml-parser';
 const pg=new PGlite();
 const migrations=readdirSync('netlify/database/migrations').sort();
 const migration=migrations.find(n=>n.endsWith('_period-credits'));
@@ -134,6 +135,33 @@ await check('Quarter and YTD API exports preserve role scope, filters and price 
  const xml=await entries.find(e=>e.filename==='xl/worksheets/sheet1.xml').getData(new TextWriter());await zip.close();
  assert(xml.includes('SUM(D7:D8)'));assert(xml.includes('IF($B$4=&quot;&quot;,M7,ROUND(F7*$B$4,2))'));assert(xml.includes('Last assignment (Europe/London)'));
  assert(/<c r="P7" s="0"><v>37<\/v><\/c>/.test(xml),'Inactivity day counts must not use currency formatting');
+ }finally{mock.timers.reset();}
+});
+
+await check('Assignment volume ranks globally with deterministic ties, zeros and filtered totals',async()=>{
+ const base=await reportAtClose(['never-store'],'2026-2027-P1',true);
+ const rows=[['us-tie','United States',3],['ie-zero','Ireland',0],['ie-tie-b','Ireland',3],['us-busy','United States',12],['ie-tie-a','Ireland',3]].map(([id,country,assignments])=>({...base.rows[0],storeId:id,storeName:id,country,assignments,net:assignments}));
+ const original={...base,rows},view=m.reportView.periodReportView(original,{sort:'assignments'});
+ assert.deepEqual(view.rows.map(r=>r.storeId),['us-busy','ie-tie-a','ie-tie-b','us-tie','ie-zero']);assert.equal(view.totals.assignments,21);assert.equal(view.totals.stores,5);
+ assert.deepEqual(original.rows.map(r=>r.storeId),['us-tie','ie-zero','ie-tie-b','us-busy','ie-tie-a']);
+ const filtered=m.reportView.periodReportView(original,{sort:'assignments',search:'Ireland'});assert.deepEqual(filtered.rows.map(r=>r.storeId),['ie-tie-a','ie-tie-b','ie-zero']);assert.equal(filtered.totals.assignments,6);
+ const zero=m.reportView.periodReportView(original,{sort:'assignments',zeroOnly:true});assert.deepEqual(zero.rows.map(r=>r.storeId),['ie-zero']);assert.equal(zero.totals.assignments,0);
+});
+await check('Assignment sort reaches the API and Excel without regrouping or changing price privacy',async()=>{
+ mock.timers.enable({apis:['Date'],now:Date.parse('2028-01-01T12:00:00Z')});
+ try{
+ for(const options of [{user:'org-admin'},{admin:true}]){
+  const url='/api/reporting/periods?period=2026-2027-P1&search=credit-&sort=assignments';
+  const response=await call(m.report,'GET',url,null,options);assert.equal(response.status,200,await response.clone().text());const report=await response.json();
+  assert.equal(report.sort,'assignments');assert.deepEqual(report.rows.map(r=>r.storeId),['credit-ie','credit-us','credit-zero']);assert.equal(report.totals.stores,3);
+  const exported=await call(m.report,'GET',url+'&export=xlsx',null,options);assert.equal(exported.status,200,await exported.clone().text());
+  const zip=new ZipReader(new Uint8ArrayReader(new Uint8Array(await exported.arrayBuffer())),{useWebWorkers:false}),entries=await zip.getEntries();
+  const xml=await entries.find(e=>e.filename==='xl/worksheets/sheet1.xml').getData(new TextWriter());await zip.close();
+  const cells=new XMLParser({ignoreAttributes:false}).parse(xml).worksheet.sheetData.row.flatMap(row=>row.c||[]);
+  for(const [i,row] of report.rows.entries())assert.equal(cells.find(c=>c['@_r']===`B${i+7}`)?.is?.t?.['#text'],row.storeCode);
+  assert(!xml.includes('Country total'));assert(xml.includes('SUM(D7:D9)'));assert.equal(xml.includes('Override EUR/unit'),!!options.admin);assert.equal(xml.includes('IF($B$4='),!!options.admin);
+ }
+ const fallback=await call(m.report,'GET','/api/reporting/periods?period=2026-2027-P1&sort=unknown',null,{user:'org-admin'});assert.equal((await fallback.json()).sort,'store');
  }finally{mock.timers.reset();}
 });
 

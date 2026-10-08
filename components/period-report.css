@@ -7,7 +7,8 @@
 .period-report .period-data-table .period-label{text-align:start}
 .period-report .period-data-table .period-number{text-align:end;font-variant-numeric:tabular-nums}
 .period-report .period-data-table thead th{font-size:12px;line-height:1.35;vertical-align:middle;letter-spacing:0}
-.period-report .period-data-table thead th>span{display:inline-block;max-inline-size:10ch;text-wrap:balance;hyphens:auto}
+.period-report .period-data-table thead th>span{display:inline-block;max-inline-size:100%;text-wrap:balance;hyphens:auto}
+.period-report .period-data-table thead th>span:lang(en){hyphens:manual}
 .period-report .period-data-table .period-store{background:transparent;font-weight:600;text-transform:none;letter-spacing:0}
 .period-report .period-data-table :is(.period-subtotal,tfoot) th{background:transparent}
 .period-inactivity{display:block;margin-top:5px;font-size:12px;font-weight:400;line-height:1.4;color:#587180;text-transform:none;letter-spacing:0}

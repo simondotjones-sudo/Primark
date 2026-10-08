@@ -1,6 +1,6 @@
 import type {PeriodReport,PeriodRow} from '@/lib/period-report';
 
-export type PeriodViewOptions={search?:string;zeroOnly?:boolean;sort?:'store'|'inactive'};
+export type PeriodViewOptions={search?:string;zeroOnly?:boolean;sort?:PeriodReport['sort']};
 
 export function totalPeriodRows(items:PeriodRow[],platformAdmin:boolean,country=''){
  const total:PeriodRow&{stores:number}={storeId:'',storeCode:null,storeName:'',country,active:true,stores:items.length,assignments:0,refunds:0,net:0,completed:0,nonCompletions:0,removed:0,opening:0,topups:0,closing:0,currentBalance:0,lastAssignedAt:null,daysSinceAssignment:null,...(platformAdmin?{valueCents:0}:{})};
@@ -13,6 +13,7 @@ export function periodReportView(report:PeriodReport,options:PeriodViewOptions={
  const search=(options.search||'').trim().toLowerCase(),sort=options.sort||'store';
  const rows=report.rows.filter(row=>(!options.zeroOnly||row.assignments===0)&&(!search||[row.country,row.storeCode||'',row.storeName].join(' ').toLowerCase().includes(search)));
  rows.sort((a,b)=>{
+  if(sort==='assignments'&&a.assignments!==b.assignments)return b.assignments-a.assignments;
   if(sort==='inactive'){
    // Unknown history is distinct from a measured duration, and appears last.
    if(a.daysSinceAssignment===null&&b.daysSinceAssignment!==null)return 1;
