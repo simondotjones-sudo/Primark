@@ -6,14 +6,15 @@ export type ProfileAccount = {
   name: string; email: string; role: string; site: string;
   platformAdmin: boolean; reportingAccess: ReportingAccess | null;
   managerStoreId?: string | null;
+  adminOnly?: boolean;
 };
 export type ReportFilter = { role: 'global' | 'country' | 'site'; country: string; site: string };
 
 export function profileViews(account: ProfileAccount): { value: ProfileView; label: string }[] {
   return [
-    { value: 'learn' as const, label: 'My Courses' },
+    ...(!(account.adminOnly || account.platformAdmin || account.reportingAccess || account.managerStoreId) ? [{ value: 'learn' as const, label: 'My Courses' }] : []),
     ...(account.reportingAccess ? [{ value: 'report' as const, label: 'Reporting' }] : []),
-    ...(!account.platformAdmin && account.managerStoreId ? [{value:'store' as const,label:'Manage Users'}] : []),
+    ...(!account.platformAdmin && (account.reportingAccess || account.managerStoreId) ? [{value:'access' as const,label:'Manage Users'}] : []),
     ...(account.platformAdmin ? [
       { value: 'courses' as const, label: 'Courses' },
       { value: 'access' as const, label: 'Manage Users' },

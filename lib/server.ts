@@ -1,3 +1,4 @@
+import { learnerOnlySql } from "@/lib/account-type";
 import { issuePassportCertificate } from "@/lib/certificate-server";
 import { db } from "@/lib/database";
 export { db } from "@/lib/database";
@@ -9,7 +10,7 @@ export type Learner = {
   id: string; name: string; email: string; store_id: string; country: string;
   entered_at: string; started_at: string | null; completed_at: string | null;
   best_score: number | null; certificate_token: string | null;
-  induction_enrolled: boolean;
+  induction_enrolled: boolean; admin_only: boolean;
 };
 
 
@@ -35,7 +36,7 @@ export async function currentLearner(request: NextRequest): Promise<Learner | nu
 export async function learnerForSession(token: string | undefined): Promise<Learner | null> {
   if (!token) return null;
   return (await db().prepare(`
-    SELECT l.id,l.name,l.email,l.store_id,l.country,l.entered_at,l.started_at,l.completed_at,l.best_score,l.certificate_token,l.induction_enrolled
+    SELECT l.id,l.name,l.email,l.store_id,l.country,l.entered_at,l.started_at,l.completed_at,l.best_score,l.certificate_token,l.induction_enrolled,NOT (${learnerOnlySql()}) AS admin_only
     FROM sessions s JOIN learners l ON l.id=s.learner_id
     WHERE s.token_hash=? AND s.expires_at>?
   `).bind(await hash(token), now()).first<Learner>()) ?? null;

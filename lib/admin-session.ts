@@ -16,7 +16,7 @@ export async function createAdminSession(request: NextRequest, returnTo: unknown
   if (learnerToken) statements.push(db().prepare('DELETE FROM sessions WHERE token_hash=?').bind(await hash(learnerToken)));
   if (previousAdmin) statements.push(db().prepare('DELETE FROM admin_sessions WHERE token_hash=?').bind(await hash(previousAdmin)));
   await db().batch(statements);
-  const response = NextResponse.json({ ok: true, returnTo: safeReturnTo(returnTo) });
+  const response = NextResponse.json({ ok: true, returnTo: returnTo ? safeReturnTo(returnTo) : "/?view=report" });
   response.cookies.set(ADMIN_COOKIE, token, { httpOnly: true, secure: isSecureRequest(request), sameSite: 'strict', path: '/', expires });
   response.cookies.delete('primark_session');
   response.headers.set('Cache-Control', 'private, no-store');

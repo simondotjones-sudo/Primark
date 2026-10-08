@@ -57,7 +57,7 @@ export async function passwordRecoveryChecks({m,check,query,invoke,loginAdmin,co
       assert.equal((await reset(adminToken,'Only-8-chars')).status,400);
       assert.equal((await reset(adminToken,'New-platform-secret-123')).status,200);
       assert.equal((await login(adminEmail,process.env.PRIMARK_ADMIN_PASSWORD)).status,401);
-      const newAdmin=await login(adminEmail,'New-platform-secret-123');assert.equal(newAdmin.status,200);assert.equal((await newAdmin.json()).returnTo,'/admin/courses');
+      const newAdmin=await login(adminEmail,'New-platform-secret-123');assert.equal(newAdmin.status,200);assert.equal((await newAdmin.json()).returnTo,'/?view=report');
       const state=await (await invoke(m.prototype,'GET','/api/prototype?view=me',undefined,oldAdmin)).json();assert.equal(state.platformAdmin,false);
       assert.equal((await query('SELECT password_hash FROM learners WHERE id=?',learner.id).first()).password_hash,learnerHash);
       assert.equal((await reset(learnerToken,'Separate-learner-password')).status,200);

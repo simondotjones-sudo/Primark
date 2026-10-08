@@ -8,7 +8,7 @@ export const dynamic='force-dynamic';
 export const metadata={title:'My certificates | Primark',robots:{index:false,follow:false}};
 export default async function Page() {
   const learner=await learnerForSession((await cookies()).get('primark_session')?.value);
-  if(!learner)redirect('/');
+  if(!learner || learner.admin_only)redirect('/');
   const records=(await certificatesFor(learner.id)).results;
   return <CertificateList records={records}/>;
 }

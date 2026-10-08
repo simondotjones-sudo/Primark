@@ -1,3 +1,4 @@
+import { learnerOnlySql } from '@/lib/account-type';
 import type { Certificate } from '@/lib/certificates';
 import { db, type Learner } from '@/lib/server';
 import { availableInCountry, inductionFor } from '@/lib/course-catalogue';
@@ -10,7 +11,7 @@ type ReadyCourse = Course & {scos_json:string};
 type Progress = {learner_id:string;package_id:string;sco_id:string;status:string;score:string|null;completed_at:string|null};
 export async function trainingReport(siteIds:string[]|null):Promise<TrainingReport> {
   const stores=await storeDirectory();const storeById=new Map(stores.map(s=>[s.id,s]));
-  const where=siteIds ? `l.store_id IN (${siteIds.map(()=>'?').join(',')})` : '1=1';
+  const where=`${learnerOnlySql()} AND ${siteIds ? `l.store_id IN (${siteIds.map(()=>'?').join(',')})` : '1=1'}`;
   const args=siteIds||[];
   // Every query containing learner information is scoped on the server, before aggregation.
   const [people,courses,assignments,inductions,progress,legacy,certificates]=await Promise.all([
@@ -19,7 +20,7 @@ export async function trainingReport(siteIds:string[]|null):Promise<TrainingRepo
     db().prepare(`SELECT a.learner_id,a.course_id FROM course_assignments a JOIN learners l ON l.id=a.learner_id WHERE ${where}`).bind(...args).all<{learner_id:string;course_id:string}>(),
     db().prepare(`SELECT a.learner_id,a.course_id FROM learner_inductions a JOIN learners l ON l.id=a.learner_id WHERE ${where}`).bind(...args).all<{learner_id:string;course_id:string}>(),
     db().prepare(`SELECT p.learner_id,p.package_id,p.sco_id,p.status,p.score,p.completed_at FROM scorm_progress p JOIN learners l ON l.id=p.learner_id WHERE ${where}`).bind(...args).all<Progress>(),
-    db().prepare(`SELECT c.email,c.completed_at,COALESCE(l.store_id,c.store_id) AS store_id FROM legacy_completions c LEFT JOIN learners l ON l.email=c.email WHERE c.completed=1 AND ${siteIds?`COALESCE(l.store_id,c.store_id) IN (${siteIds.map(()=>'?').join(',')})`:'1=1'}`).bind(...args).all<{email:string;completed_at:string|null;store_id:string|null}>(),
+    db().prepare(`SELECT c.email,c.completed_at,COALESCE(l.store_id,c.store_id) AS store_id FROM legacy_completions c LEFT JOIN learners l ON l.email=c.email WHERE c.completed=1 AND (l.id IS NULL OR (${learnerOnlySql()})) AND ${siteIds?`COALESCE(l.store_id,c.store_id) IN (${siteIds.map(()=>'?').join(',')})`:'1=1'}`).bind(...args).all<{email:string;completed_at:string|null;store_id:string|null}>(),
     db().prepare(`SELECT cert.* FROM certificates cert JOIN learners l ON l.id=cert.learner_id WHERE ${where}`).bind(...args).all<Certificate>(),
   ]);
   const key=(a:string,b:string)=>JSON.stringify([a,b]);

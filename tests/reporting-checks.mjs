@@ -8,7 +8,12 @@ export async function reportingChecks({m,check,query,invoke,loginAdmin,store,uk}
   await query('INSERT INTO learners(id,name,email,code_hash,store_id,country,entered_at,induction_enrolled) VALUES(?,?,?,?,?,?,?,true)',id,id,id+'@example.test','unused',site.id,site.country,'2026-01-01T00:00:00.000Z').run();
   await query('INSERT INTO sessions(token_hash,learner_id,expires_at) VALUES(?,?,?)',await m.hash(id),id,'2099-01-01').run();cookies[id]='primark_session='+id;
  }
- for(const [id,scope,country,site] of [['report-site','site','Ireland',store.id],['report-country','country','Ireland',null],['report-org','organisation',null,null]])await query('INSERT INTO reporting_access(learner_id,scope,country,site_id,assigned_by,updated_at) VALUES(?,?,?,?,?,?)',id,scope,country,site,'test','2026-01-01').run();
+ for(const [id,scope,country,site] of [['report-site','site','Ireland',store.id],['report-country','country','Ireland',null],['report-org','organisation',null,null]]){
+   const adminId=id+'-admin';
+   await query('INSERT INTO learners(id,name,email,code_hash,store_id,country,entered_at) VALUES(?,?,?,?,?,?,?)',adminId,adminId,adminId+'@example.test','unused',store.id,store.country,'2026-01-01').run();
+   await query('INSERT INTO sessions(token_hash,learner_id,expires_at) VALUES(?,?,?)',await m.hash(adminId),adminId,'2099-01-01').run();cookies[id]='primark_session='+adminId;
+   await query('INSERT INTO reporting_access(learner_id,scope,country,site_id,assigned_by,updated_at) VALUES(?,?,?,?,?,?)',adminId,scope,country,site,'test','2026-01-01').run();
+ }
  const get=(cookie,params='')=>invoke(m.reporting,'GET','/api/reporting'+(params?'?'+params:''),undefined,cookie);
  const course=async(id,category,audience,extra={})=>{
   await query('INSERT INTO courses(id,title,status,audience_json,created_at,updated_at,category,catalogue_scope,available_countries_json,language_code,induction_role,validity_months) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)',id,id,extra.status||'published',JSON.stringify(audience),'2026-01-01','2026-01-01',category,extra.scope||'unconfigured',JSON.stringify(extra.countries||[]),'en',extra.induction||'none',extra.validity??null).run();
@@ -74,6 +79,6 @@ export async function reportingChecks({m,check,query,invoke,loginAdmin,store,uk}
   response=await save({...body,id:c.id,revision:c.revision,validityMonths:null});assert.equal((await response.json()).course.validity_months,null);
  });
  await check('Removing report access immediately blocks the new reporting endpoint',async()=>{
-  await query('DELETE FROM reporting_access WHERE learner_id=?','report-site').run();assert.equal((await get(cookies['report-site'])).status,403);
+  await query('DELETE FROM reporting_access WHERE learner_id=?','report-site-admin').run();assert.equal((await get(cookies['report-site'])).status,403);
  });
 }
