@@ -51,11 +51,11 @@ hours, are stored as hashed tokens in Postgres,
 and are revoked by logout or changing the configured credentials. Login attempts are rate
 limited. Never put real admin credentials in committed files or `NEXT_PUBLIC_*` variables.
 
-Platform admins assign Platform admin, Store Manager and reporting roles under **Manage Users → Access** at `/admin/reporting-access`. Select an existing
+Platform admins assign Platform admin, Store Manager and reporting roles using **Manage Users → Edit access** at `/admin/reporting-access`. Select an existing
 learner account, choose Site, Country or Primark reporting admin, then save. Reporting
 admins use their learner email and password and can view/export only the assigned
 scope. Only platform admins can create or publish courses, import historical completions, load sample
-records, use the shot list or assign/revoke access. Store Managers can assign published courses in their country to existing store users. Choose Learner only to remove reporting access.
+records, use the shot list or assign/revoke platform access. Store Managers can assign published courses in their country to existing store users. Choose Learner only to remove reporting access.
 
 To add another platform admin, register the account normally, then use **Edit access →
 Platform admin → Save access**. The account keeps its normal email/Workday ID, password,
@@ -260,10 +260,10 @@ grant are one transaction, and the grant records the creating admin.
 Store admins can create learners or store admins in their store; country admins can
 create learners, store admins or country admins in their country; organisation admins
 can additionally create organisation admins. Only platform admins create platform
-admins or change existing grants. Store-admin creation includes store management
+admins. Country and organisation admins can edit existing grants within their permitted scope. Store-admin creation includes store management
 and store reporting. Country/organisation reporting roles retain their existing
 reporting scope; they do not gain course publishing or course assignment rights.
-The user directory is searched on the server and paginated in groups of 50.
+The user directory is searched on the server and paginated in groups of 25.
 
 Verification includes role/scope escalation attempts, CSRF, duplicate identifiers,
 normal login, personal-learning denial at every admin level, bulk assignment
@@ -298,3 +298,34 @@ Checks cover search scope, no initial results, 25-row pagination across 1,000 ma
 aggregate/detail parity, filters, literal search, expiry snapshots, pinned courses,
 missing dates, stale SCOs and revoked access. This is functional validation, not a
 production-scale load test.
+
+### Scoped user management and archiving
+
+Manage Users has **All users / Learners / Admins** views, with server-side search
+and 25-user pages. Country admins can filter stores in their country; organisation
+and platform admins can filter countries and stores. Account status switches
+between Active and Archived. Assign courses remains available to store managers
+and platform admins as a separate action beside Add user.
+
+**Edit access** is available on each permitted active account for country,
+organisation and platform admins. Country admins can assign learner, site reporting,
+store manager or country access within their country. Organisation admins can also
+assign organisation access. Only platform admins can grant platform access. A
+lower admin cannot manage a wider or foreign grant just because the account's
+home store happens to be within their scope. Self-changes are blocked. Changing
+access ends the user's sessions and requires a fresh sign-in; progress and issued
+certificates are retained. A learner or store role requires a valid store.
+
+All admin levels can **Archive** and **Restore** permitted accounts in their scope,
+including peers at the same level, excluding themselves and the configured
+bootstrap identity. Archiving preserves grants, assignments and learning evidence,
+but immediately blocks login, password recovery, existing sessions, learner SCORM
+launches and new course assignments. Archived users are hidden from active user
+lists and course assignment pickers. Their training records remain in historical
+reporting and are marked Archived in the activity and matrix views. Restoring
+retains the previous role and credentials without reviving old sessions.
+
+The API rechecks authority inside a transaction, locks actor/target identities,
+rejects stale editors and writes a before/after audit record for each access,
+archive or restore action. Migration `20261008120000_user-archive` adds nullable
+archive metadata and the audit table; no existing user is archived by deployment.

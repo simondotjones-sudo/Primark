@@ -13,3 +13,10 @@ export async function isAdminOnly(id: string) {
     .bind(id).first<{admin_only: boolean}>();
   return !!row?.admin_only;
 }
+
+export function activeLearnerSql(alias='l') {
+  return `${alias}.archived_at IS NULL AND (${learnerOnlySql(alias)})`;
+}
+export async function canLearn(id:string) {
+  return !!await db().prepare(`SELECT l.id FROM learners l WHERE l.id=? AND ${activeLearnerSql()}`).bind(id).first();
+}

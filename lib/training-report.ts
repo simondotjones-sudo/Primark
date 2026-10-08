@@ -8,9 +8,9 @@ import { ORIGINAL_INDUCTION, type ReportCourse, type ReportEmployee, type Report
 const allCourses:ReportSelection={category:'all',courseId:'all'};
 const PAGE_SIZE=25;
 type ReadyCourse=Course&{scos_json:string};
-type PersonRow={id:string;name:string;email:string;workday_id:string|null;country:string;store_id:string};
+type PersonRow={id:string;name:string;email:string;workday_id:string|null;archived_at:string|null;country:string;store_id:string};
 function person(row:PersonRow,stores:Awaited<ReturnType<typeof storeDirectory>>):ReportEmployee {
-  return {id:row.id,name:row.name,email:row.email,workdayId:row.workday_id,country:row.country,storeId:row.store_id,storeName:stores.find(s=>s.id===row.store_id)?.name||row.store_id};
+  return {id:row.id,name:row.name,email:row.email,workdayId:row.workday_id,archivedAt:row.archived_at,country:row.country,storeId:row.store_id,storeName:stores.find(s=>s.id===row.store_id)?.name||row.store_id};
 }
 
 // Shared record rules for summaries, search, the store matrix and explicit exports.
@@ -22,7 +22,7 @@ async function reportQuery(siteIds:string[]|null,selection=allCourses,search='')
   const defaults=countries.map(country=>({country,course_id:inductionFor(courses,country)?.id||null}));
   const args:unknown[]=[siteIds,siteIds,search,search,search,search,JSON.stringify(defaults)];
   const cte=`WITH people AS MATERIALIZED (
-    SELECT l.id,l.name,l.email,l.workday_id,l.country,l.store_id,l.induction_enrolled,l.started_at,l.completed_at,l.best_score
+    SELECT l.id,l.name,l.email,l.workday_id,l.archived_at,l.country,l.store_id,l.induction_enrolled,l.started_at,l.completed_at,l.best_score
     FROM learners l WHERE ${learnerOnlySql()} AND (?::text[] IS NULL OR l.store_id=ANY(?::text[]))
       AND (?='' OR strpos(lower(l.name),lower(?))>0 OR strpos(lower(l.email),lower(?))>0 OR strpos(lower(COALESCE(l.workday_id,'')),lower(?))>0)
   ), defaults AS (SELECT * FROM jsonb_to_recordset(?::jsonb) AS d(country text,course_id text)),

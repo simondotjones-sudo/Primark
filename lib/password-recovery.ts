@@ -28,7 +28,7 @@ export async function requestPasswordReset(email: string, requestedLanguage: Lan
   const settings = mailSettings();
   const learner = await db().prepare(`SELECT id,password_hash,code_hash,
     EXISTS(SELECT 1 FROM platform_admins p WHERE p.learner_id=learners.id) AS platform_admin
-    FROM learners WHERE email=?`).bind(email)
+    FROM learners WHERE email=? AND archived_at IS NULL`).bind(email)
     .first<{id:string; password_hash:string|null; code_hash:string; platform_admin:boolean}>();
   const accounts: {type:string; id:string; fingerprint:string; label:string}[] = [];
   if (email === credentials()?.email) accounts.push({type:'admin',id:email,fingerprint:await sessionCredentialFingerprint(),label:'Platform admin'});
@@ -71,7 +71,7 @@ export async function resetPassword(token: unknown, password: unknown) {
     const reset = (await client.query('SELECT * FROM password_resets WHERE token_hash=$1 AND expires_at>NOW() FOR UPDATE',[digest(token)])).rows[0];
     if (!reset) throw new RecoveryError(invalidLink);
     if (reset.account_type === 'learner') {
-      const row = (await client.query('SELECT password_hash,code_hash FROM learners WHERE id=$1 FOR UPDATE',[reset.account_id])).rows[0];
+      const row = (await client.query('SELECT password_hash,code_hash FROM learners WHERE id=$1 AND archived_at IS NULL FOR UPDATE',[reset.account_id])).rows[0];
       if (!row || learnerFingerprint({password_hash:row.password_hash,code_hash:row.code_hash}) !== reset.credential_hash) throw new RecoveryError(invalidLink);
       await client.query('UPDATE learners SET password_hash=$1,code_hash=$2 WHERE id=$3',[passwordHash,digest(randomBytes(32).toString('hex')),reset.account_id]);
       await client.query('DELETE FROM sessions WHERE learner_id=$1',[reset.account_id]);

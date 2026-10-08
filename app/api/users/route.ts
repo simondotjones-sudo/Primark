@@ -1,46 +1,47 @@
 import type { NextRequest } from 'next/server';
 import { credentials } from '@/lib/admin-auth';
 import { learnerOnlySql } from '@/lib/account-type';
-import { allowedAdminRoles, requireUserAdministrator } from '@/lib/user-administration';
+import { allowedAdminRoles, canEditUsers, managedUsersSql, requireUserAdministrator, userColumns, userJoins, userRevision } from '@/lib/user-administration';
 import { bodyJson, CourseError, failed, json } from '@/lib/course-admin';
 import { db, hash, now, randomToken } from '@/lib/server';
 import { hashPassword, normalizeWorkdayId, validPassword } from '@/lib/learner-auth';
 import { storeDirectory } from '@/lib/store-directory';
+import type {UserPerson} from '@/lib/user-administration-types';
+import { changeUserAccess } from '@/lib/user-access';
 import type { PreparedStatement } from '@/lib/database';
 
 export const dynamic='force-dynamic';
 export async function GET(request:NextRequest) {try {
   const actor=await requireUserAdministrator();
-  const directory=await storeDirectory(false);
+  const directory=await storeDirectory();
   const stores=directory.filter(s=>actor.access.scope==='organisation'||(actor.access.scope==='country'?s.country===actor.access.country:s.id===actor.access.siteId));
-  const options={roles:allowedAdminRoles(actor),stores,access:actor.access,platformAdmin:actor.platformAdmin,canAssign:actor.platformAdmin||!!actor.managerStoreId};
-  if(request.nextUrl.searchParams.get('options')==='1')return json(options);
-  const search=(request.nextUrl.searchParams.get('search')||'').trim().slice(0,150).toLowerCase();
-  const page=Number(request.nextUrl.searchParams.get('page')||1);
+  const options={roles:allowedAdminRoles(actor),stores,access:actor.access,platformAdmin:actor.platformAdmin,canAssign:actor.platformAdmin||!!actor.managerStoreId,canEdit:canEditUsers(actor)};
+  const params=request.nextUrl.searchParams;
+  if(params.get('options')==='1')return json(options);
+  const search=(params.get('search')||'').trim().slice(0,150).toLowerCase();
+  const page=Number(params.get('page')||1),type=params.get('type')||'all',status=params.get('status')||'active';
+  const country=params.get('country')||'',storeId=params.get('storeId')||'';
   if(!Number.isSafeInteger(page)||page<1||page>100000)throw new CourseError('Choose a valid page.');
-  const args:unknown[]=[];
-  let scope='1=1';
-  if(!actor.platformAdmin){
-    scope='NOT EXISTS(SELECT 1 FROM platform_admins p WHERE p.learner_id=l.id)';
-    if(actor.access.scope!=='organisation'){
-      // Evaluate an admin's grant as well as their home store. A home store never
-      // lets a lower-level admin discover or manage a wider-scope account.
-      const isCountry=actor.access.scope==='country';
-      scope+=` AND (l.store_id IN (${stores.map(()=>'?').join(',')||'NULL'})
-          ${isCountry?"OR EXISTS(SELECT 1 FROM reporting_access r WHERE r.learner_id=l.id AND r.scope='country' AND r.country=?)":''})
-        AND NOT EXISTS(SELECT 1 FROM reporting_access r WHERE r.learner_id=l.id AND ${isCountry?"(r.scope='organisation' OR r.country<>?)":"(r.scope<>'site' OR r.site_id<>?)"})
-        AND NOT EXISTS(SELECT 1 FROM store_managers m WHERE m.learner_id=l.id AND m.store_id NOT IN (${stores.map(()=>'?').join(',')||'NULL'}))`;
-      args.push(...stores.map(s=>s.id),...(isCountry?[actor.access.country]:[]),isCountry?actor.access.country:actor.access.siteId,...stores.map(s=>s.id));
-    }
-  }
-  const where=`${scope} AND (?='' OR strpos(lower(l.name || ' ' || l.email || ' ' || COALESCE(l.workday_id,'')),?)>0)`;
-  args.push(search,search);
+  if(!['all','learner','admin'].includes(type)||!['active','archived'].includes(status))throw new CourseError('Choose an account type.');
+  if(country&&!stores.some(s=>s.country===country)||storeId&&!stores.some(s=>s.id===storeId&&(!country||s.country===country)))throw new CourseError('You can manage accounts only within your assigned scope.',403);
+  const scope=managedUsersSql(actor,directory),args=[...scope.args];
+  let where=scope.sql+` AND l.archived_at IS ${status==='active'?'NULL':'NOT NULL'}`;
+  if(type!=='all')where+=` AND ${type==='admin'?'NOT ':''}(${learnerOnlySql()})`;
+  if(country){where+=' AND (l.country=? OR r.country=? OR m.store_id=ANY(?::text[]))';args.push(country,country,stores.filter(s=>s.country===country).map(s=>s.id));}
+  if(storeId){where+=' AND (l.store_id=? OR r.site_id=? OR m.store_id=?)';args.push(storeId,storeId,storeId);}
+  where+=" AND (?='' OR strpos(lower(l.name || ' ' || l.email || ' ' || COALESCE(l.workday_id,'')),?)>0)";args.push(search,search);
+  const pageSize=25;
   const [people,count]=await Promise.all([
-    db().prepare(`SELECT l.id,l.name,l.email,l.store_id,l.country,NOT (${learnerOnlySql()}) AS admin_only
-      FROM learners l WHERE ${where} ORDER BY lower(l.name),l.id LIMIT 50 OFFSET ?`).bind(...args,(page-1)*50).all(),
-    db().prepare(`SELECT COUNT(*)::int AS total,COUNT(DISTINCT NULLIF(l.store_id,''))::int AS stores,COUNT(DISTINCT NULLIF(l.country,''))::int AS countries FROM learners l WHERE ${where}`).bind(...args).first<{total:number;stores:number;countries:number}>(),
+    db().prepare(`SELECT ${userColumns},NOT (${learnerOnlySql()}) AS admin_only ${userJoins} WHERE ${where} ORDER BY lower(l.name),l.id LIMIT ? OFFSET ?`).bind(...args,pageSize,(page-1)*pageSize).all<UserPerson>(),
+    db().prepare(`SELECT COUNT(*)::int AS total,COUNT(DISTINCT NULLIF(l.store_id,''))::int AS stores,COUNT(DISTINCT NULLIF(l.country,''))::int AS countries ${userJoins} WHERE ${where}`).bind(...args).first<{total:number;stores:number;countries:number}>(),
   ]);
-  return json({...options,people:people.results,total:count?.total||0,summary:count,page,pageSize:50});
+  return json({...options,people:people.results.map(p=>({...p,revision:userRevision(p),canEdit:options.canEdit&&!p.archived_at&&p.id!==actor.id&&p.email!==actor.email&&p.email!==credentials()?.email,canArchive:p.id!==actor.id&&p.email!==actor.email&&p.email!==credentials()?.email})),total:count?.total||0,summary:count,page,pageSize});
+}catch(error){return failed(error);}}
+
+export async function PATCH(request:NextRequest){try{
+  const actor=await requireUserAdministrator(request);
+  await changeUserAccess(actor,await bodyJson(request,10000));
+  return json({ok:true});
 }catch(error){return failed(error);}}
 
 export async function POST(request:NextRequest) {try {

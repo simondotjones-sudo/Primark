@@ -1,4 +1,5 @@
-import { learnerOnlySql } from '@/lib/account-type';
+import { getAdminUser } from '@/lib/admin-auth';
+import { activeLearnerSql } from '@/lib/account-type';
 import { NextRequest } from 'next/server';
 import { db, now } from '@/lib/server';
 import { photoBucket } from '@/lib/shot-server';
@@ -8,8 +9,8 @@ export const dynamic='force-dynamic';
 const mime:Record<string,string>={html:'text/html; charset=utf-8',htm:'text/html; charset=utf-8',js:'application/javascript',mjs:'application/javascript',css:'text/css',json:'application/json',xml:'application/xml',svg:'image/svg+xml',png:'image/png',jpg:'image/jpeg',jpeg:'image/jpeg',gif:'image/gif',webp:'image/webp',mp4:'video/mp4',webm:'video/webm',mp3:'audio/mpeg',ogg:'audio/ogg',wav:'audio/wav',woff:'font/woff',woff2:'font/woff2',ttf:'font/ttf',otf:'font/otf',vtt:'text/vtt',pdf:'application/pdf',wasm:'application/wasm'};
 export async function GET(request:NextRequest,context:{params:Promise<{token:string;path:string[]}>}) {try {
  const {token,path:parts}=await context.params;const path=parts.join('/');if(!validPath(path))return new Response('Invalid path',{status:400});
- const launch=await db().prepare(`SELECT package_id,seed_json FROM scorm_launches WHERE token=? AND expires_at>? AND (preview=1 OR EXISTS(SELECT 1 FROM learners l WHERE l.id=scorm_launches.learner_id AND ${learnerOnlySql()}))`).bind(token,now()).first<{package_id:string;seed_json:string}>();
- if(!launch)return new Response('This course session has expired. Reopen it from My Courses.',{status:401});
+ const launch=await db().prepare(`SELECT package_id,seed_json,preview FROM scorm_launches WHERE token=? AND expires_at>? AND (preview=1 OR EXISTS(SELECT 1 FROM learners l WHERE l.id=scorm_launches.learner_id AND ${activeLearnerSql()}))`).bind(token,now()).first<{package_id:string;seed_json:string;preview:number}>();
+ if(!launch||(launch.preview&&!await getAdminUser()))return new Response('This course session has expired. Reopen it from My Courses.',{status:401});
  const ext=path.split('.').pop()?.toLowerCase()||'';const isHtml=ext==='html'||ext==='htm';
  const key=`scorm/${launch.package_id}/${path}`;
  if(!isHtml&&request.headers.get('x-primark-storage-descriptor')==='1')return Response.json({key,headers:{'Content-Type':mime[ext]||'application/octet-stream','Cache-Control':'private, no-store','X-Content-Type-Options':'nosniff','Referrer-Policy':'no-referrer','Content-Security-Policy':"sandbox allow-scripts allow-same-origin allow-forms allow-popups allow-downloads; worker-src 'none'; object-src 'none'; base-uri 'none'"}},{headers:{'Cache-Control':'private, no-store'}});

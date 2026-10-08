@@ -38,19 +38,20 @@ export async function learnerForSession(token: string | undefined): Promise<Lear
   return (await db().prepare(`
     SELECT l.id,l.name,l.email,l.store_id,l.country,l.entered_at,l.started_at,l.completed_at,l.best_score,l.certificate_token,l.induction_enrolled,NOT (${learnerOnlySql()}) AS admin_only
     FROM sessions s JOIN learners l ON l.id=s.learner_id
-    WHERE s.token_hash=? AND s.expires_at>?
+    WHERE s.token_hash=? AND s.expires_at>? AND l.archived_at IS NULL
   `).bind(await hash(token), now()).first<Learner>()) ?? null;
 }
 export async function withSession(request: NextRequest, learnerId: string, data: unknown) {
   const token = randomToken();
   const expiry = new Date(Date.now() + 30 * 86400000);
-  const statements = [db().prepare("INSERT INTO sessions(token_hash,learner_id,expires_at) VALUES(?,?,?)")
-    .bind(await hash(token), learnerId, expiry.toISOString())];
+  const statements = [db().prepare("INSERT INTO sessions(token_hash,learner_id,expires_at) SELECT ?,id,? FROM learners WHERE id=? AND archived_at IS NULL")
+    .bind(await hash(token), expiry.toISOString(), learnerId)];
   const adminToken = request.cookies.get('primark_admin')?.value;
   const previousToken = request.cookies.get('primark_session')?.value;
   if (adminToken) statements.push(db().prepare('DELETE FROM admin_sessions WHERE token_hash=?').bind(await hash(adminToken)));
   if (previousToken) statements.push(db().prepare('DELETE FROM sessions WHERE token_hash=?').bind(await hash(previousToken)));
-  await db().batch(statements);
+  const saved=await db().batch(statements);
+  if(!saved[0].meta.changes)return NextResponse.json({error:'Those details did not match.'},{status:401});
   const response = NextResponse.json(data);
   response.cookies.set("primark_session", token, {
     httpOnly: true, secure: isSecureRequest(request), sameSite: "lax",

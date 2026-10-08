@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import {userAdministrationChecks} from './user-administration-checks.mjs';
 import {adminOnlyChecks} from './admin-only-checks.mjs';
 import { reportingChecks } from './reporting-checks.mjs';
 import { registrationChecks } from './registration-checks.mjs';
@@ -307,4 +308,5 @@ await check('Organisation store lifecycle enforces admin access and preserves hi
 await platformAdminChecks({m,check,query,invoke,loginAdmin,cookieFrom,store});
 await passwordRecoveryChecks({m,check,query,invoke,loginAdmin,cookieFrom,store});
 await adminOnlyChecks({m,check,query,invoke,loginAdmin,cookieFrom,store,uk});
+await userAdministrationChecks({m,check,query,invoke,loginAdmin,cookieFrom,store,uk});
 console.log(`${passed} Netlify migration checks passed.`);await pg.close();rmSync(dir,{recursive:true,force:true});

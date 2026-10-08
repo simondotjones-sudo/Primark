@@ -177,7 +177,7 @@ export async function POST(request: NextRequest) {
       if (password.length > 128) return fail('Those details did not match.',401);
       const learner = await database.prepare(`SELECT id,password_hash,
         EXISTS(SELECT 1 FROM platform_admins p WHERE p.learner_id=learners.id) AS platform_admin
-        FROM learners WHERE ${email ? 'email' : 'workday_id'}=?`)
+        FROM learners WHERE ${email ? 'email' : 'workday_id'}=? AND archived_at IS NULL`)
         .bind(email||workdayId).first<{id:string;password_hash:string|null;platform_admin:boolean}>();
       // Both aliases share an account limit, so alternating identifiers cannot bypass it.
       if (learner && !await allowLoginAttempt('learner-account:'+learner.id)) return fail('Too many attempts. Try again in 15 minutes.',429);
@@ -190,9 +190,9 @@ export async function POST(request: NextRequest) {
       const code = typeof body.code === 'string' ? body.code.trim().toUpperCase() : '';
       if (!email || !code || !validPassword(body.password)) return fail('Enter your email, existing pass code and a new password with 8–128 characters.');
       if (!await allowLoginAttempt('learner:'+email)) return fail('Too many attempts. Try again in 15 minutes.',429);
-      const learner = await database.prepare('SELECT id FROM learners WHERE email=? AND code_hash=? AND password_hash IS NULL').bind(email,await hash(code)).first<{id:string}>();
+      const learner = await database.prepare('SELECT id FROM learners WHERE email=? AND code_hash=? AND password_hash IS NULL AND archived_at IS NULL').bind(email,await hash(code)).first<{id:string}>();
       if (!learner) return fail('Those details did not match, or a password is already set. Use Login if you already have a password.',401);
-      const saved = await database.prepare('UPDATE learners SET password_hash=?,code_hash=? WHERE id=? AND password_hash IS NULL')
+      const saved = await database.prepare('UPDATE learners SET password_hash=?,code_hash=? WHERE id=? AND password_hash IS NULL AND archived_at IS NULL')
         .bind(await hashPassword(body.password),await hash(randomToken()),learner.id).run();
       if (!saved.meta.changes) return fail('A password is already set. Use Login.',409);
       await database.prepare('DELETE FROM sessions WHERE learner_id=?').bind(learner.id).run();

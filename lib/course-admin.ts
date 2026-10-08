@@ -1,4 +1,4 @@
-import { learnerOnlySql } from '@/lib/account-type';
+import { activeLearnerSql } from '@/lib/account-type';
 import { NextRequest } from 'next/server';
 import { getAdminUser } from '@/lib/admin-auth';
 import { db, now } from '@/lib/server';
@@ -20,7 +20,7 @@ export async function validateAudience(input: unknown): Promise<Audience> {
   for (const field of ['countries','sites','users'] as const) if (!Array.isArray(value[field]) || value[field].length > 10000 || value[field].some(v=>typeof v !== 'string')) throw new CourseError('Invalid audience.');
   const a: Audience = {countries:[...new Set(value.countries)],sites:[...new Set(value.sites)],users:[...new Set(value.users)]};
   if (a.countries.some(c=>!stores.some(s=>s.country===c)) || a.sites.some(id=>!stores.some(s=>s.id===id))) throw new CourseError('Choose countries and sites from the directory.');
-  const users = await db().prepare(`SELECT l.id FROM learners l WHERE ${learnerOnlySql()}`).all<{id:string}>();
+  const users = await db().prepare(`SELECT l.id FROM learners l WHERE ${activeLearnerSql()}`).all<{id:string}>();
   const ids = new Set(users.results.map(p=>p.id));
   if (a.users.some(id=>!ids.has(id))) throw new CourseError('One of the selected users is no longer available.');
   return a;

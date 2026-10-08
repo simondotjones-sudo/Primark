@@ -1,7 +1,7 @@
 export const ORIGINAL_INDUCTION = 'original-safety-passport';
 export type TrainingStatus = 'completed' | 'expired' | 'in-progress' | 'not-started';
 export type ReportCourse = { id:string; title:string; category:string; language:string; paused:boolean; validityMonths:number|null };
-export type ReportEmployee = { id:string; name:string; email:string; workdayId:string|null; country:string; storeId:string; storeName:string };
+export type ReportEmployee = { id:string; name:string; email:string; workdayId:string|null; archivedAt:string|null; country:string; storeId:string; storeName:string };
 export type TrainingRecord = { learnerId:string; courseId:string; status:TrainingStatus; completedAt:string|null; expiresAt:string|null; score:string|null };
 export type TrainingReport = {
   courses:ReportCourse[]; employees:ReportEmployee[]; records:TrainingRecord[];
