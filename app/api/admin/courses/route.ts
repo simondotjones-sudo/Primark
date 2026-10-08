@@ -1,4 +1,4 @@
-import { learnerOnlySql } from '@/lib/account-type';
+import { activeLearnerSql } from '@/lib/account-type';
 import { NextRequest } from 'next/server';
 import { db } from '@/lib/server';
 import { bodyJson, failed, getCourse, getPackage, json, now, requireAdmin, validateAudience, CourseError } from '@/lib/course-admin';
@@ -17,7 +17,7 @@ export async function GET() { try {
   await requireAdmin();
   const [courses,people,packages,progress] = await Promise.all([
     db().prepare('SELECT * FROM courses ORDER BY updated_at DESC').all<Course>(),
-    db().prepare(`SELECT l.id,l.name,l.email,l.country,l.store_id FROM learners l WHERE ${learnerOnlySql()} ORDER BY name`).all<Person>(),
+    db().prepare(`SELECT l.id,l.name,l.email,l.country,l.store_id FROM learners l WHERE ${activeLearnerSql()} ORDER BY name`).all<Person>(),
     db().prepare("SELECT * FROM course_packages WHERE status='ready'").all<any>(),
     db().prepare('SELECT learner_id,package_id,sco_id,status,score,updated_at FROM scorm_progress').all<any>(),
   ]);

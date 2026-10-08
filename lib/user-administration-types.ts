@@ -1,0 +1,10 @@
+import type {ReportingAccess} from '@/lib/reporting-types';
+import type {DirectoryStore} from '@/lib/store-directory';
+export type UserPerson={id:string;name:string;email:string;country:string;store_id:string;archived_at:string|null;admin_only:boolean;
+  scope:ReportingAccess['scope']|null;reporting_country:string|null;reporting_site_id:string|null;manager_store_id:string|null;platform_admin:boolean;
+  revision:string;canEdit:boolean;canArchive:boolean};
+export type UserOptions={roles:string[];stores:DirectoryStore[];access:ReportingAccess;platformAdmin:boolean;canAssign:boolean;canEdit:boolean};
+export type UserDirectoryData=UserOptions&{people:UserPerson[];total:number;page:number;pageSize:number;summary:{total:number;stores:number;countries:number}};
+export type UserRole='learner'|'site'|'manager'|'country'|'organisation'|'platform';
+export const userRole=(person:UserPerson):UserRole=>person.platform_admin?'platform':person.scope==='organisation'?'organisation':person.scope==='country'?'country':person.manager_store_id?'manager':person.scope==='site'?'site':'learner';
+export const userRoleLabels:Record<UserRole,string>={learner:'Learner',site:'Site reporting admin',manager:'Store Manager',country:'Country reporting admin',organisation:'Primark reporting admin',platform:'Platform admin'};

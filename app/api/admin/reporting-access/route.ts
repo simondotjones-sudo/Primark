@@ -24,13 +24,14 @@ export async function POST(request: NextRequest) {
  const stores=await storeDirectory(false);const storeById=new Map(stores.map(s=>[s.id,s]));
     const admin = await getAdminUser();
     const body = await bodyJson(request, 10000);
-    if (typeof body.learnerId !== 'string' || !await db().prepare('SELECT id FROM learners WHERE id=?').bind(body.learnerId).first())
+    if (typeof body.learnerId !== 'string' || !await db().prepare('SELECT id FROM learners WHERE id=? AND archived_at IS NULL').bind(body.learnerId).first())
       throw new CourseError('Choose an existing learner account.');
     if (!['none', 'organisation', 'country', 'site', 'platform'].includes(body.scope)) throw new CourseError('Choose a reporting scope.');
     if (admin?.learnerId === body.learnerId && body.scope !== 'platform')
       throw new CourseError('Ask another platform admin to remove your platform admin access.');
     if (body.scope === 'platform') {
       await db().batch([
+        db().prepare('SELECT id FROM learners WHERE id=? FOR UPDATE').bind(body.learnerId),
         db().prepare(`INSERT INTO platform_admins(learner_id,assigned_by,updated_at) VALUES(?,?,?)
           ON CONFLICT(learner_id) DO UPDATE SET assigned_by=excluded.assigned_by,updated_at=excluded.updated_at`)
           .bind(body.learnerId,admin!.email,now()),
@@ -39,7 +40,7 @@ export async function POST(request: NextRequest) {
       ]);
       return json({ok:true});
     }
-    const changes:PreparedStatement[]=[db().prepare('DELETE FROM platform_admins WHERE learner_id=?').bind(body.learnerId)];
+    const changes:PreparedStatement[]=[db().prepare('SELECT id FROM learners WHERE id=? FOR UPDATE').bind(body.learnerId),db().prepare('DELETE FROM platform_admins WHERE learner_id=?').bind(body.learnerId)];
     if(body.managerStoreId!==undefined){
       if(body.managerStoreId===null)changes.push(db().prepare('DELETE FROM store_managers WHERE learner_id=?').bind(body.learnerId));
       else{
