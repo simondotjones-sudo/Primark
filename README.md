@@ -355,3 +355,25 @@ Edit details also allows admins to correct or clear the optional **Employee ID**
 trimmed, uppercased, validated and protected by the database uniqueness constraint.
 ID changes invalidate sessions and reset links, are included in revision checks and
 are audited. Training records remain associated with the same account.
+
+### Scoped store setup
+
+Organisation is available to platform, organisation and country admins. Country
+admins see and manage only their assigned country; site admins cannot access store
+setup. Platform and organisation admins choose existing countries or explicitly
+add a new country with its first store. Existing stores can be filtered by country
+and searched by name, country or optional unique store code. Archive and restore
+retain codes and account associations and preserve training history.
+
+An optional store admin email creates a Store Manager account with site reporting
+and user/course management in the same transaction as the store. An existing email
+is rejected with a Manage Users instruction; no existing account is silently moved
+or promoted. The optional initial password needs 16–128 characters. Without one,
+a random unknown password is hashed and the UI explains that email recovery must
+be configured before password setup; no email is sent during store creation.
+Administrator addresses are returned only by the authorised organisation endpoint.
+The associated email follows later account email corrections.
+
+Migration `20261008140000_store-setup` adds nullable store codes and an admin account
+reference, preserving all existing stores. Store codes are unique without regard
+to case. Mutations recheck authority inside a transaction and record the actor.

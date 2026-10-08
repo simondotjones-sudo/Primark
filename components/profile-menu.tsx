@@ -23,8 +23,8 @@ export function ProfileContent({ account, view, filter, onView, onFilter, onSign
   return <>
     <div className="profile-identity"><strong>{account.name}</strong>{account.name !== account.email && <small>{account.email}</small>}
       <span className="profile-role">{t(account.role)}</span><span className="profile-site"><MapPin size={15}/>{account.platformAdmin||account.reportingAccess?.scope==='organisation'?t('All Primark'):account.reportingAccess?.scope==='country'?countryLabel(account.reportingAccess.country||account.site):account.site}</span></div>
-    {group(views.filter(option=>!['courses','organisation','shots'].includes(option.value)), account.adminOnly || account.platformAdmin || account.reportingAccess ? 'Administration' : 'Learning')}
-    {group(views.filter(option=>['courses','organisation'].includes(option.value)), 'Platform administration')}
+    {group(views.filter(option=>!['courses','shots',...(account.platformAdmin?['organisation']:[])].includes(option.value)), account.adminOnly || account.platformAdmin || account.reportingAccess ? 'Administration' : 'Learning')}
+    {group(views.filter(option=>['courses',...(account.platformAdmin?['organisation']:[])].includes(option.value)), 'Platform administration')}
     <div className="profile-language"><span>{t('Language')}</span><LanguagePicker/></div>
     <button type="button" className="profile-signout" disabled={busy} onClick={onSignOut}><LogOut size={17}/>{t(busy ? 'Signing out…' : 'Sign out')}</button>
     <div className="profile-version">{t("Primark Version")}{" "}<bdi>{APP_VERSION}</bdi></div>

@@ -15,6 +15,7 @@ export function profileViews(account: ProfileAccount): { value: ProfileView; lab
     ...(!(account.adminOnly || account.platformAdmin || account.reportingAccess || account.managerStoreId) ? [{ value: 'learn' as const, label: 'My Courses' }] : []),
     ...(account.reportingAccess ? [{ value: 'report' as const, label: 'Reporting' }] : []),
     ...(!account.platformAdmin && (account.reportingAccess || account.managerStoreId) ? [{value:'access' as const,label:'Manage Users'}] : []),
+    ...(!account.platformAdmin&&['organisation','country'].includes(account.reportingAccess?.scope||'')?[{value:'organisation' as const,label:'Organisation'}]:[]),
     ...(account.platformAdmin ? [
       { value: 'courses' as const, label: 'Courses' },
       { value: 'access' as const, label: 'Manage Users' },

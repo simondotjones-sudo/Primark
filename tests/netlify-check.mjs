@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import {storeSetupChecks} from './store-setup-checks.mjs';
 import {userAdministrationChecks} from './user-administration-checks.mjs';
 import {adminOnlyChecks} from './admin-only-checks.mjs';
 import { reportingChecks } from './reporting-checks.mjs';
@@ -305,6 +306,7 @@ await check('Organisation store lifecycle enforces admin access and preserves hi
  assert((await m.directory.storeDirectory(false)).some(s=>s.id===store.id));
  assert.equal((await query('SELECT COUNT(*) AS n FROM organisation_store_audit WHERE store_id=?',store.id).first()).n,2);
 });
+await storeSetupChecks({m,check,query,invoke,loginAdmin,cookieFrom,store,uk});
 await platformAdminChecks({m,check,query,invoke,loginAdmin,cookieFrom,store});
 await passwordRecoveryChecks({m,check,query,invoke,loginAdmin,cookieFrom,store});
 await adminOnlyChecks({m,check,query,invoke,loginAdmin,cookieFrom,store,uk});

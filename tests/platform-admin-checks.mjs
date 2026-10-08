@@ -69,13 +69,14 @@ export async function platformAdminChecks({m,check,query,invoke,loginAdmin,cooki
     assert.equal((await me(cookie)).platformAdmin,true);
   });
 
-  await check('Removing platform status immediately revokes every admin route while preserving the selected reporting role',async()=>{
+  await check('Removing platform status revokes platform routes while retaining country-scoped store setup',async()=>{
     assert.equal((await role(id,'country',bootstrap,{country:store.country})).status,200);
     const state = await me(cookie);
     assert.equal(state.platformAdmin,false); assert.equal(state.account.platformAdmin,false);
     assert.equal(state.account.role,'Country reporting admin'); assert.equal(state.reportingAccess.country,store.country);
-    for (const [route,url] of [[m.courseAdmin,'/api/admin/courses'],[m.access,endpoint],[m.organisation,'/api/admin/organisation'],[m.shots,'/api/shot-list']])
+    for (const [route,url] of [[m.courseAdmin,'/api/admin/courses'],[m.access,endpoint],[m.shots,'/api/shot-list']])
       assert.equal((await invoke(route,'GET',url,undefined,cookie)).status,403,url);
+    const directory=await invoke(m.organisation,'GET','/api/admin/organisation',undefined,cookie);assert.equal(directory.status,200);assert((await directory.json()).stores.every(s=>s.country===store.country));
     assert.equal((await role(id,'platform',cookie)).status,403);
     assert.equal((await invoke(m.shots,'POST','/api/shot-list',{module:1,slide:2,status:'todo'},cookie)).status,403);
     assert.equal((await invoke(m.packages,'POST','/api/admin/packages',{},cookie)).status,403);
