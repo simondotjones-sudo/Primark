@@ -83,7 +83,9 @@ export async function platformAdminChecks({m,check,query,invoke,loginAdmin,cooki
     assert.equal((await invoke(m.prototype,'GET','/api/prototype?view=dashboard&year=all',undefined,cookie)).status,200);
     assert.equal((await role(id,'none')).status,200);
     assert.equal((await me(cookie)).reportingAccess,null);
-    assert.deepEqual(await query('SELECT * FROM learners WHERE id=?',id).first(),original);
+    const retained=await query('SELECT * FROM learners WHERE id=?',id).first();
+    assert(retained.last_login_at>=original.last_login_at);
+    assert.deepEqual({...retained,last_login_at:original.last_login_at},original);
   });
 
   await check('Granted admin sign-out revokes the registered session and expired sessions cannot use a grant',async()=>{

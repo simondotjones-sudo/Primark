@@ -10,7 +10,7 @@ import {userRole,userRoleLabels,type UserPerson,type UserOptions,type UserDirect
 
 type Props={type:'all'|'learner'|'admin';onAssign:(person:UserPerson)=>void;onAssignAll:()=>void;onPermissions:(options:UserOptions)=>void};
 export default function UserDirectory({type,onAssign,onAssignAll,onPermissions}:Props) {
-  const {t,country:countryLabel}=useLanguage();
+  const {t,date,country:countryLabel}=useLanguage();
   const [data,setData]=useState<UserDirectoryData|null>(null),[search,setSearch]=useState(''),[page,setPage]=useState(1),[refresh,setRefresh]=useState(0);
   const [country,setCountry]=useState(''),[storeId,setStoreId]=useState(''),[status,setStatus]=useState('active');
   const [loading,setLoading]=useState(true),[creating,setCreating]=useState(false),[editing,setEditing]=useState<UserPerson|null>(null),[archiving,setArchiving]=useState<UserPerson|null>(null);
@@ -48,7 +48,8 @@ export default function UserDirectory({type,onAssign,onAssignAll,onPermissions}:
       {loading?<p className="empty" role="status">{t('Loading accounts…')}</p>:data&&<>
         <div className="employee-cards">{data.people.map(person=><article className="employee-card" key={person.id}><div><strong>{person.name}</strong><small>{person.email}</small>
           <small>{t(userRoleLabels[userRole(person)])}{person.archived_at?' · '+t('Archived'):''}</small>
-          <small>{data.stores.find(s=>s.id===(person.manager_store_id||person.reporting_site_id||person.store_id))?.name||countryLabel(person.reporting_country||person.country)||t('All Primark')}</small></div>
+          <small>{data.stores.find(s=>s.id===(person.manager_store_id||person.reporting_site_id||person.store_id))?.name||countryLabel(person.reporting_country||person.country)||t('All Primark')}</small>
+          <small className="employee-dates"><span>{t('Created')}: <time dateTime={person.entered_at}>{date(person.entered_at)}</time></span><span>{t('Last login')}: {person.last_login_at?<time dateTime={person.last_login_at}>{date(person.last_login_at)}</time>:t('No login recorded')}</span></small></div>
           <div className="employee-actions">
             {data.canAssign&&!person.admin_only&&!person.archived_at&&<Button variant="outline" onClick={()=>onAssign(person)}>{t('Assign courses')}</Button>}
             {person.canEditDetails&&<Button variant="outline" onClick={()=>{setDetails(person);setMessage('');setError('');}}>{t('Edit details')}</Button>}

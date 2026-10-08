@@ -45,7 +45,9 @@ export async function withSession(request: NextRequest, learnerId: string, data:
   const token = randomToken();
   const expiry = new Date(Date.now() + 30 * 86400000);
   const statements = [db().prepare("INSERT INTO sessions(token_hash,learner_id,expires_at) SELECT ?,id,? FROM learners WHERE id=? AND archived_at IS NULL")
-    .bind(await hash(token), expiry.toISOString(), learnerId)];
+    .bind(await hash(token), expiry.toISOString(), learnerId),
+    db().prepare("UPDATE learners SET last_login_at=GREATEST(last_login_at,?) WHERE id=? AND archived_at IS NULL")
+      .bind(now(),learnerId)];
   const adminToken = request.cookies.get('primark_admin')?.value;
   const previousToken = request.cookies.get('primark_session')?.value;
   if (adminToken) statements.push(db().prepare('DELETE FROM admin_sessions WHERE token_hash=?').bind(await hash(adminToken)));

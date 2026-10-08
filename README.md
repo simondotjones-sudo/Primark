@@ -390,3 +390,7 @@ The API counts actual inserted rows, skips duplicate manual assignments and
 existing audience/induction access, and distinguishes any targets that became
 unavailable. Original assignment dates, progress and certificates are preserved.
 No assignment emails are sent.
+
+### User creation and login dates
+
+Manage Users shows each account’s existing creation date (`entered_at`) and latest successful sign-in date, in the selected interface language. The nullable `last_login_at` field is updated atomically when creating a learner/account session, including registration and legacy password setup. Failed logins, page views, password recovery and logout do not update it; logout and account archival preserve it. Learner, store, country, organisation and granted platform-admin accounts use this tracking. The hosting-configured bootstrap admin has no user-list record. Existing accounts show “No login recorded” until their next successful sign-in, because historical sign-in dates were not stored. Login timestamps do not change the user edit revision.

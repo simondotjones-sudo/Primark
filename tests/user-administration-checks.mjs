@@ -33,6 +33,27 @@ export async function userAdministrationChecks({m,check,query,invoke,loginAdmin,
     assert.equal((await list(accounts.country.cookie,'type=invalid')).status,400);
     const local=await read(accounts.store.cookie,'search=management-');assert.equal(local.canEdit,false);assert(local.people.every(p=>!p.canEdit));assert(!local.people.find(p=>p.id===accounts.store.id).canArchive);
   });
+  await check('User list shows creation and successful sign-in dates without guessing history or changing edit revisions',async()=>{
+    const person=accounts.learner,initial=await find(person.id);
+    assert.equal(initial.entered_at,(await query('SELECT entered_at FROM learners WHERE id=?',person.id).first()).entered_at);
+    assert.equal(initial.last_login_at,null,'Existing sessions do not imply a historical login date');
+    assert.equal((await invoke(m.prototype,'POST','/api/prototype',{action:'login',email:person.email,password:'Incorrect-password'})).status,401);
+    assert.equal((await find(person.id)).last_login_at,null,'Failed authentication is not a login');
+    const before=new Date().toISOString(),signed=await login(person);assert.equal(signed.status,200);
+    const current=await find(person.id);assert(current.last_login_at>=before&&current.last_login_at<=new Date().toISOString());
+    assert.equal(current.entered_at,initial.entered_at);assert.equal(current.revision,initial.revision,'Login must not stale an open user editor');
+    const cookie='primark_session='+cookieFrom(signed,'primark_session');
+    assert.equal((await invoke(m.prototype,'GET','/api/prototype?view=me',undefined,cookie)).status,200);
+    assert.equal((await invoke(m.prototype,'POST','/api/prototype',{action:'logout'},cookie)).status,200);
+    assert.equal((await find(person.id)).last_login_at,current.last_login_at,'Page visits and logout retain the recorded date');
+    await query('UPDATE learners SET last_login_at=? WHERE id=?','2020-01-01T00:00:00.000Z',person.id).run();
+    assert.equal((await login(person)).status,200);assert((await find(person.id)).last_login_at>='2026-01-01');
+    for(const key of ['store','country','org','platform']){
+      assert.equal((await find(accounts[key].id)).last_login_at,null);
+      assert.equal((await login(accounts[key])).status,200);assert((await find(accounts[key].id)).last_login_at);
+    }
+    await query('DELETE FROM auth_limits').run();
+  });
   await check('Admins edit names and emails within scope with duplicate, stale and archived protections',async()=>{
     const person=await find(accounts.learner.id);
     assert((await read(accounts.store.cookie,'search='+person.id)).people[0].canEditDetails);
@@ -161,7 +182,9 @@ export async function userAdministrationChecks({m,check,query,invoke,loginAdmin,
     const progress=await query('SELECT * FROM scorm_progress WHERE learner_id=?',person.id).all(),certs=await query('SELECT * FROM certificates WHERE learner_id=?',person.id).all();assert(certs.results.length);
     await query('INSERT INTO password_resets(token_hash,account_type,account_id,credential_hash,expires_at) VALUES(?,?,?,?,?)','management-reset','learner',person.id,'unused','2099-01-01').run();
     assert.equal((await update(accounts.store.cookie,await find(person.id),{action:'archive'})).status,200);
+    const recordedLogin=(await find(person.id,'archived')).last_login_at;
     assert.equal((await login(person)).status,401);
+    assert.equal((await find(person.id,'archived')).last_login_at,recordedLogin,'Archive and failed sign-in preserve login history');
     assert.equal((await invoke(m.courses,'GET','/api/courses',undefined,person.cookie)).status,401);
     assert.equal((await invoke(m.scorm,'POST','/api/scorm',{action:'save',token:launch.token,sequence:2,data:{}},person.cookie)).status,401);
     const content={GET:req=>m.content.GET(req,{params:Promise.resolve({token:launch.token,path:['index.html']})})};assert.equal((await invoke(content,'GET','/scorm-content/'+launch.token+'/index.html',undefined,person.cookie)).status,401);
