@@ -478,3 +478,5 @@ footer strong{letter-spacing:.08em}
 @media(max-height:720px){.compact-auth form{gap:12px}.compact-auth .auth-floating-field input{height:50px;padding-block:12px}}
 @media(prefers-reduced-motion:reduce){.compact-auth .auth-floating-field>label,.compact-auth .auth-floating-field input{transition:none}}
 [dir=rtl] .compact-auth .auth-back svg,[dir=rtl] .compact-auth .auth-submit svg{transform:scaleX(-1)}
+
+.auth-error-login{display:inline-flex;align-items:center;gap:4px;color:inherit;font-weight:600;text-decoration:underline;text-underline-offset:3px;white-space:nowrap;margin-inline-start:4px}.auth-error-login:focus-visible{outline:2px solid currentColor;outline-offset:3px;border-radius:3px}

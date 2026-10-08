@@ -21,16 +21,19 @@ export default function AuthForm({lang,busy,error,onClearError,onAuthenticate}:P
   const [loginId,setLoginId]=useState(''),[loginPassword,setLoginPassword]=useState(''),[showLoginPassword,setShowLoginPassword]=useState(false),[oldCode,setOldCode]=useState(''),[legacy,setLegacy]=useState(false);
   const [mode,setMode]=useState('register'),[step,setStep]=useState(1),[formError,setFormError]=useState(''),[storeSearch,setStoreSearch]=useState('');
   const detailsHeading=useRef<HTMLHeadingElement>(null);
+  const loginPasswordInput=useRef<HTMLInputElement>(null),focusLoginPassword=useRef(false);
   const storeItems=useMemo(()=>stores.map(s=>({value:s.id,label:`${s.name} · ${countryName(s.country,lang)}`})),[stores,lang]);
   const selectedStore=stores.find(s=>s.id===storeId);
   const details=mode==='register'&&step===2;
   useEffect(()=>{if(new URLSearchParams(location.search).get('login')==='1')setMode('login');},[]);
   useEffect(()=>{if(details)detailsHeading.current?.focus({preventScroll:true});},[details]);
+  useEffect(()=>{if(mode==='login'&&focusLoginPassword.current){focusLoginPassword.current=false;loginPasswordInput.current?.focus();}},[mode]);
   useEffect(()=>{if(selectedStore)setStoreSearch(`${selectedStore.name} · ${countryName(selectedStore.country,lang)}`);},[lang,selectedStore?.id,selectedStore?.name,selectedStore?.country]);
   const clearError=()=>{setFormError('');onClearError();};
   const changeMode=(value:string)=>{clearError();setMode(value);};
   const notice=formError||error;
-  const errorNotice=notice?<div id="auth-error" className="auth-error" role="alert">{t(notice)}</div>:null;
+  const registeredEmail=mode==='register'&&notice==='This email is already registered. Choose Login to continue.';
+  const errorNotice=notice?<div id="auth-error" className="auth-error" role="alert">{t(notice)}{registeredEmail&&<> <a className="auth-error-login" href={`/?login=1&lang=${lang}`} aria-disabled={busy} onClick={event=>{event.preventDefault();if(busy)return;setLoginId(email.trim());setLoginPassword('');setLegacy(false);focusLoginPassword.current=true;changeMode('login');}}>{t('Login')}<ArrowRight size={14} aria-hidden="true"/></a></>}</div>:null;
   return <div className={'paper entry-form compact-auth'+(details?' auth-details':'')}><Tabs value={mode} onValueChange={changeMode} dir={lang==='ar'?'rtl':'ltr'}>
     {!details&&<TabsList className="auth-tabs pill-switch" aria-label={t('Account access')}><TabsTrigger value="register" disabled={busy}>{t('Register')}</TabsTrigger><TabsTrigger value="login" disabled={busy}>{t('Login')}</TabsTrigger></TabsList>}
     <TabsContent value="register" aria-labelledby="registration-heading">
@@ -68,7 +71,7 @@ export default function AuthForm({lang,busy,error,onClearError,onAuthenticate}:P
       <form onSubmit={e=>{e.preventDefault();clearError();onAuthenticate(legacy?'set-password':'login',{...(legacy?{email:loginId,code:oldCode}:{identifier:loginId}),password:loginPassword});}}>
         <FloatingField id="login-id" label={<>{t(legacy?'Email address':'Email or Workday ID')}</>}><Input placeholder=" " id="login-id" name="username" autoComplete="username" autoCapitalize="none" spellCheck={false} dir="ltr" type={legacy?'email':'text'} required maxLength={254} value={loginId} onChange={e=>setLoginId(e.target.value)} disabled={busy}/></FloatingField>
         {legacy&&<FloatingField id="old-code" label={<>{t('Existing pass code')}</>}><Input id="old-code" name="oldCode" autoComplete="off" dir="ltr" required value={oldCode} onChange={e=>setOldCode(e.target.value)} placeholder="PR-XXXXXXXXXX" disabled={busy}/></FloatingField>}
-          <FloatingField id="login-password" label={<>{t(legacy?'Create password':'Password')}</>}><div className="auth-password"><Input placeholder=" " id="login-password" name="password" autoComplete={legacy?'new-password':'current-password'} dir="ltr" type={showLoginPassword?'text':'password'} required minLength={legacy?8:undefined} maxLength={legacy?128:1024} value={loginPassword} onChange={e=>setLoginPassword(e.target.value)} disabled={busy}/><button type="button" aria-label={t(showLoginPassword?'Hide password':'Show password')} aria-pressed={showLoginPassword} onClick={()=>setShowLoginPassword(!showLoginPassword)}>{showLoginPassword?<EyeOff size={19}/>:<Eye size={19}/>}</button></div></FloatingField>
+          <FloatingField id="login-password" label={<>{t(legacy?'Create password':'Password')}</>}><div className="auth-password"><Input ref={loginPasswordInput} placeholder=" " id="login-password" name="password" autoComplete={legacy?'new-password':'current-password'} dir="ltr" type={showLoginPassword?'text':'password'} required minLength={legacy?8:undefined} maxLength={legacy?128:1024} value={loginPassword} onChange={e=>setLoginPassword(e.target.value)} disabled={busy}/><button type="button" aria-label={t(showLoginPassword?'Hide password':'Show password')} aria-pressed={showLoginPassword} onClick={()=>setShowLoginPassword(!showLoginPassword)}>{showLoginPassword?<EyeOff size={19}/>:<Eye size={19}/>}</button></div></FloatingField>
         {errorNotice}
         <Button className="blue-button auth-submit" size="lg" disabled={busy}>{busy?t('Please wait…'):t(legacy?'Save password & login':'Login')}</Button>
       </form>
