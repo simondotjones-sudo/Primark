@@ -5,7 +5,8 @@ import { bodyJson, CourseError, failed, json, requireAdmin } from '@/lib/course-
 import {getAdminUser} from '@/lib/admin-auth';
 import {storeDirectory} from '@/lib/store-directory';
 import { requireStoreManager } from '@/lib/store-manager';
-import { availableInCountry } from '@/lib/course-catalogue';
+import {storeAssignments} from '@/lib/store-assignments';
+import { availableInCountry, inductionFor } from '@/lib/course-catalogue';
 import { readyCourses } from '@/lib/course-access';
 import type { Person } from '@/lib/course-types';
 
@@ -25,9 +26,9 @@ export async function GET(request:NextRequest){try{
   const [people,courses,assignments]=await Promise.all([
     db().prepare(`SELECT l.id,l.name,l.email,l.country,l.store_id,NOT (${learnerOnlySql()}) AS admin_only FROM learners l WHERE l.store_id=? AND l.archived_at IS NULL ORDER BY name,email`).bind(store.id).all<Person>(),
     readyCourses(),
-    db().prepare('SELECT a.learner_id,a.course_id FROM course_assignments a JOIN learners l ON l.id=a.learner_id WHERE l.store_id=? AND l.archived_at IS NULL').bind(store.id).all(),
+    storeAssignments(store.id),
   ]);
-  return json({store,people:people.results,assignments:assignments.results,courses:courses.filter(c=>availableInCountry(c,store.country)).map(c=>({id:c.id,title:c.title,englishTitle:c.english_title,category:c.category,languageCode:c.language_code}))});
+  return json({store,people:people.results,assignments,courses:courses.filter(c=>availableInCountry(c,store.country)).map(c=>({id:c.id,title:c.title,englishTitle:c.english_title,category:c.category,languageCode:c.language_code}))});
 }catch(error){return failed(error);}}
 export async function POST(request:NextRequest){try{
   const admin=await getAdminUser();
@@ -45,16 +46,26 @@ export async function POST(request:NextRequest){try{
   const userIds:string[]=body.allUsers===true?[...ids]:[...new Set<string>(body.userIds)];
   if(userIds.some(id=>!ids.has(id)))throw new CourseError('You can assign courses only to users in your store.',403);
   if(!userIds.length)throw new CourseError('There are no users in this store yet.');
-  const available=new Set((await readyCourses()).filter(c=>availableInCountry(c,store.country)).map(c=>c.id));
+  const ready=await readyCourses();
+  const available=new Set(ready.filter(c=>availableInCountry(c,store.country)).map(c=>c.id));
   const courseIds=[...new Set<string>(body.courseIds)];
   if(courseIds.some(id=>!available.has(id)))throw new CourseError('Choose published courses available in your country.',403);
   if(userIds.length*courseIds.length>10000)throw new CourseError('Choose fewer courses or users for this assignment.');
   const date=now();
-  await db().batch(userIds.flatMap(userId=>courseIds.map(courseId=>db().prepare(`INSERT INTO course_assignments(learner_id,course_id,assigned_by,assigned_at)
+  const defaultInduction=inductionFor(ready,store.country)?.id||null;
+  const results=await db().batch(userIds.flatMap(userId=>courseIds.map(courseId=>db().prepare(`INSERT INTO course_assignments(learner_id,course_id,assigned_by,assigned_at)
     SELECT l.id,c.id,?,? FROM learners l JOIN courses c ON c.id=? JOIN course_packages p ON p.id=c.package_id
     ${admin?'':'JOIN store_managers m ON m.learner_id=? AND m.store_id=l.store_id'}
     WHERE l.id=? AND l.store_id=? AND ${activeLearnerSql()} AND c.status='published' AND p.status='ready'
       AND (c.catalogue_scope='global' OR (c.catalogue_scope='countries' AND c.available_countries_json::jsonb @> ?::jsonb))
-    ON CONFLICT(learner_id,course_id) DO NOTHING`).bind(actor,date,courseId,...(admin?[]:[manager!.learner.id]),userId,store.id,JSON.stringify([store.country])))));
-  return json({users:userIds.length,courses:courseIds.length});
+      AND NOT ((NOT l.induction_enrolled OR c.induction_role='none') AND
+        (jsonb_exists(c.audience_json::jsonb->'countries',l.country) OR jsonb_exists(c.audience_json::jsonb->'sites',l.store_id) OR jsonb_exists(c.audience_json::jsonb->'users',l.id)))
+      AND NOT (l.induction_enrolled AND c.id=COALESCE((SELECT course_id FROM learner_inductions WHERE learner_id=l.id),?,''))
+    ON CONFLICT(learner_id,course_id) DO NOTHING`).bind(actor,date,courseId,...(admin?[]:[manager!.learner.id]),userId,store.id,JSON.stringify([store.country]),defaultInduction))));
+  const added=results.reduce((sum,r)=>sum+(r.meta.changes||0),0);
+  const assignments=await storeAssignments(store.id,await readyCourses(),userIds);
+  const selectedCourses=new Set(courseIds);
+  const assignedTotal=assignments.filter(a=>selectedCourses.has(a.course_id)).length;
+  const alreadyAssigned=Math.max(0,assignedTotal-added),unavailable=Math.max(0,userIds.length*courseIds.length-assignedTotal);
+  return json({users:userIds.length,courses:courseIds.length,added,alreadyAssigned,unavailable,assignments});
 }catch(error){return failed(error);}}

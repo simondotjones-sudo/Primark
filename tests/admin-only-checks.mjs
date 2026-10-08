@@ -91,7 +91,7 @@ export async function adminOnlyChecks({m,check,query,invoke,loginAdmin,cookieFro
     assert.equal((await invoke(m.manager,'POST','/api/store',{courseIds:['legacy-154'],userIds:[created.site.id]},cookie)).status,403);
     assert.equal((await invoke(m.manager,'POST','/api/store',{courseIds:['legacy-154'],allUsers:true},cookie)).status,200);
     assert.equal(await query('SELECT * FROM course_assignments WHERE learner_id=?',created.site.id).first(),null);
-    assert(await query('SELECT * FROM course_assignments WHERE learner_id=?',created.ordinary.id).first());
+    const assignments=await (await invoke(m.manager,'GET','/api/store',undefined,cookie)).json();assert(assignments.assignments.some(a=>a.learner_id===created.ordinary.id&&a.course_id==='legacy-154'));assert(!assignments.assignments.some(a=>a.learner_id===created.site.id));
     const response=await invoke(m.courseAdmin,'POST','/api/admin/courses',{title:'Invalid admin audience',status:'draft',audience:{countries:[],sites:[],users:[created.site.id]}},bootstrap);
     assert.equal(response.status,400);
     const catalog=await (await invoke(m.courseAdmin,'GET','/api/admin/courses',undefined,bootstrap)).json();assert(!catalog.people.some(p=>p.id===created.site.id));

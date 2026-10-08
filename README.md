@@ -377,3 +377,16 @@ The associated email follows later account email corrections.
 Migration `20261008140000_store-setup` adds nullable store codes and an admin account
 reference, preserving all existing stores. Store codes are unique without regard
 to case. Mutations recheck authority inside a transaction and record the actor.
+
+### Assignment visibility and duplicate feedback
+
+Manage Users → Assign courses shows Already assigned on course rows for a selected
+learner, or a count for several learners. User rows show how many selected courses
+they already have. The preview distinguishes new and existing assignment pairs;
+Assign courses is disabled when no new assignments are needed. Successful saves
+refresh assignment badges while keeping the chosen users.
+
+The API counts actual inserted rows, skips duplicate manual assignments and
+existing audience/induction access, and distinguishes any targets that became
+unavailable. Original assignment dates, progress and certificates are preserved.
+No assignment emails are sent.
