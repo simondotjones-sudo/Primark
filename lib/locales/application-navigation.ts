@@ -1,5 +1,6 @@
 // es | fr | de | it | nl | pt | pl | ro | cs | sk | sl | hu | ar
 export const navigation:Record<string,string>={
+'Powered by EazySafe':'Con tecnología de EazySafe|Propulsé par EazySafe|Bereitgestellt von EazySafe|Realizzato con EazySafe|Mogelijk gemaakt door EazySafe|Com tecnologia EazySafe|Obsługiwane przez EazySafe|Furnizat de EazySafe|Provozuje EazySafe|Prevádzkuje EazySafe|Poganja EazySafe|Az EazySafe támogatásával|بدعم من EazySafe',
 'No matching courses.':'No hay cursos coincidentes.|Aucun cours correspondant.|Keine passenden Kurse.|Nessun corso corrispondente.|Geen overeenkomende cursussen.|Nenhum curso correspondente.|Brak pasujących kursów.|Niciun curs corespunzător.|Žádné odpovídající kurzy.|Žiadne zodpovedajúce kurzy.|Ni ustreznih tečajev.|Nincs megfelelő kurzus.|لا توجد دورات مطابقة.',
 'Choose a store to assign courses.':'Elige una tienda para asignar cursos.|Choisissez un magasin pour attribuer des cours.|Wählen Sie eine Filiale, um Kurse zuzuweisen.|Scegli un negozio per assegnare i corsi.|Kies een winkel om cursussen toe te wijzen.|Escolha uma loja para atribuir cursos.|Wybierz sklep, aby przypisać kursy.|Alege un magazin pentru a atribui cursuri.|Vyberte prodejnu pro přiřazení kurzů.|Vyberte predajňu na priradenie kurzov.|Izberite trgovino za dodelitev tečajev.|Válasszon üzletet a kurzusok hozzárendeléséhez.|اختر متجرًا لتعيين الدورات.',
 
