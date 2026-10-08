@@ -10,11 +10,12 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import {useStores} from '@/components/store-directory';
 import { profileScope, type ReportFilter } from '@/lib/profile';
 import type { ReportingAccess } from '@/lib/reporting-types';
-import { ORIGINAL_INDUCTION, statusLabels, type ReportEmployee, type ReportCourse, type TrainingRecord, type TrainingReport } from '@/lib/training-report-types';
+import { ORIGINAL_INDUCTION, statusLabels, type ReportEmployee, type ReportCourse, type TrainingRecord, type TrainingReport, type TrainingOverview } from '@/lib/training-report-types';
 import { countryName, formatDate } from '@/lib/ui-copy';
 import { languageLocale, type Language } from '@/lib/i18n';
 import './training-report.css';
 import {useLanguage} from '@/components/language-provider';
+import UserActivity from '@/components/user-activity';
 
 type Props={access:ReportingAccess;platformAdmin:boolean;filter:ReportFilter;onFilterChange:(filter:ReportFilter)=>void;lang:Language};
 type Cell={person:ReportEmployee;course:ReportCourse;record?:TrainingRecord};
@@ -26,13 +27,16 @@ export default function TrainingReporting({access,platformAdmin,filter,onFilterC
   const {t,languageName}=useLanguage();
   const stores=useStores(true);
   const scope=profileScope(access,filter,stores);
+  const [overview,setOverview]=useState<TrainingOverview|null>(null);
   const [data,setData]=useState<TrainingReport|null>(null);
+  const [matrixLoading,setMatrixLoading]=useState(false);
+  const [exporting,setExporting]=useState(false);
   const [loading,setLoading]=useState(true);
   const [error,setError]=useState('');
   const [refresh,setRefresh]=useState(0);
   const [category,setCategory]=useState('all');
   const [courseId,setCourseId]=useState('all');
-  const [view,setView]=useState<'overview'|'matrix'>('overview');
+  const [view,setView]=useState<'overview'|'matrix'|'activity'>('overview');
   const [search,setSearch]=useState('');
   const [year,setYear]=useState(String(new Date().getUTCFullYear()));
   const [month,setMonth]=useState('all');
@@ -41,50 +45,68 @@ export default function TrainingReporting({access,platformAdmin,filter,onFilterC
   const [message,setMessage]=useState<LocalizedText>('');
   const [busy,setBusy]=useState(false);
   const isMatrix=view==='matrix'&&filter.role==='site';
+  const isActivity=view==='activity';
   useEffect(()=>{
     const controller=new AbortController();setLoading(true);setError('');setCell(null);
-    fetch('/api/reporting?'+new URLSearchParams(filter),{cache:'no-store',signal:controller.signal}).then(async r=>{const result=await r.json();if(!r.ok)throw new Error(result.error||'Could not load reporting.');return result;}).then(result=>{if(!controller.signal.aborted){setData(result);setLoading(false);}}).catch(e=>{if(e.name!=='AbortError'){setData(null);setError(e.message);setLoading(false);}});
+    fetch('/api/reporting?'+new URLSearchParams({...filter,category,course:courseId}),{cache:'no-store',signal:controller.signal}).then(async r=>{const result=await r.json();if(!r.ok)throw new Error(result.error||'Could not load reporting.');return result;}).then(result=>{if(!controller.signal.aborted){setOverview(result);setLoading(false);}}).catch(e=>{if(e.name!=='AbortError'){setOverview(null);setError(e.message);setLoading(false);}});
     return()=>controller.abort();
-  },[filter.role,filter.country,filter.site,access.scope,access.country,access.siteId,refresh]);
-  useEffect(()=>{if(filter.role!=='site')setView('overview');},[filter.role]);
-  const categories=useMemo(()=>[...new Set(data?.courses.map(c=>c.category)||[])].sort(),[data]);
+  },[filter.role,filter.country,filter.site,access.scope,access.country,access.siteId,category,courseId,refresh]);
+  useEffect(()=>{
+    if(!isMatrix){setData(null);return;}
+    const controller=new AbortController();setMatrixLoading(true);setData(null);setError('');
+    fetch('/api/reporting?'+new URLSearchParams({...filter,view:'matrix'}),{cache:'no-store',signal:controller.signal}).then(async r=>{const result=await r.json();if(!r.ok)throw new Error(result.error||'Could not load reporting.');return result;}).then(result=>{if(!controller.signal.aborted){setData(result);setMatrixLoading(false);}}).catch(e=>{if(e.name!=='AbortError'){setError(e.message);setMatrixLoading(false);}});
+    return()=>controller.abort();
+  },[isMatrix,filter.role,filter.country,filter.site,access.scope,access.country,access.siteId,refresh]);
+  useEffect(()=>{if(filter.role!=='site'&&view==='matrix')setView('overview');},[filter.role,view]);
+  useEffect(()=>{
+    if(!overview)return;
+    if(category!=='all'&&!overview.courses.some(c=>c.category===category)){setCategory('all');setCourseId('all');}
+    else if(courseId!=='all'&&!overview.courses.some(c=>c.id===courseId))setCourseId('all');
+  },[overview,category,courseId]);
+  const categories=useMemo(()=>[...new Set(overview?.courses.map(c=>c.category)||[])].sort(),[overview]);
   const activeCategory=categories.includes(category)?category:'all';
-  const options=useMemo(()=>data?.courses.filter(c=>activeCategory==='all'||c.category===activeCategory)||[],[data,activeCategory]);
+  const options=useMemo(()=>overview?.courses.filter(c=>activeCategory==='all'||c.category===activeCategory)||[],[overview,activeCategory]);
   const activeCourse=options.some(c=>c.id===courseId)?courseId:'all';
   const courses=useMemo(()=>options.filter(c=>activeCourse==='all'||c.id===activeCourse),[options,activeCourse]);
   const courseMap=useMemo(()=>new Map(courses.map(c=>[c.id,c])),[courses]);
   const employees=data?.employees||[];
-  const employeeMap=useMemo(()=>new Map(data?.employees.map(p=>[p.id,p])||[]),[data]);
   const records=useMemo(()=>data?.records.filter(r=>courseMap.has(r.courseId))||[],[data,courseMap]);
   const recordMap=useMemo(()=>new Map(records.map(r=>[key(r.learnerId,r.courseId),r])),[records]);
-  const matchesSearch=(p:ReportEmployee)=>`${p.name} ${p.email} ${p.storeName}`.toLocaleLowerCase().includes(search.trim().toLocaleLowerCase());
+  const matchesSearch=(p:ReportEmployee)=>`${p.name} ${p.email} ${p.workdayId||''} ${p.storeName}`.toLocaleLowerCase().includes(search.trim().toLocaleLowerCase());
   const people=employees.filter(matchesSearch);
-  const visibleRecords=records.filter(r=>{const person=employeeMap.get(r.learnerId);return person&&matchesSearch(person);});
   const inPeriod=(date:string|null)=>!!date&&(year==='all'||(date.slice(0,4)===year&&(month==='all'||Number(date.slice(5,7))===Number(month))));
-  const years=[...new Set([new Date().getUTCFullYear(),...records.filter(r=>r.completedAt).map(r=>Number(r.completedAt!.slice(0,4)))])].sort((a,b)=>b-a);
-  const completed=records.filter(r=>inPeriod(r.completedAt)).length;
+  const years=[...new Set([new Date().getUTCFullYear(),...(overview?.completions||[]).map(r=>Number(r.month.slice(0,4)))])].sort((a,b)=>b-a);
+  const completed=(overview?.completions||[]).filter(r=>inPeriod(r.month)).reduce((sum,r)=>sum+r.count,0);
   const locale=languageLocale(lang);
   const today=new Date();
   const trend=Array.from({length:12},(_,i)=>{
     const d=year==='all'?new Date(Date.UTC(today.getUTCFullYear(),today.getUTCMonth()-11+i,1)):new Date(Date.UTC(Number(year),i,1));
     const monthKey=d.toISOString().slice(0,7);
-    return {label:new Intl.DateTimeFormat(locale,{month:'short',...(year==='all'?{year:'2-digit'}:{})}).format(d),completed:records.filter(r=>r.completedAt?.slice(0,7)===monthKey).length};
+    return {label:new Intl.DateTimeFormat(locale,{month:'short',...(year==='all'?{year:'2-digit'}:{})}).format(d),completed:overview?.completions.find(r=>r.month===monthKey)?.count||0};
   });
   const groups=useMemo(()=>{
     const map=new Map<string,{id:string;label:string;total:number;completed:number;expired:number}>();
-    for(const record of records){const person=employeeMap.get(record.learnerId)!;const id=filter.role==='global'?person.country:person.storeId;const group=map.get(id)||{id,label:filter.role==='global'?countryName(person.country,lang):person.storeName,total:0,completed:0,expired:0};group.total++;if(record.status==='completed')group.completed++;if(record.status==='expired')group.expired++;map.set(id,group);}
+    for(const row of overview?.groups||[]){const id=filter.role==='global'?row.country:row.storeId;const group=map.get(id)||{id,label:filter.role==='global'?countryName(row.country,lang):stores.find(s=>s.id===row.storeId)?.name||row.storeId,total:0,completed:0,expired:0};group.total+=row.total;group.completed+=row.completed;group.expired+=row.expired;map.set(id,group);}
     return [...map.values()].sort((a,b)=>a.label.localeCompare(b.label));
-  },[records,employeeMap,filter.role,lang]);
+  },[overview,filter.role,lang,stores]);
   function changeScope(next:Partial<ReportFilter>){onFilterChange(profileScope(access,{...filter,...next}).filter);setSearch('');}
-  function exportReport(){
-    if(isMatrix){saveCsv('primark-site-matrix.csv',[
-      [t('Employee'),t('Email'),...courses.map(c=>c.title)],
-      ...people.map(p=>[p.name,p.email,...courses.map(c=>{const r=recordMap.get(key(p.id,c.id));return r?t(statusLabels[r.status]):t('Not assigned');})]),
-    ]);return;}
-    saveCsv('primark-training-report.csv',[
-      ['Employee','Email','Country','Store','Course','Category','Status','Completed','Expires','Score','Completion in selected period'].map(key=>t(key)),
-      ...visibleRecords.map(r=>{const p=employeeMap.get(r.learnerId)!;const c=courseMap.get(r.courseId)!;return [p.name,p.email,countryName(p.country,lang),p.storeName,c.title,t(c.category),t(statusLabels[r.status]),r.completedAt,r.expiresAt,r.score,t(inPeriod(r.completedAt)?'Yes':'No')];}),
-    ]);
+  async function exportReport(historical=false){
+    setExporting(true);setError('');
+    try{
+      const response=await fetch('/api/reporting?'+new URLSearchParams({...filter,view:'export',category:activeCategory,course:activeCourse,search:!historical&&isActivity?search.trim():''}),{cache:'no-store'});
+      const report:TrainingReport=await response.json();if(!response.ok)throw new Error((report as unknown as {error:string}).error);
+      if(historical){saveCsv('primark-previous-lms.csv',[['Email','Store','Completed'].map(key=>t(key)),...report.legacy.filter(l=>year==='all'||inPeriod(l.completedAt)).map(l=>[l.email,l.storeName,l.completedAt])]);return;}
+      const byPerson=new Map(report.employees.map(p=>[p.id,p]));
+      const byCourse=new Map(report.courses.map(c=>[c.id,c]));
+      if(isMatrix){const byRecord=new Map(report.records.map(r=>[key(r.learnerId,r.courseId),r]));saveCsv('primark-site-matrix.csv',[
+        [t('Employee'),t('Email'),...courses.map(c=>c.title)],
+        ...report.employees.filter(matchesSearch).map(p=>[p.name,p.email,...courses.map(c=>{const r=byRecord.get(key(p.id,c.id));return r?t(statusLabels[r.status]):t('Not assigned');})]),
+      ]);return;}
+      saveCsv('primark-training-report.csv',[
+        ['Employee','Email','Country','Store','Course','Category','Status','Completed','Expires','Score','Completion in selected period'].map(key=>t(key)),
+        ...report.records.map(r=>{const p=byPerson.get(r.learnerId)!;const c=byCourse.get(r.courseId)!;return [p.name,p.email,countryName(p.country,lang),p.storeName,c.title,t(c.category),t(statusLabels[r.status]),r.completedAt,r.expiresAt,r.score,t(inPeriod(r.completedAt)?'Yes':'No')];}),
+      ]);
+    }catch(e){setError(e instanceof Error?e.message:'Could not load reporting.');}finally{setExporting(false);}
   }
   async function originalAction(action:string,body:Record<string,unknown>={}){
     setBusy(true);setError('');setMessage('');try{const response=await fetch('/api/prototype',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({action,...body})});const result=await response.json();if(!response.ok)throw new Error(result.error);setMessage(action==='import'?{key:'Historical rows imported: {count}.',values:{count:result.imported}}:'Sample learners loaded.');setRefresh(v=>v+1);}catch(e){setError(e instanceof Error?e.message:'Please try again.');}finally{setBusy(false);}
@@ -92,17 +114,17 @@ export default function TrainingReporting({access,platformAdmin,filter,onFilterC
   const statusText=(r?:TrainingRecord)=>r?t(statusLabels[r.status]):t('Not assigned');
   return <section className="report training-report">
     <div className="scope report-scope">
-      <div className="report-view-tabs pill-switch" role="group" aria-label={t('Report format')}><button aria-pressed={!isMatrix} className={!isMatrix?'selected':''} onClick={()=>setView('overview')}>{t('Overview')}</button>{filter.role==='site'&&<button aria-pressed={isMatrix} className={isMatrix?'selected':''} onClick={()=>setView('matrix')}>{t('Site matrix')}</button>}</div>
+      <div className="report-view-tabs pill-switch" role="group" aria-label={t('Report format')}><button aria-pressed={view==='overview'} className={view==='overview'?'selected':''} onClick={()=>setView('overview')}>{t('Overview')}</button>{filter.role==='site'&&<button aria-pressed={isMatrix} className={isMatrix?'selected':''} onClick={()=>setView('matrix')}>{t('Site matrix')}</button>}<button aria-pressed={isActivity} className={isActivity?'selected':''} onClick={()=>setView('activity')}>{t('User activity')}</button></div>
       <div className="report-location">
         <label><span className="sr-only">{t('Country')}</span><NativeSelect aria-label={t('Reporting country')} value={filter.role==='global'?'all':filter.country} disabled={filter.role==='global'||scope.countries.length<2} onChange={e=>changeScope({country:e.target.value})}>{filter.role==='global'?<option value="all">{t('All countries')}</option>:scope.countries.map(c=><option key={c} value={c}>{countryName(c,lang)}</option>)}</NativeSelect></label>
         <label className="store-picker"><span className="sr-only">{t('Store')}</span><NativeSelect aria-label={t('Reporting store')} value={filter.role==='site'?filter.site:'all'} disabled={filter.role!=='site'||scope.sites.length<2} onChange={e=>changeScope({site:e.target.value})}>{filter.role!=='site'?<option value="all">{t('All stores')}</option>:scope.sites.map(s=><option key={s.id} value={s.id}>{s.name}</option>)}</NativeSelect></label>
       </div>
       <div className="scope-buttons pill-switch" role="group" aria-label={t('Reporting view')}>{scope.roles.map(role=><button key={role} aria-pressed={filter.role===role} className={filter.role===role?'selected':''} onClick={()=>changeScope({role})}>{t(role==='global'?'Global':role==='country'?'Country':'Store')}</button>)}</div>
     </div>
-    <div className="report-filters">
+    <div className={"report-filters"+(isActivity?" activity-filters":"")}>
       <label>{t('Category')}<NativeSelect aria-label={t('Course category')} disabled={loading} value={activeCategory} onChange={e=>{setCategory(e.target.value);setCourseId('all');setCell(null);}}><option value="all">{t('All categories')}</option>{categories.map(c=><option key={c} value={c}>{t(c)}</option>)}</NativeSelect></label>
       <label className="course-filter">{t('Course')}<NativeSelect aria-label={t('Reporting course')} disabled={loading} value={activeCourse} onChange={e=>{setCourseId(e.target.value);setCell(null);}}><option value="all">{t('All courses')}</option>{options.map(c=><option key={c.id} value={c.id}>{c.title}{c.paused?' · '+t('Paused'):''}</option>)}</NativeSelect></label>
-      <fieldset className={'completion-period'+(isMatrix?' is-inactive':'')} disabled={loading||isMatrix} aria-hidden={isMatrix} inert={isMatrix}>
+      <fieldset className={'completion-period'+(view!=='overview'?' is-inactive':'')} disabled={loading||view!=='overview'} aria-hidden={view!=='overview'} inert={view!=='overview'}>
         <legend>{t('Completion period')}</legend>
         <div className="completion-period-inputs">
           <label><span className="sr-only">{t('Year')}</span><NativeSelect aria-label={t('Completion year')} value={year} onChange={e=>{setYear(e.target.value);setMonth('all');}}><option value="all">{t('All time')}</option>{[...new Set([...years,Number(year)])].filter(Number.isFinite).sort((a,b)=>b-a).map(y=><option key={y} value={y}>{y}</option>)}</NativeSelect></label>
@@ -112,27 +134,26 @@ export default function TrainingReporting({access,platformAdmin,filter,onFilterC
       <button className={'report-reset'+(activeCategory==='all'&&activeCourse==='all'?' is-hidden':'')} disabled={loading||(activeCategory==='all'&&activeCourse==='all')} aria-hidden={activeCategory==='all'&&activeCourse==='all'} onClick={()=>{setCategory('all');setCourseId('all');}}><X size={14}/>{t('Clear')}</button>
     </div>
     {error&&<div className="error" role="alert">{t(error)}<Button variant="outline" onClick={()=>setRefresh(v=>v+1)}>{t('Try again')}</Button></div>}
-    <div className="report-results" aria-busy={loading}>
-    {loading&&<div className={data?'report-refreshing':'paper report-loading'} role="status">{t('Loading training records…')}</div>}
-    {data&&<div className="report-results-content" aria-hidden={loading} inert={loading}>
-    {isMatrix?<div className="paper matrix-card">
+    <div className="report-results" aria-busy={loading||(isMatrix&&matrixLoading)}>
+    {(loading||(isMatrix&&matrixLoading))&&<div className={overview?'report-refreshing':'paper report-loading'} role="status">{t('Loading training records…')}</div>}
+    {overview&&<div className="report-results-content" aria-hidden={loading||(isMatrix&&matrixLoading)} inert={loading||(isMatrix&&matrixLoading)}>
+    {isActivity?<UserActivity key={JSON.stringify([filter,activeCategory,activeCourse,access,refresh])} filter={filter} category={activeCategory} courseId={activeCourse} search={search} onSearch={setSearch} lang={lang}/>:isMatrix?<div className="paper matrix-card">
       <div className="people-head"><div><h2>{t('Site matrix')}</h2><p>{scope.sites.find(s=>s.id===filter.site)?.name} · {people.length} {t('employees')} · {courses.length} {t('courses')}</p></div><EmployeeSearch value={search} onChange={setSearch} label={t('Search employees')}/></div>
       <div className="matrix-legend">{Object.entries(statusLabels).map(([status,label])=><span key={status}><i aria-hidden="true" className={'training-dot '+status}/>{t(label)}</span>)}<span><i className="unassigned-mark" aria-hidden="true">—</i>{t('Not assigned')}</span></div>
       <div className="matrix-scroll" tabIndex={0} role="region" aria-label={t('Employee training matrix')}>
         {people.length&&courses.length?<table className="training-matrix"><caption className="sr-only">{t('Current training status. Select a dot to see completion and expiry dates.')}</caption><thead><tr><th scope="col" className="employee-column">{t('Employee')}</th>{courses.map(c=><th scope="col" key={c.id}><span title={c.title}>{c.title}</span><small>{t(c.category)}{c.paused?' · '+t('Paused'):''}</small></th>)}</tr></thead><tbody>{people.map(p=><tr key={p.id}><th scope="row" className="employee-column"><strong dir="auto">{p.name}</strong><small dir="ltr">{p.email}</small></th>{courses.map(c=>{const r=recordMap.get(key(p.id,c.id));return <td key={c.id}><button className="matrix-cell" onClick={()=>setCell({person:p,course:c,record:r})} aria-label={`${p.name}, ${c.title}: ${statusText(r)}`} title={statusText(r)}>{r?<i className={'training-dot '+r.status} aria-hidden="true"/>:<span className="unassigned-mark" aria-hidden="true">—</span>}</button></td>;})}</tr>)}</tbody></table>:<div className="empty">{!courses.length?t('No courses match this view.'):t('No employees match this view.')}</div>}
       </div><p className="matrix-hint">{t('Current status · Select a dot for details')}{courses.length>5?' · '+t('Scroll across for more courses'):''}</p>
     </div>:<>
-      <div className="metrics"><ReportMetric label={t('Employees')} value={new Set(records.map(r=>r.learnerId)).size} detail={`${records.length} ${t('course records')}`}/><ReportMetric label={t('In progress')} value={records.filter(r=>r.status==='in-progress').length} detail={t('Courses underway now')}/><ReportMetric label={t('Completed')} value={completed} detail={t('Completions in selected period')} blue/><ReportMetric label={t('Expired')} value={records.filter(r=>r.status==='expired').length} detail={t('Require renewal now')}/></div>
+      <div className="metrics"><ReportMetric label={t('Employees')} value={overview.metrics.employees} detail={`${overview.metrics.records} ${t('course records')}`}/><ReportMetric label={t('In progress')} value={overview.metrics.inProgress} detail={t('Courses underway now')}/><ReportMetric label={t('Completed')} value={completed} detail={t('Completions in selected period')} blue/><ReportMetric label={t('Expired')} value={overview.metrics.expired} detail={t('Require renewal now')}/></div>
       <div className="paper trend-card"><div className="card-head"><div><h2>{t('Course completions')}</h2><p>{year==='all'?t('Last 12 months'):year} · {t('Monthly trend')}</p></div><span className="trend-key"><i className="completed-key"/>{t('Completed')}</span></div><div className="trend-chart" role="img" aria-label={trend.map(v=>`${v.label}: ${v.completed}`).join(', ')} dir="ltr"><ResponsiveContainer width="100%" height="100%"><LineChart data={trend} margin={{top:14,right:15,bottom:0,left:-18}}><CartesianGrid stroke="#e9eff3" vertical={false}/><XAxis dataKey="label" tickLine={false} axisLine={false} tick={{fill:'#748a97',fontSize:12}}/><YAxis allowDecimals={false} tickLine={false} axisLine={false} tick={{fill:'#748a97',fontSize:12}}/><Tooltip contentStyle={{borderRadius:12,border:'1px solid #dce8ef'}}/><Line type="monotone" dataKey="completed" name={t('Completed')} stroke="#008bc9" strokeWidth={3} dot={{r:3}} isAnimationActive={false}/></LineChart></ResponsiveContainer></div></div>
       {filter.role!=='site'&&<div className="paper report-breakdown"><div className="card-head"><div><h2>{t(filter.role==='global'?'By country':'By store')}</h2><p>{t('Current course status')}</p></div><Store/></div><div className="table-scroll"><table><thead><tr><th>{t(filter.role==='global'?'Country':'Store')}</th><th>{t('Course records')}</th><th>{t('Completed')}</th><th>{t('Expired')}</th></tr></thead><tbody>{groups.map(g=><tr key={g.id}><td><button className="report-drill" onClick={()=>filter.role==='global'?changeScope({role:'country',country:g.id}):changeScope({role:'site',site:g.id})}>{g.label}</button></td><td>{g.total}</td><td><b className="count-pill">{g.completed}</b></td><td>{g.expired||'—'}</td></tr>)}</tbody></table>{!groups.length&&<div className="empty">{t('No training records in this view yet.')}</div>}</div></div>}
-      <div className="paper people report-people"><div className="people-head"><div><h2>{t('Course activity')}</h2><p>{t('Current status for each employee and course')}</p></div><EmployeeSearch value={search} onChange={setSearch} label={t('Search employees')}/></div><div className="table-scroll"><table><thead><tr><th>{t('Employee')}</th><th>{t('Course')}</th><th>{t('Status')}</th><th>{t('Completed')}</th><th>{t('Expires')}</th></tr></thead><tbody>{visibleRecords.map(r=>{const p=employeeMap.get(r.learnerId)!;const c=courseMap.get(r.courseId)!;return <tr key={key(r.learnerId,r.courseId)}><td><strong dir="auto">{p.name}</strong><small>{p.storeName}</small></td><td>{c.title}<small>{t(c.category)}</small></td><td><span className="training-status"><i className={'training-dot '+r.status} aria-hidden="true"/>{statusText(r)}</span></td><td>{formatDate(r.completedAt,lang)}</td><td>{r.expiresAt?formatDate(r.expiresAt,lang):'—'}</td></tr>;})}</tbody></table>{!visibleRecords.length&&<div className="empty">{t('No training records match this view.')}</div>}</div></div>
       <p className="report-note">{t('Dates filter the Completed total. The trend shows the selected year; employee counts and statuses show the current position.')}</p>
-      {data.legacy.length>0&&(activeCategory==='all'||activeCategory==='Induction')&&(activeCourse==='all'||activeCourse===ORIGINAL_INDUCTION)&&<details className="paper legacy-report"><summary>{t('Previous LMS')} · {data.legacy.filter(l=>year==='all'||inPeriod(l.completedAt)).length} {t('historical completions')}</summary><p>{t('Historical induction imports are kept separate from current course completion.')}</p><Button variant="outline" onClick={()=>saveCsv('primark-previous-lms.csv',[['Email','Store','Completed'].map(key=>t(key)),...data.legacy.filter(l=>year==='all'||inPeriod(l.completedAt)).map(l=>[l.email,l.storeName,l.completedAt])])}><Download/>{t('Export CSV')}</Button></details>}
+      {overview.legacy.length>0&&(activeCategory==='all'||activeCategory==='Induction')&&(activeCourse==='all'||activeCourse===ORIGINAL_INDUCTION)&&<details className="paper legacy-report"><summary>{t('Previous LMS')} · {overview.legacy.filter(l=>year==='all'||inPeriod(l.month)).reduce((sum,l)=>sum+l.count,0)} {t('historical completions')}</summary><p>{t('Historical induction imports are kept separate from current course completion.')}</p><Button variant="outline" disabled={exporting} onClick={()=>void exportReport(true)}><Download/>{t('Export CSV')}</Button></details>}
     </>}
     </div>}
     </div>
-    {platformAdmin&&!isMatrix&&<details className="paper import original-tools"><summary>{t('Original induction tools')}</summary><Button variant="outline" disabled={busy} onClick={()=>originalAction('seed')}>{t('Load sample learners')}</Button><p>{t('Import previous LMS completions')} · <code>email,completed,completed_at,site_id</code></p><textarea aria-label={t('Previous LMS CSV')} value={csv} onChange={e=>setCsv(e.target.value)} placeholder="email,completed,completed_at,site_id"/><div><label className="file-label">{t('Choose CSV file')}<input type="file" accept=".csv,text/csv" onChange={async e=>{const f=e.target.files?.[0];if(f)setCsv(await f.text());}}/></label><Button disabled={!csv||busy} onClick={()=>{try{void originalAction('import',{records:parseCsv(csv)});}catch(e){setError(e instanceof Error?e.message:'Check the CSV.');}}}>{t('Import CSV')}</Button><span role="status">{t(message)}</span></div></details>}
-    <div className="report-export"><Button variant="outline" disabled={loading||!data} onClick={exportReport}><Download/>{t('Export CSV')}</Button></div>
+    {platformAdmin&&view==='overview'&&<details className="paper import original-tools"><summary>{t('Original induction tools')}</summary><Button variant="outline" disabled={busy} onClick={()=>originalAction('seed')}>{t('Load sample learners')}</Button><p>{t('Import previous LMS completions')} · <code>email,completed,completed_at,site_id</code></p><textarea aria-label={t('Previous LMS CSV')} value={csv} onChange={e=>setCsv(e.target.value)} placeholder="email,completed,completed_at,site_id"/><div><label className="file-label">{t('Choose CSV file')}<input type="file" accept=".csv,text/csv" onChange={async e=>{const f=e.target.files?.[0];if(f)setCsv(await f.text());}}/></label><Button disabled={!csv||busy} onClick={()=>{try{void originalAction('import',{records:parseCsv(csv)});}catch(e){setError(e instanceof Error?e.message:'Check the CSV.');}}}>{t('Import CSV')}</Button><span role="status">{t(message)}</span></div></details>}
+    <div className="report-export"><Button variant="outline" disabled={loading||!overview||exporting||(isMatrix&&matrixLoading)||(isActivity&&!search.trim())} onClick={()=>void exportReport()}><Download/>{t('Export CSV')}</Button></div>
     <Dialog open={!!cell} onOpenChange={open=>{if(!open)setCell(null);}}><DialogContent className="training-detail"><DialogHeader><DialogTitle>{cell?.person.name}</DialogTitle><DialogDescription>{cell?.course.title}</DialogDescription></DialogHeader>{cell&&<><div className="training-status detail-status">{cell.record?<i aria-hidden="true" className={'training-dot '+cell.record.status}/>:<span aria-hidden="true">—</span>}{statusText(cell.record)}</div><dl><div><dt>{t('Completed')}</dt><dd>{formatDate(cell.record?.completedAt||null,lang)}</dd></div><div><dt>{t('Expires')}</dt><dd>{cell.record?.expiresAt?formatDate(cell.record.expiresAt,lang):cell.record?.completedAt&&!cell.course.validityMonths?t('No expiry'):'—'}</dd></div>{cell.record?.score&&<div><dt>{t('Score')}</dt><dd>{cell.record.score}</dd></div>}<div><dt>{t('Language')}</dt><dd>{languageName(cell.course.language)}</dd></div></dl></>}</DialogContent></Dialog>
   </section>;
 }

@@ -270,3 +270,31 @@ normal login, personal-learning denial at every admin level, bulk assignment
 exclusion, promotion during an active course, retained historical certificates,
 and immediate permission revocation. Existing reporting fixtures now use separate
 admin and learner accounts, matching the new account model.
+
+### Reporting overview and User activity
+
+Reporting opens on **Overview**. Its API response contains aggregate counts, monthly
+completion totals, store/country breakdowns and course options, without employee or
+individual training rows. Counts and dates retain their previous meanings; searching
+for a person does not change dashboard totals. Aggregation now runs in PostgreSQL.
+
+**User activity** sits beside Overview and the store-only Site matrix. It opens with
+an empty search prompt. Search is case-insensitive by name, email or Workday ID;
+only matching users' course records are fetched, 25 per page. Category, course and
+location filters apply. Search input is debounced, obsolete requests are cancelled,
+and changing scope or filters resets pagination. No training-data request is made
+for an empty search. All views enforce the same admin permissions and learner-only
+exclusions on the server. Search treats punctuation literally.
+
+The Site matrix loads its detailed rows only when selected and the API requires a
+store scope. CSV exports explicitly fetch the selected scope/filter (all matching
+activity results, not just the current page). Historical LMS details are fetched
+only for an export or the store matrix; Overview receives historical totals only.
+Issued certificate expiry, pinned induction, paused-course evidence and current
+SCO completion rules share one reporting query. Migration
+`20261008110000_reporting-scope-index` adds a store lookup index without changing data.
+
+Checks cover search scope, no initial results, 25-row pagination across 1,000 matches,
+aggregate/detail parity, filters, literal search, expiry snapshots, pinned courses,
+missing dates, stale SCOs and revoked access. This is functional validation, not a
+production-scale load test.

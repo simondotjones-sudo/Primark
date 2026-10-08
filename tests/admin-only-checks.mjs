@@ -81,7 +81,7 @@ export async function adminOnlyChecks({m,check,query,invoke,loginAdmin,cookieFro
       for(const body of [{action:'view',key:'welcome'},{action:'submit',answers:m.lessons.questions.map(q=>q.correct)}])
         assert.equal((await invoke(m.prototype,'POST','/api/prototype',body,cookie)).status,403);
       assert.equal((await invoke(m.scorm,'POST','/api/scorm',{action:'launch',courseId:'legacy-154'},cookie)).status,403);
-      const report=await invoke(m.reporting,'GET','/api/reporting',undefined,cookie);assert.equal(report.status,200);
+      const report=await invoke(m.reporting,'GET','/api/reporting?view=export',undefined,cookie);assert.equal(report.status,200);
       const data=await report.json();assert(!data.employees.some(p=>Object.values(created).filter(p=>p.adminOnly).some(a=>a.id===p.id)));
     }
     assert.equal((await invoke(m.courses,'GET','/api/courses',undefined,created.ordinary.cookie)).status,200);
@@ -111,7 +111,7 @@ export async function adminOnlyChecks({m,check,query,invoke,loginAdmin,cookieFro
     assert.deepEqual(await query('SELECT * FROM scorm_progress WHERE learner_id=?',id).all(),before);
     assert.deepEqual(await query('SELECT * FROM certificates WHERE learner_id=?',id).all(),certs);
     assert.equal((await me(cookie)).learner,null);
-    const report=await (await invoke(m.reporting,'GET','/api/reporting',undefined,bootstrap)).json();assert(!report.employees.some(p=>p.id===id));assert(!report.records.some(p=>p.learnerId===id));
+    const report=await (await invoke(m.reporting,'GET','/api/reporting?view=export',undefined,bootstrap)).json();assert(!report.employees.some(p=>p.id===id));assert(!report.records.some(p=>p.learnerId===id));
   });
   await check('Creation rights are revoked immediately with the existing session',async()=>{
     const {id,cookie}=created['site-peer'];

@@ -1,12 +1,21 @@
 export const ORIGINAL_INDUCTION = 'original-safety-passport';
 export type TrainingStatus = 'completed' | 'expired' | 'in-progress' | 'not-started';
 export type ReportCourse = { id:string; title:string; category:string; language:string; paused:boolean; validityMonths:number|null };
-export type ReportEmployee = { id:string; name:string; email:string; country:string; storeId:string; storeName:string };
+export type ReportEmployee = { id:string; name:string; email:string; workdayId:string|null; country:string; storeId:string; storeName:string };
 export type TrainingRecord = { learnerId:string; courseId:string; status:TrainingStatus; completedAt:string|null; expiresAt:string|null; score:string|null };
 export type TrainingReport = {
   courses:ReportCourse[]; employees:ReportEmployee[]; records:TrainingRecord[];
   generatedAt:string; legacy:{email:string;completedAt:string|null;storeName:string}[];
 };
+export type ReportSelection = {category:string;courseId:string};
+export type TrainingOverview = {
+  courses:ReportCourse[]; generatedAt:string;
+  metrics:{employees:number;records:number;inProgress:number;expired:number};
+  completions:{month:string;count:number}[];
+  groups:{country:string;storeId:string;total:number;completed:number;expired:number}[];
+  legacy:{month:string|null;count:number}[];
+};
+export type TrainingActivity = Pick<TrainingReport,'courses'|'employees'|'records'|'generatedAt'> & {page:number;pageSize:number;hasMore:boolean};
 export const statusLabels:Record<TrainingStatus,string> = {completed:'Completed',expired:'Expired','in-progress':'In progress','not-started':'Not started'};
 // Clamp to the last day of the expiry month (31 January + 1 month = 28/29 February).
 export function completionExpiry(completedAt:string|null, months:number|null):string|null {
