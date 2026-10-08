@@ -394,3 +394,51 @@ No assignment emails are sent.
 ### User creation and login dates
 
 Manage Users shows each account’s existing creation date (`entered_at`) and latest successful sign-in date, in the selected interface language. The nullable `last_login_at` field is updated atomically when creating a learner/account session, including registration and legacy password setup. Failed logins, page views, password recovery and logout do not update it; logout and account archival preserve it. Learner, store, country, organisation and granted platform-admin accounts use this tracking. The hosting-configured bootstrap admin has no user-list record. Existing accounts show “No login recorded” until their next successful sign-in, because historical sign-in dates were not stored. Login timestamps do not change the user edit revision.
+
+### Store credits and fiscal period reporting
+
+Migration `20261008160000_period-credits` starts credit accounting at deployment.
+Existing assignments, audience access and pinned inductions are retained without
+retrospective charges. New assignments consume one credit immediately; duplicate
+requests preserve the original assignment date and do not charge again. Default
+pricing is EUR 3.25, snapshotted on each assignment.
+
+Manage Users → Assign courses shows the store balance and current/removed
+assignments. Store Managers and platform admins can remove a current assignment
+within 336 hours, with a required reason. Only unstarted, billed assignments return
+a credit and reverse their original charge. Any SCORM launch counts as a start,
+even at zero seconds. Removal retains audit details and training evidence. Renewing
+an expired certificate creates a separate assignment; cancelling that renewal
+restores the previous progress and certificate, including its original expiry.
+Old launch tokens cannot write into a restored or replacement assignment.
+
+New stores receive 100 credits, or 300 for United States stores. The hourly Netlify
+scheduled function restores active stores to that allowance at each accounting
+period start, retaining any surplus and recording each top-up once. Assignment
+creation also catches up missed scheduled top-ups. A platform admin can replenish
+a store early through Reporting → Period report → Credit settings with a store
+selected. If no credits remain, a new assignment is rejected atomically; no partial
+bulk charge or partially registered learner is committed.
+
+Reporting → Period report defaults to the last completed period (the current
+period before the first close). The seeded 2026/2027 calendar runs from 13 September
+2026 to 18 September 2027: thirteen periods, with week 53 included in Period 13.
+Dates and top-ups use Europe/London. The report includes every store in the chosen
+reporting scope, including zero-activity stores, with country and overall totals.
+Assignments and completions are grouped by assignment period; completion status is
+measured at period end. Refunds are recorded in the removal period at the original
+price, so a later period can have a negative net charge.
+
+Only platform admins receive price/value fields, including in API responses and
+Excel exports. The platform export has an optional yellow EUR unit-price override
+in B4 and formulas for values/totals; leaving B4 blank retains recorded prices.
+Changing the workbook does not change accounting data. Credit settings supports
+prospective price changes and adding a future 13-period calendar, optionally with
+week 53. Add the next fiscal calendar before the current one ends so automatic
+top-ups continue. The scheduled function runs on the published deployment; deploy
+previews do not run it.
+
+`node tests/credits-check.mjs` checks migration preservation, immediate charging,
+refund boundaries, renewal restoration, stale launches, top-ups, fiscal dates,
+zero-activity stores, reconciliation, role restrictions and Excel price isolation
+in an isolated PostgreSQL-compatible database.

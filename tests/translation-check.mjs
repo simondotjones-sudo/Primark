@@ -30,7 +30,7 @@ try {
     'Valid','Expiring soon','Expired','Not started','In progress','Completed','not attempted','incomplete','browsed','passed','failed','draft','published',
     'Required','Optional photo','Reuse existing shots','Screenshot later','Preview','Saved','Saving…','Not saved','Autosave on',
     'Preview — progress is not recorded','Your progress is saved','Your progress saves as you learn',
-    'Employee','Email','Country','Store','Course','Category','Status','Completed','Expires','Score','Completion in selected period','Close'])keys.add(value);
+    'Assignments','Refunds','Net chargeable','Non completions','Removed','Closing credits','Value EUR','Assigned','Employee','Email','Country','Store','Course','Category','Status','Completed','Expires','Score','Completion in selected period','Close'])keys.add(value);
   // Password and registration validation must not fall back to English after an API failure.
   for(const file of ['lib/organisation-administration.ts','lib/user-access.ts','app/api/reporting/route.ts','app/api/users/route.ts','lib/user-administration.ts','app/api/admin/organisation/route.ts','app/api/password-recovery/route.ts','lib/password-recovery.ts','app/api/shot-list/route.ts','app/api/shot-list/photos/route.ts','app/api/prototype/route.ts','lib/course-admin.ts','app/api/store/route.ts','app/api/admin/reporting-access/route.ts']){
     const sf=ts.createSourceFile(file,readFileSync(file,'utf8'),ts.ScriptTarget.Latest,true);

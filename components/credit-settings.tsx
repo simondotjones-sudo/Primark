@@ -1,0 +1,19 @@
+'use client';
+import {useState} from 'react';
+import {Button} from '@/components/ui/button';
+import {Input} from '@/components/ui/input';
+import {useLanguage} from '@/components/language-provider';
+import type {ReportFilter} from '@/lib/profile';
+export default function CreditSettings({filter,onChange}:{filter:ReportFilter;onChange:()=>void}){
+ const {t,date}=useLanguage();
+ const [rates,setRates]=useState<{id:string;cents:number;effectiveAt:string}[]>([]),[amount,setAmount]=useState('3.25'),[effective,setEffective]=useState(''),[reason,setReason]=useState(''),[error,setError]=useState(''),[busy,setBusy]=useState(false),[message,setMessage]=useState(''),[start,setStart]=useState(''),[year,setYear]=useState(''),[week53,setWeek53]=useState(false);
+ async function load(){try{const r=await fetch('/api/admin/credits',{cache:'no-store'});const d=await r.json();if(!r.ok)throw new Error(d.error);setRates(d.rates);}catch(e){setError(e instanceof Error?e.message:'Please try again.');}}
+ async function save(body:object){setBusy(true);setError('');setMessage('');try{const r=await fetch('/api/admin/credits',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});const d=await r.json();if(!r.ok)throw new Error(d.error);setMessage('Saved');await load();onChange();}catch(e){setError(e instanceof Error?e.message:'Please try again.');}finally{setBusy(false);}}
+ function calendar(){const day=new Date(start+'T00:00:00Z').getTime();if(!Number.isFinite(day))return;const periods=Array.from({length:13},(_,i)=>({startsOn:new Date(day+i*28*86400000).toISOString().slice(0,10),endsOn:new Date(day+((i+1)*28-1+(i===12&&week53?7:0))*86400000).toISOString().slice(0,10)}));void save({action:'calendar',yearLabel:year,periods});}
+ return <details className="paper credit-settings" onToggle={e=>{if(e.currentTarget.open)void load();}}><summary>{t('Credit settings')}</summary>
+ {error&&<p role="alert" className="error">{t(error)}</p>}{message&&<p role="status">{t(message)}</p>}
+ <form onSubmit={e=>{e.preventDefault();void save({action:'price',cents:Math.round(Number(amount)*100),effectiveAt:new Date(effective).toISOString()});}}><h3>{t('Unit price EUR')}</h3><p>{rates.map(r=><span className="credit-rate" key={r.id}>{(r.cents/100).toFixed(2)} · {date(r.effectiveAt)}</span>)}</p><div className="credit-setting-fields"><label>{t('Unit price EUR')}<Input type="number" required min="0" max="10000" step="0.01" value={amount} onChange={e=>setAmount(e.target.value)}/></label><label>{t('Effective from')}<Input type="datetime-local" required value={effective} onChange={e=>setEffective(e.target.value)}/></label><Button disabled={busy} type="submit">{t('Save price')}</Button></div><p>{t('New prices apply to future assignments. Existing charges and refunds keep their original price.')}</p></form>
+ {filter.role==='site'&&<form onSubmit={e=>{e.preventDefault();void save({action:'topup',storeId:filter.site,reason});}}><h3>{t('Restore store credits')}</h3><div className="credit-setting-fields"><label>{t('Reason')}<Input required minLength={3} maxLength={500} value={reason} onChange={e=>setReason(e.target.value)}/></label><Button disabled={busy} type="submit">{t('Top up to allowance')}</Button></div></form>}
+ <form onSubmit={e=>{e.preventDefault();calendar();}}><h3>{t('Add accounting year')}</h3><div className="credit-setting-fields"><label>{t('Accounting year')}<Input required pattern="[0-9]{4}/[0-9]{4}" placeholder="2027/2028" value={year} onChange={e=>setYear(e.target.value)}/></label><label>{t('First Sunday')}<Input required type="date" value={start} onChange={e=>setStart(e.target.value)}/></label><label className="credit-checkbox"><input type="checkbox" checked={week53} onChange={e=>setWeek53(e.target.checked)}/>{t('Include week 53 in Period 13')}</label><Button disabled={busy} type="submit">{t('Save calendar')}</Button></div></form>
+ </details>;
+}

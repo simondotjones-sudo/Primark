@@ -1,4 +1,5 @@
 'use client';
+import AssignmentHistory from '@/components/assignment-history';
 import UserDirectory from '@/components/user-directory';
 import {useCallback,useEffect,useRef,useState} from 'react';
 import {useLanguage} from '@/components/language-provider';
@@ -21,6 +22,7 @@ export default function ManageUsers(){
  const [view,setView]=useState('users'),[country,setCountry]=useState(''),[storeId,setStoreId]=useState('');
  const [data,setData]=useState<Data|null>(null),[loading,setLoading]=useState(true),[busy,setBusy]=useState(false),[error,setError]=useState(''),[notice,setNotice]=useState<LocalizedText>('');
  const [query,setQuery]=useState(''),[courseQuery,setCourseQuery]=useState(''),[users,setUsers]=useState<string[]>([]),[courses,setCourses]=useState<string[]>([]),[all,setAll]=useState(false);
+ const [assignmentRefresh,setAssignmentRefresh]=useState(0);
  const generation=useRef(0),feedback=useRef<HTMLDivElement>(null);
  const load=useCallback(async()=>{
    if(view!=='assign'||!canAssign)return;
@@ -38,7 +40,7 @@ export default function ManageUsers(){
  async function assign(){
    if(!data?.store)return;
    setBusy(true);setError('');setNotice('');
-   try{const r=await fetch('/api/store',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({courseIds:courses,userIds:users,allUsers:all,...(platformAdmin?{storeId:data.store.id}:{})})});const result=await r.json();if(!r.ok)throw new Error(result.error);setData(current=>current?{...current,assignments:[...current.assignments.filter(a=>!(all?data.people.map(p=>p.id):users).includes(a.learner_id)),...result.assignments]}:current);setNotice(result.unavailable?{key:'New assignments: {added}. Already assigned: {already}. Unavailable: {unavailable}. Refresh and try again.',values:{added:result.added,already:result.alreadyAssigned,unavailable:result.unavailable}}:result.added?{key:'New assignments: {added}. Already assigned and skipped: {already}.',values:{added:result.added,already:result.alreadyAssigned}}:'Already assigned — no changes made.');setCourses([]);}
+   try{const r=await fetch('/api/store',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({courseIds:courses,userIds:users,allUsers:all,...(platformAdmin?{storeId:data.store.id}:{})})});const result=await r.json();if(!r.ok)throw new Error(result.error);setData(current=>current?{...current,assignments:[...current.assignments.filter(a=>!(all?data.people.map(p=>p.id):users).includes(a.learner_id)),...result.assignments]}:current);setNotice(result.unavailable?{key:'New assignments: {added}. Already assigned: {already}. Unavailable: {unavailable}. Refresh and try again.',values:{added:result.added,already:result.alreadyAssigned,unavailable:result.unavailable}}:result.added?{key:'New assignments: {added}. Already assigned and skipped: {already}.',values:{added:result.added,already:result.alreadyAssigned}}:'Already assigned — no changes made.');setCourses([]);setAssignmentRefresh(v=>v+1);}
    catch(e){setError(e instanceof Error?e.message:'Please try again.');}
    finally{setBusy(false);}
  }
@@ -62,6 +64,7 @@ export default function ManageUsers(){
  <section className="paper user-panel"><h2>{t('Users')}</h2><Input type="search" value={query} onChange={e=>setQuery(e.target.value)} aria-label={t('Search users')} placeholder={t('Find a user')}/><label className="selection-label"><Checkbox disabled={busy||!data.people.length} checked={all} onCheckedChange={value=>setAll(value===true)}/>{t('All users in this store (')}{data.people.length})</label><div className="user-selections">{shown.map(person=><label className="user-selection" key={person.id}><Checkbox disabled={busy||all} checked={all||users.includes(person.id)} onCheckedChange={()=>toggle(person.id,users,setUsers)}/><span><strong>{person.name}</strong><small>{person.email}</small>{courses.length>0&&<small className="assignment-state">{t('Already assigned: {assigned} of {courses}',{assigned:courses.filter(id=>assigned.has(person.id+'\0'+id)).length,courses:courses.length})}</small>}</span></label>)}</div>{!shown.length&&<p className="empty">{t(data.people.length?'No accounts match your search.':'Users appear here after registering for this store.')}</p>}</section>
  <section className="paper user-panel"><h2>{t('Country course library')}</h2><Input type="search" value={courseQuery} onChange={e=>setCourseQuery(e.target.value)} aria-label={t('Search courses')} placeholder={t('Search courses')}/><div className="user-selections">{visibleCourses.map(course=><label className="user-selection" key={course.id}><Checkbox disabled={busy||(selectedUsers.length>0&&assignmentCount(course.id)===selectedUsers.length&&!courses.includes(course.id))} checked={courses.includes(course.id)} onCheckedChange={()=>toggle(course.id,courses,setCourses)}/><span><strong>{course.title}</strong><small>{t(course.category)} · {languageName(course.languageCode)}</small>{selectedUsers.length>0&&assignmentCount(course.id)>0&&<small className="assignment-state">{t(selectedUsers.length===1?'Already assigned':{key:'Already assigned to {assigned} of {users} users',values:{assigned:assignmentCount(course.id),users:selectedUsers.length}})}</small>}</span></label>)}</div>{!visibleCourses.length&&<p className="empty">{t(data.courses.length?'No matching courses.':'No courses have been published for this country yet.')}</p>}</section>
  </div><div className="editor-actions user-assignment-actions"><span aria-live="polite">{t({key:'New assignments: {added}. Already assigned: {already}.',values:{added:newCount,already:existingCount}})}</span><Button className="blue-button" disabled={busy||!courses.length||(!all&&!users.length)||!data.people.length||newCount===0} onClick={()=>void assign()}>{t(busy?'Assigning…':'Assign courses')}</Button></div>
+ <AssignmentHistory storeId={data.store.id} learnerId={selectedUsers.length===1?selectedUsers[0]:''} refresh={assignmentRefresh} onChange={message=>{setNotice(message);setAssignmentRefresh(v=>v+1);void load();}}/>
  </>:<p className="paper user-panel">{t('Choose a store to assign courses.')}</p>)}</TabsContent>
  </Tabs></div>;
 }

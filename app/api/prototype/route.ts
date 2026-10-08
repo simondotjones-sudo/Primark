@@ -1,3 +1,4 @@
+import {syncAssignments,creditError} from '@/lib/credits';
 import { learnerOnlySql } from "@/lib/account-type";
 import { allowLoginAttempt, ADMIN_COOKIE, credentials, getAdminUser, passwordMatches, safeReturnTo } from '@/lib/admin-auth';
 import { createAdminSession } from '@/lib/admin-session';
@@ -117,7 +118,8 @@ export async function GET(request: NextRequest) {
     }
     return fail("Unknown view.");
   } catch (error) {
-    if (error instanceof CourseError) return fail(error.message, error.status);
+    const mapped=creditError(error);
+    if (mapped instanceof CourseError) return fail(mapped.message, mapped.status);
     console.error("Primark prototype GET failed", error);
     return fail("The prototype is temporarily unavailable.", 503);
   }
@@ -156,6 +158,7 @@ export async function POST(request: NextRequest) {
       const changes=[database.prepare("INSERT INTO learners(id,name,email,code_hash,store_id,country,entered_at,password_hash,induction_enrolled,first_name,surname,workday_id) VALUES(?,?,?,?,?,?,?,?,true,?,?,?) ON CONFLICT DO NOTHING")
         .bind(id,name,email,await hash(randomToken()),storeId,store.country,now(),await hashPassword(body.password),firstName||null,surname||null,workdayId)];
       if(induction)changes.push(database.prepare('INSERT INTO learner_inductions(learner_id,course_id,assigned_at) SELECT id,?,? FROM learners WHERE id=?').bind(induction.id,now(),id));
+      changes.push(syncAssignments(id));
       const inserted=await database.batch(changes);
       if (!inserted[0].meta.changes) {
         const emailTaken=await database.prepare('SELECT id FROM learners WHERE email=?').bind(email).first();
@@ -288,7 +291,8 @@ export async function POST(request: NextRequest) {
     }
     return fail("Unknown action.");
   } catch (error) {
-    if (error instanceof CourseError) return fail(error.message,error.status);
+    const mapped=creditError(error);
+    if (mapped instanceof CourseError) return fail(mapped.message,mapped.status);
     console.error("Primark prototype POST failed", error);
     return fail("We could not save that change. Please try again.", 503);
   }

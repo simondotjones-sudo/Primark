@@ -40,12 +40,13 @@ async function reportQuery(siteIds:string[]|null,selection=allCourses,search='')
     SELECT l.id AS learner_id,c.id AS course_id FROM people l JOIN course_assignments a ON a.learner_id=l.id JOIN ready c ON c.id=a.course_id
     UNION
     SELECT l.id,c.id FROM people l LEFT JOIN learner_inductions i ON i.learner_id=l.id LEFT JOIN defaults d ON d.country=l.country
-      JOIN ready c ON c.id=COALESCE(i.course_id,d.course_id) WHERE l.induction_enrolled
+      JOIN ready c ON c.id=COALESCE(i.course_id,d.course_id) WHERE l.induction_enrolled AND NOT EXISTS(SELECT 1 FROM assignment_exclusions x WHERE x.learner_id=l.id AND x.course_id=c.id)
     UNION
     SELECT l.id,c.id FROM people l JOIN ready c ON c.status='published' AND (NOT l.induction_enrolled OR c.induction_role='none')
+      AND NOT EXISTS(SELECT 1 FROM assignment_exclusions x WHERE x.learner_id=l.id AND x.course_id=c.id)
       AND (jsonb_exists(c.audience->'countries',l.country) OR jsonb_exists(c.audience->'sites',l.store_id) OR jsonb_exists(c.audience->'users',l.id))
     UNION SELECT learner_id,course_id FROM saved
-    UNION SELECT l.id,c.id FROM people l JOIN certificates cert ON cert.learner_id=l.id JOIN ready c ON c.package_id=cert.package_id
+    UNION SELECT l.id,c.id FROM people l JOIN certificates cert ON cert.learner_id=l.id AND cert.archived_at IS NULL JOIN ready c ON c.package_id=cert.package_id
   ), evidence AS (
     SELECT a.learner_id,a.course_id,c.validity_months,c.sco_count,s.saved_count,s.score,
       (cert.package_id IS NOT NULL OR (c.sco_count>0 AND s.done_count=c.sco_count)) AS complete,
@@ -53,7 +54,7 @@ async function reportQuery(siteIds:string[]|null,selection=allCourses,search='')
       cert.package_id IS NOT NULL AS certified,cert.expires_at AS certificate_expiry
     FROM candidates a JOIN ready c ON c.id=a.course_id
     LEFT JOIN saved s ON s.learner_id=a.learner_id AND s.course_id=a.course_id
-    LEFT JOIN certificates cert ON cert.learner_id=a.learner_id AND cert.package_id=c.package_id
+    LEFT JOIN certificates cert ON cert.learner_id=a.learner_id AND cert.package_id=c.package_id AND cert.archived_at IS NULL
   ), dated AS (
     SELECT e.*,CASE WHEN certified THEN certificate_expiry WHEN completed_at IS NOT NULL AND validity_months IS NOT NULL THEN
       to_char((completed_at::timestamptz AT TIME ZONE 'UTC')+make_interval(months=>validity_months),'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') END AS expires_at FROM evidence e
