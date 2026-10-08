@@ -156,7 +156,7 @@ export async function registrationChecks({m,check,query,invoke,loginAdmin,cookie
     const result=await invoke(m.manager,'GET','/api/store?site='+uk.id,undefined,managerCookie);assert.equal(result.status,200);const data=await result.json();
     assert(data.people.every(p=>p.store_id===store.id));assert(data.courses.some(c=>c.id==='legacy-2509'));assert(!data.courses.some(c=>c.id==='legacy-264'||c.id==='legacy-208'));
     assert.equal((await invoke(m.courseAdmin,'GET','/api/admin/courses',undefined,managerCookie)).status,403);
-    const profile=(await (await invoke(m.prototype,'GET','/api/prototype?view=me',undefined,managerCookie)).json()).account;assert.equal(profile.role,'Store Manager');assert(m.profile.profileViews(profile).some(v=>v.value==='store'));
+    const profile=(await (await invoke(m.prototype,'GET','/api/prototype?view=me',undefined,managerCookie)).json()).account;assert.equal(profile.role,'Store Manager');assert(m.profile.profileViews(profile).some(v=>v.value==='access'));
   });
   await check('Managers can assign one or many courses to selected/all store users without cross-store access or duplicate records',async()=>{
     const body={courseIds:['legacy-2509'],userIds:[irishId]};
@@ -170,7 +170,7 @@ export async function registrationChecks({m,check,query,invoke,loginAdmin,cookie
     assert((await (await getCourses(irishCookie)).json()).courses.some(c=>c.id==='legacy-2509'));
     assert.equal((await invoke(m.scorm,'POST','/api/scorm',{action:'launch',courseId:'legacy-2509'},irishCookie)).status,200);
     assert.equal((await invoke(m.manager,'POST','/api/store',{courseIds:['legacy-2509','legacy-154'],allUsers:true},managerCookie)).status,200);
-    const expected=Number((await query('SELECT COUNT(*) AS n FROM learners WHERE store_id=?',store.id).first()).n);
+    const expected=Number((await query('SELECT COUNT(*) AS n FROM learners l WHERE store_id=? AND NOT EXISTS(SELECT 1 FROM reporting_access r WHERE r.learner_id=l.id) AND NOT EXISTS(SELECT 1 FROM platform_admins p WHERE p.learner_id=l.id) AND NOT EXISTS(SELECT 1 FROM store_managers m WHERE m.learner_id=l.id)',store.id).first()).n);
     assert.equal(Number((await query('SELECT COUNT(*) AS n FROM course_assignments WHERE course_id=?','legacy-2509').first()).n),expected);
     assert.equal(await query('SELECT * FROM course_assignments WHERE learner_id=?',germanId).first(),null);
   });

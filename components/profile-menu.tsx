@@ -16,14 +16,14 @@ type ContentProps = {
 };
 
 export function ProfileContent({ account, view, filter, onView, onFilter, onSignOut, busy }: ContentProps) {
-  const {t}=useLanguage();
+  const {t,country:countryLabel}=useLanguage();
   const views = profileViews(account);
   const icons = {learn:BookOpen,report:BarChart3,store:Users,access:Users,courses:Library,organisation:Building2,shots:Camera};
   const group = (options: typeof views, heading: string) => options.length > 0 && <nav className="profile-group" aria-label={t(heading)}><h2>{t(heading)}</h2>{options.map(option => {const Icon=icons[option.value];return <button key={option.value} type="button" className="profile-link" aria-current={view===option.value?'page':undefined} onClick={()=>onView(option.value)}><Icon size={19}/><span>{t(option.label)}</span></button>;})}</nav>;
   return <>
     <div className="profile-identity"><strong>{account.name}</strong>{account.name !== account.email && <small>{account.email}</small>}
-      <span className="profile-role">{t(account.role)}</span><span className="profile-site"><MapPin size={15}/>{account.platformAdmin?t('All Primark'):account.site}</span></div>
-    {group(views.filter(option=>!['courses','organisation','shots'].includes(option.value)), 'Learning')}
+      <span className="profile-role">{t(account.role)}</span><span className="profile-site"><MapPin size={15}/>{account.platformAdmin||account.reportingAccess?.scope==='organisation'?t('All Primark'):account.reportingAccess?.scope==='country'?countryLabel(account.reportingAccess.country||account.site):account.site}</span></div>
+    {group(views.filter(option=>!['courses','organisation','shots'].includes(option.value)), account.adminOnly || account.platformAdmin || account.reportingAccess ? 'Administration' : 'Learning')}
     {group(views.filter(option=>['courses','organisation'].includes(option.value)), 'Platform administration')}
     <div className="profile-language"><span>{t('Language')}</span><LanguagePicker/></div>
     <button type="button" className="profile-signout" disabled={busy} onClick={onSignOut}><LogOut size={17}/>{t(busy ? 'Signing out…' : 'Sign out')}</button>

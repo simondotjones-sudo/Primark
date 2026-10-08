@@ -31,7 +31,8 @@ export async function platformAdminChecks({m,check,query,invoke,loginAdmin,cooki
     const state = await me(cookie);
     assert.equal(state.platformAdmin,true); assert.equal(state.account.platformAdmin,true);
     assert.equal(state.account.role,'Platform admin'); assert.equal(state.account.site,'All Primark');
-    assert.equal(state.account.email,email); assert.equal(state.learner.id,id); assert(state.viewed.includes('welcome'));
+    assert.equal(state.account.email,email); assert.equal(state.learner,null); assert.equal(state.account.adminOnly,true); assert.deepEqual(state.viewed,[]);
+    assert(await query('SELECT * FROM module_views WHERE learner_id=?',id).first());
     assert.deepEqual(await query('SELECT * FROM learners WHERE id=?',id).first(),original);
     assert.equal(await query('SELECT * FROM reporting_access WHERE learner_id=?',id).first(),null);
     const grant = await query('SELECT * FROM platform_admins WHERE learner_id=?',id).first();
@@ -45,10 +46,11 @@ export async function platformAdminChecks({m,check,query,invoke,loginAdmin,cooki
     const res = await login(); assert.equal(res.status,200);
     assert.equal((await res.json()).returnTo,'/admin/reporting-access');
     cookie = 'primark_session='+cookieFrom(res,'primark_session');
-    for (const [route,url] of [[m.courseAdmin,'/api/admin/courses'],[m.access,endpoint],[m.organisation,'/api/admin/organisation'],[m.prototype,'/api/prototype?view=dashboard&year=all'],[m.shots,'/api/shot-list'],[m.courses,'/api/courses']]) {
+    for (const [route,url] of [[m.courseAdmin,'/api/admin/courses'],[m.access,endpoint],[m.organisation,'/api/admin/organisation'],[m.prototype,'/api/prototype?view=dashboard&year=all'],[m.shots,'/api/shot-list']]) {
       const result = await invoke(route,'GET',url,undefined,cookie);
       assert.equal(result.status,200,url+': '+await result.clone().text());
     }
+    assert.equal((await invoke(m.courses,'GET','/api/courses',undefined,cookie)).status,403);
     assert.equal((await invoke(m.shots,'POST','/api/shot-list',{module:1,slide:2,status:'complete',note:''},cookie)).status,200);
     assert.equal((await query('SELECT updated_by_admin FROM shot_states WHERE module_number=1 AND slide_number=2').first()).updated_by_admin,email);
     const other = await query('SELECT id FROM learners WHERE email=?','new@example.test').first();

@@ -32,7 +32,7 @@ try {
     'Preview — progress is not recorded','Your progress is saved','Your progress saves as you learn',
     'Employee','Email','Country','Store','Course','Category','Status','Completed','Expires','Score','Completion in selected period','Close'])keys.add(value);
   // Password and registration validation must not fall back to English after an API failure.
-  for(const file of ['app/api/admin/organisation/route.ts','app/api/password-recovery/route.ts','lib/password-recovery.ts','app/api/shot-list/route.ts','app/api/shot-list/photos/route.ts','app/api/prototype/route.ts','lib/course-admin.ts','app/api/store/route.ts','app/api/admin/reporting-access/route.ts']){
+  for(const file of ['app/api/users/route.ts','lib/user-administration.ts','app/api/admin/organisation/route.ts','app/api/password-recovery/route.ts','lib/password-recovery.ts','app/api/shot-list/route.ts','app/api/shot-list/photos/route.ts','app/api/prototype/route.ts','lib/course-admin.ts','app/api/store/route.ts','app/api/admin/reporting-access/route.ts']){
     const sf=ts.createSourceFile(file,readFileSync(file,'utf8'),ts.ScriptTarget.Latest,true);
     const visit=n=>{if(ts.isCallExpression(n)&&['fail','shotFail','tr'].includes(n.expression.getText(sf)))add(n.arguments[n.expression.getText(sf)==='tr'?1:0]);if(ts.isNewExpression(n)&&['CourseError','RecoveryError'].includes(n.expression.getText(sf)))add(n.arguments?.[0]);if(ts.isPropertyAssignment(n)&&n.name.getText(sf)==='error')add(n.initializer);ts.forEachChild(n,visit);};visit(sf);
   }

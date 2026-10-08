@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import {adminOnlyChecks} from './admin-only-checks.mjs';
 import { reportingChecks } from './reporting-checks.mjs';
 import { registrationChecks } from './registration-checks.mjs';
 import { passwordRecoveryChecks } from './password-recovery-checks.mjs';
@@ -34,6 +35,9 @@ export * as prototype from '${process.cwd()}/app/api/prototype/route.ts';
 export * as recovery from '${process.cwd()}/app/api/password-recovery/route.ts';
 export * as organisation from '${process.cwd()}/app/api/admin/organisation/route.ts';
 export * as directory from '${process.cwd()}/lib/store-directory.ts';
+export * as users from '${process.cwd()}/app/api/users/route.ts';
+export * as certificates from '${process.cwd()}/app/api/certificates/route.ts';
+export * as content from '${process.cwd()}/app/scorm-content/[token]/[...path]/route.ts';
 export * as access from '${process.cwd()}/app/api/admin/reporting-access/route.ts';
 export * as learnerAuth from '${process.cwd()}/lib/learner-auth.ts';
 export * as courseAccess from '${process.cwd()}/lib/course-access.ts';
@@ -132,7 +136,7 @@ await check('Profile displays identity and only views permitted for each role',a
  const props={account,view:'learn',onView(){},onFilter(){},onSignOut(){}};
  const learner=renderToStaticMarkup(createElement(m.ProfileContent,props));assert(learner.includes('Photo User'));assert(learner.includes('Learner'));assert(learner.includes(store.name));assert(learner.includes('Sign out'));assert.equal((learner.match(/<select/g)||[]).length,1);assert(learner.includes('Language'));assert(!learner.includes('Reporting level'));assert(learner.includes('My Courses')); assert(!learner.includes('Shot list'));
  const reporting=renderToStaticMarkup(createElement(m.ProfileContent,{...props,account:{...account,reportingAccess:{scope:'country',country:'Ireland',siteId:null}}}));assert(reporting.includes('Reporting'));assert(!reporting.includes('Manage courses'));assert(!reporting.includes('Reporting access'));assert(!reporting.includes('Shot list'));
- const admin=renderToStaticMarkup(createElement(m.ProfileContent,{...props,account:{...account,platformAdmin:true,reportingAccess:{scope:'organisation',country:null,siteId:null}}}));for(const label of ['My Courses','Reporting','Courses','Manage Users','Organisation','Platform administration'])assert(admin.includes(label));
+ const admin=renderToStaticMarkup(createElement(m.ProfileContent,{...props,account:{...account,platformAdmin:true,reportingAccess:{scope:'organisation',country:null,siteId:null}}}));for(const label of ['Reporting','Courses','Manage Users','Organisation','Platform administration'])assert(admin.includes(label));assert(!admin.includes('My Courses'));
 });
 await check('Profile scope controls restrict sites and reporting levels and produce usable links',async()=>{
  const siteAccess={scope:'site',country:store.country,siteId:store.id},countryAccess={scope:'country',country:'Ireland',siteId:null},orgAccess={scope:'organisation',country:null,siteId:null};
@@ -302,4 +306,5 @@ await check('Organisation store lifecycle enforces admin access and preserves hi
 });
 await platformAdminChecks({m,check,query,invoke,loginAdmin,cookieFrom,store});
 await passwordRecoveryChecks({m,check,query,invoke,loginAdmin,cookieFrom,store});
+await adminOnlyChecks({m,check,query,invoke,loginAdmin,cookieFrom,store,uk});
 console.log(`${passed} Netlify migration checks passed.`);await pg.close();rmSync(dir,{recursive:true,force:true});

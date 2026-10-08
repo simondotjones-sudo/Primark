@@ -1,3 +1,4 @@
+import { learnerOnlySql } from "@/lib/account-type";
 import { allowLoginAttempt, ADMIN_COOKIE, credentials, getAdminUser, passwordMatches, safeReturnTo } from '@/lib/admin-auth';
 import { createAdminSession } from '@/lib/admin-session';
 import { getReportingAccess, reportingAccessFor, reportingFilter } from '@/lib/reporting-access';
@@ -32,13 +33,13 @@ async function learnerState(request: NextRequest) {
   const adminPerson = admin ? await db().prepare('SELECT name FROM learners WHERE email=?').bind(admin.email).first<{name:string}>() : null;
   const managerStore = learner ? await managerStoreFor(learner.id) : null;
   const account: ProfileAccount | null = learner ? {
-    name: learner.name, email: learner.email,
+    name: learner.name, email: learner.email, adminOnly: learner.admin_only,
     role: platformAdmin ? 'Platform admin' : managerStore ? 'Store Manager' : !reportingAccess ? 'Learner' : reportingAccess.scope === 'site' ? 'Site reporting admin' : reportingAccess.scope === 'country' ? 'Country reporting admin' : 'Primark reporting admin',
     managerStoreId: platformAdmin ? null : managerStore?.id || null,
-    site: platformAdmin ? 'All Primark' : storeById.get(learner.store_id)?.name || learner.store_id, platformAdmin, reportingAccess,
-  } : admin ? { name: adminPerson?.name || admin.email, email: admin.email, role: 'Platform admin', site: 'All Primark', platformAdmin: true, reportingAccess } : null;
+    site: platformAdmin || reportingAccess?.scope === 'organisation' ? 'All Primark' : reportingAccess?.scope === 'country' ? reportingAccess.country || '' : storeById.get(reportingAccess?.siteId || learner.store_id)?.name || learner.store_id, platformAdmin, reportingAccess,
+  } : admin ? { name: adminPerson?.name || admin.email, email: admin.email, role: 'Platform admin', site: 'All Primark', platformAdmin: true, adminOnly: true, reportingAccess } : null;
   const identity = { platformAdmin, reportingAccess, account };
-  if (!learner) return NextResponse.json({ learner: null, viewed: [], ...identity }, { headers: privateHeaders });
+  if (!learner || learner.admin_only) return NextResponse.json({ learner: null, viewed: [], ...identity }, { headers: privateHeaders });
   const viewed = await progressFor(learner.id);
   const legacy = await db().prepare("SELECT completed FROM legacy_completions WHERE email=?").bind(learner.email).first<{completed:number}>();
   return NextResponse.json({ learner, viewed, ...identity, legacyCompleted: legacy?.completed === 1 }, { headers: privateHeaders });
@@ -55,14 +56,14 @@ async function dashboard(request: NextRequest) {
   if (month !== "all" && (year === "all" || !/^(0?[1-9]|1[0-2])$/.test(month))) return fail("Choose a valid month.");
   // Apply scope before loading any names, history, counts or trend dates.
   const placeholders = siteIds?.map(() => '?').join(',');
-  const peopleWhere = siteIds ? `l.store_id IN (${placeholders})` : '1=1';
+  const peopleWhere = `${learnerOnlySql()} AND ${siteIds ? `l.store_id IN (${placeholders})` : '1=1'}`;
   const historyWhere = siteIds ? `COALESCE(l.store_id,c.store_id) IN (${placeholders})` : '1=1';
   const [people, history] = await Promise.all([
     db().prepare(`SELECT l.id,l.name,l.email,l.store_id,l.country,l.entered_at,l.started_at,l.completed_at,l.best_score
       FROM learners l WHERE ${peopleWhere} ORDER BY l.entered_at DESC`).bind(...(siteIds || [])).all<Learner>(),
     db().prepare(`SELECT c.email,c.completed,c.completed_at,COALESCE(l.store_id,c.store_id) AS store_id
       FROM legacy_completions c LEFT JOIN learners l ON l.email=c.email
-      WHERE c.completed=1 AND ${historyWhere}`).bind(...(siteIds || [])).all<{email:string;completed:number;completed_at:string|null;store_id:string|null}>(),
+      WHERE c.completed=1 AND (l.id IS NULL OR (${learnerOnlySql()})) AND ${historyWhere}`).bind(...(siteIds || [])).all<{email:string;completed:number;completed_at:string|null;store_id:string|null}>(),
   ]);
   return { rows: people.results, past: history.results, year, month };
 }
@@ -182,7 +183,7 @@ export async function POST(request: NextRequest) {
       if (learner && !await allowLoginAttempt('learner-account:'+learner.id)) return fail('Too many attempts. Try again in 15 minutes.',429);
       const correct = await verifyPassword(password, learner?.password_hash || null);
       if (!learner || !correct) return fail('Those details did not match.',401);
-      return withSession(request,learner.id,{ ok: true, ...(learner.platform_admin ? {returnTo:safeReturnTo(body.returnTo)} : {}) });
+      return withSession(request,learner.id,{ ok: true, ...(learner.platform_admin ? {returnTo:body.returnTo ? safeReturnTo(body.returnTo) : "/?view=report"} : {}) });
     }
     if (action === 'set-password') {
       const email = emailAddress(body.email);
@@ -211,6 +212,7 @@ export async function POST(request: NextRequest) {
       const learner = await currentLearner(request);
       const key = typeof body.key === "string" ? body.key : "";
       if (!learner) return fail("Enter your pass code to continue.", 401);
+      if (learner.admin_only) return fail("Use your personal learner account for training.",403);
       if (!modules.some((m) => m.key === key)) return fail("Unknown module.");
       const date = now();
       await database.batch([
@@ -224,6 +226,7 @@ export async function POST(request: NextRequest) {
     if (action === "submit") {
       const learner = await currentLearner(request);
       if (!learner) return fail("Enter your pass code to continue.", 401);
+      if (learner.admin_only) return fail("Use your personal learner account for training.",403);
       const answers = body.answers;
       if (!Array.isArray(answers) || answers.length !== questions.length ||
           answers.some((v) => !Number.isInteger(v) || v < 0 || v > 2)) return fail("Answer all 20 questions before submitting.");

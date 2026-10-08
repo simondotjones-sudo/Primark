@@ -76,7 +76,7 @@ const scopeLabel = (person: Person) => person.platform_admin ? 'Platform admin' 
           <p className="access-explanation">{t(scope === 'platform' ? 'Full access to courses, users, reporting and organisation settings. Can grant or remove platform admin access.' : scope === 'manager' ? 'Can see users in the selected store, assign courses from its country library and view store reports.' : scope === 'none' ? 'This account can access its own learning.' : scope === 'organisation'
             ? 'Can view and export reports across all Primark countries and sites.' : scope === 'country'
               ? 'Can view and export reports for the selected country and its sites.' : 'Can view and export reports for the selected site.')}</p>
-          {scope === 'platform' ? <p className="access-note">{t('They keep their existing email, password and learning records.')}</p> : scope !== 'none' && <p className="access-note">{t("They sign in with their email and password. Creating courses and assigning access stay with the platform admin.")}</p>}
+          {scope === 'platform' ? <p className="access-note">{t('Admin-only accounts use Reporting. Sign in with a personal learner account for training.')}</p> : scope !== 'none' && <p className="access-note">{t("Admin-only accounts use Reporting. Sign in with a personal learner account for training.")}</p>}
           <div className="editor-actions"><Button variant="outline" type="button" disabled={busy} onClick={() => setSelected(null)}>{t("Cancel")}</Button>
             <Button className="blue-button" disabled={busy}>{t(busy ? 'Saving…' : 'Save access')}</Button></div>
         </form>

@@ -42,7 +42,7 @@ const countries=[...new Set(stores.map(s=>s.country))].sort();
  const matched=useMemo(()=>people.filter(p=>matchesAudience(audience,p)),[people,audience]);
  const load=async()=>{const d=await request('/api/admin/courses');setCourses(d.courses);setPeople(d.people);setPackages(d.packages);setProgress(d.progress);return d;};
  useEffect(()=>{load().catch(e=>setError(e.message)).finally(()=>setLoading(false));},[]);
- const open=(course:Course|null)=>{setCurrent(course);setCatalogue(fieldsFor(course));setTitle(course?.title||'');setDescription(course?.description||'');setAudience(course?JSON.parse(course.audience_json):emptyAudience());setStep(0);setQuery('');setEditing(true);setError('');setNotice('');};
+ const open=(course:Course|null)=>{setCurrent(course);setCatalogue(fieldsFor(course));setTitle(course?.title||'');setDescription(course?.description||'');setAudience(course?{...JSON.parse(course.audience_json),users:(JSON.parse(course.audience_json).users as string[]).filter(id=>people.some(p=>p.id===id))}:emptyAudience());setStep(0);setQuery('');setEditing(true);setError('');setNotice('');};
  async function run(fn:()=>Promise<void>){setBusy(true);setError('');setNotice('');try{await fn();}catch(e){setError(e instanceof Error?e.message:'Please try again.');}finally{setBusy(false);}}
  async function save(status:'draft'|'published'){const d=await request('/api/admin/courses',{id:current?.id,revision:current?.revision,title,description,audience,status,...catalogue});setCurrent(d.course);await load();return d.course as Course;}
  const toggle=(key:keyof Audience,value:string)=>setAudience(a=>({...a,[key]:a[key].includes(value)?a[key].filter(v=>v!==value):[...a[key],value]}));

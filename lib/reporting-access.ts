@@ -3,11 +3,17 @@ import { getAdminUser } from '@/lib/admin-auth';
 import { currentLearner, db } from '@/lib/server';
 import { CourseError } from '@/lib/course-admin';
 import stores from '@/lib/stores.json';
+import { storeDirectory } from '@/lib/store-directory';
 import type { ReportingAccess } from '@/lib/reporting-types';
 
 export async function reportingAccessFor(learnerId: string): Promise<ReportingAccess | null> {
   return db().prepare('SELECT scope,country,site_id AS "siteId" FROM reporting_access WHERE learner_id=?')
-    .bind(learnerId).first<ReportingAccess>();
+    .bind(learnerId).first<ReportingAccess>().then(async access => {
+      if (access) return access;
+      const manager = await db().prepare('SELECT store_id FROM store_managers WHERE learner_id=?').bind(learnerId).first<{store_id:string}>();
+      const store = manager ? (await storeDirectory()).find(s=>s.id===manager.store_id) : null;
+      return store ? {scope:'site' as const,country:store.country,siteId:store.id} : null;
+    });
 }
 
 export async function getReportingAccess(request: NextRequest): Promise<ReportingAccess | null> {

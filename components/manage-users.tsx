@@ -1,9 +1,9 @@
 'use client';
+import UserDirectory from '@/components/user-directory';
 import type {ReactNode} from 'react';
 import {useCallback,useEffect,useRef,useState} from 'react';
 import {useLanguage} from '@/components/language-provider';
 import type {LocalizedText} from '@/lib/ui-copy';
-import AdminSummary from '@/components/admin-summary';
 import {useStores} from '@/components/store-directory';
 import {Button} from '@/components/ui/button';
 import {Input} from '@/components/ui/input';
@@ -12,10 +12,11 @@ import {Checkbox} from '@/components/ui/checkbox';
 import {Tabs,TabsList,TabsTrigger,TabsContent} from '@/components/ui/tabs';
 import './manage-users.css';
 
-type Person={id:string;name:string;email:string;country:string;store_id:string};
+type Person={id:string;name:string;email:string;country:string;store_id:string;admin_only?:boolean};
 type Data={store:{id:string;name:string;country:string}|null;people:Person[];courses:{id:string;title:string;englishTitle:string;category:string;languageCode:string}[]};
 export default function ManageUsers({access}:{access?:ReactNode}){
- const platformAdmin=access!==undefined;
+ const [platformAdmin,setPlatformAdmin]=useState(false),[canAssign,setCanAssign]=useState(false);
+ const permissions=useCallback((options:{platformAdmin:boolean;canAssign:boolean})=>{setPlatformAdmin(options.platformAdmin);setCanAssign(options.canAssign);},[]);
  const {t,country:countryLabel,languageName}=useLanguage();
  const stores=useStores(true);
  const [view,setView]=useState('users'),[country,setCountry]=useState(''),[storeId,setStoreId]=useState('');
@@ -23,11 +24,12 @@ export default function ManageUsers({access}:{access?:ReactNode}){
  const [query,setQuery]=useState(''),[courseQuery,setCourseQuery]=useState(''),[users,setUsers]=useState<string[]>([]),[courses,setCourses]=useState<string[]>([]),[all,setAll]=useState(false);
  const generation=useRef(0),feedback=useRef<HTMLDivElement>(null);
  const load=useCallback(async()=>{
+   if(view!=='assign'||!canAssign)return;
    const current=++generation.current;setLoading(true);setError('');setData(null);
-   try{const r=await fetch('/api/store'+(platformAdmin&&storeId?'?storeId='+encodeURIComponent(storeId):''),{cache:'no-store'});const result=await r.json();if(current!==generation.current)return;if(!r.ok)throw new Error(result.error);setData(result);}
+   try{const r=await fetch('/api/store'+(platformAdmin&&storeId?'?storeId='+encodeURIComponent(storeId):''),{cache:'no-store'});const result=await r.json();if(current!==generation.current)return;if(!r.ok)throw new Error(result.error);setData({...result,people:result.people.filter((p:Person)=>!p.admin_only)});}
    catch(e){if(current===generation.current)setError(e instanceof Error?e.message:'Please try again.');}
    finally{if(current===generation.current)setLoading(false);}
- },[platformAdmin,storeId]);
+ },[platformAdmin,storeId,view,canAssign]);
  useEffect(()=>{void load();return()=>{generation.current++;};},[load]);
  useEffect(()=>{if(error||notice)feedback.current?.scrollIntoView({behavior:'smooth',block:'nearest'});},[error,notice]);
  const toggle=(id:string,values:string[],setter:(v:string[])=>void)=>setter(values.includes(id)?values.filter(v=>v!==id):[...values,id]);
@@ -45,13 +47,13 @@ export default function ManageUsers({access}:{access?:ReactNode}){
  const visibleCourses=(data?.courses||[]).filter(c=>(c.title+' '+c.englishTitle).toLowerCase().includes(courseQuery.toLowerCase()));
  return <div className="manage-users">
  <Tabs value={view} onValueChange={setView}>
- <TabsList className="user-view-tabs pill-switch" aria-label={t('Manage Users')}><TabsTrigger value="users" disabled={busy}>{t('Users')}</TabsTrigger><TabsTrigger value="assign" disabled={busy}>{t('Assign courses')}</TabsTrigger>{platformAdmin&&<TabsTrigger value="access" disabled={busy}>{t('Access')}</TabsTrigger>}</TabsList>
- {view!=='access'&&<>
+ <TabsList className="user-view-tabs pill-switch" aria-label={t('Manage Users')}><TabsTrigger value="users" disabled={busy}>{t('Users')}</TabsTrigger>{canAssign&&<TabsTrigger value="assign" disabled={busy}>{t('Assign courses')}</TabsTrigger>}{platformAdmin&&<TabsTrigger value="access" disabled={busy}>{t('Access')}</TabsTrigger>}</TabsList>
+ {view==='assign'&&<>
  {platformAdmin?<div className="user-location"><label>{t('Country')}<NativeSelect value={country} disabled={busy} onChange={e=>{setCountry(e.target.value);changeStore('');}}><option value="">{t('All countries')}</option>{[...new Set(stores.map(s=>s.country))].sort().map(c=><option key={c} value={c}>{countryLabel(c)}</option>)}</NativeSelect></label><label>{t('Store')}<NativeSelect value={storeId} disabled={busy} onChange={e=>changeStore(e.target.value)}><option value="">{t('All stores')}</option>{stores.filter(s=>s.active&&(!country||s.country===country)).map(s=><option key={s.id} value={s.id}>{s.name}</option>)}</NativeSelect></label></div>:data?.store&&<p className="user-store-name">{data.store.name} · {countryLabel(data.store.country)}</p>}
  <div ref={feedback} aria-live="polite">{error&&<p className="error" role="alert">{t(error)}</p>}{notice&&<p className="admin-success" role="status">{t(notice)}</p>}</div>
  {loading&&<p className="empty">{t('Loading accounts…')}</p>}
  </>}
- <TabsContent value="users">{!loading&&data&&<>{platformAdmin&&<AdminSummary items={[{label:t("Users"),value:shown.length,blue:true},{label:t("Stores"),value:new Set(shown.map(p=>p.store_id)).size},{label:t("Countries"),value:new Set(shown.map(p=>p.country)).size}]}/>}<section className="paper user-panel"><Input type="search" value={query} onChange={e=>setQuery(e.target.value)} aria-label={t('Search users')} placeholder={t('Name, email or site')}/><div className="employee-cards">{shown.map(person=><article className="employee-card" key={person.id}><div><strong>{person.name}</strong><small>{person.email}</small>{platformAdmin&&<small>{stores.find(s=>s.id===person.store_id)?.name||person.store_id} · {countryLabel(person.country)}</small>}</div><Button variant="outline" disabled={busy||(platformAdmin&&!stores.some(s=>s.id===person.store_id&&s.active))} onClick={()=>quickAssign(person)}>{t('Assign courses')}</Button></article>)}</div>{!shown.length&&<p className="empty">{t(data.people.length?'No accounts match your search.':'Accounts appear here after a learner registers.')}</p>}</section></>}</TabsContent>
+ <TabsContent value="users"><UserDirectory onAssign={quickAssign} onPermissions={permissions}/></TabsContent>
  <TabsContent value="assign">{!loading&&data&&(data.store?<>
  <div className="store-assignment-grid">
  <section className="paper user-panel"><h2>{t('Users')}</h2><Input type="search" value={query} onChange={e=>setQuery(e.target.value)} aria-label={t('Search users')} placeholder={t('Find a user')}/><label className="selection-label"><Checkbox disabled={busy||!data.people.length} checked={all} onCheckedChange={value=>setAll(value===true)}/>{t('All users in this store (')}{data.people.length})</label><div className="user-selections">{shown.map(person=><label className="user-selection" key={person.id}><Checkbox disabled={busy||all} checked={all||users.includes(person.id)} onCheckedChange={()=>toggle(person.id,users,setUsers)}/><span><strong>{person.name}</strong><small>{person.email}</small></span></label>)}</div>{!shown.length&&<p className="empty">{t(data.people.length?'No accounts match your search.':'Users appear here after registering for this store.')}</p>}</section>

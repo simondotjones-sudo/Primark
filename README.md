@@ -238,3 +238,35 @@ new WebP assets together are approximately 458 KiB; generated source prompts and
 reference asset are recorded in `docs/course-cover-prompts.json`. Images are decorative
 because the course title immediately identifies each tile/row. Course details previews
 the cover as its category is edited. Existing prototype sample covers are unchanged.
+
+## Admin-only accounts (v1.08.10.26.14)
+
+An account with a platform, reporting or store-manager grant is admin-only. This is
+derived from its current grants, so existing admins change without a data migration.
+Admins land on Reporting, including when following old My Courses links or clicking
+the logo. Personal course launch/save, original lessons/assessment and personal
+certificates are blocked on the server. Platform course previews remain unrecorded.
+Previous learning evidence is retained; active reports, exports, matrices, direct
+audiences and bulk assignments exclude admin accounts. Removing all grants makes an
+account a learner again; it does not erase or transfer historical completions.
+
+Every admin has **Manage Users → Add user**. Choose Learner or Admin only, enter the
+name/email and an initial password (8–128 characters for learners, 16–128 for new
+admins). Learners can also have a Workday ID. No email is sent by account creation;
+the creator provides the credentials through their normal onboarding process. The
+existing forgot-password flow remains available. Account creation and the admin
+grant are one transaction, and the grant records the creating admin.
+
+Store admins can create learners or store admins in their store; country admins can
+create learners, store admins or country admins in their country; organisation admins
+can additionally create organisation admins. Only platform admins create platform
+admins or change existing grants. Store-admin creation includes store management
+and store reporting. Country/organisation reporting roles retain their existing
+reporting scope; they do not gain course publishing or course assignment rights.
+The user directory is searched on the server and paginated in groups of 50.
+
+Verification includes role/scope escalation attempts, CSRF, duplicate identifiers,
+normal login, personal-learning denial at every admin level, bulk assignment
+exclusion, promotion during an active course, retained historical certificates,
+and immediate permission revocation. Existing reporting fixtures now use separate
+admin and learner accounts, matching the new account model.
