@@ -442,3 +442,27 @@ previews do not run it.
 refund boundaries, renewal restoration, stale launches, top-ups, fiscal dates,
 zero-activity stores, reconciliation, role restrictions and Excel price isolation
 in an isolated PostgreSQL-compatible database.
+
+### Quarter, year-to-date and store inactivity reporting
+
+Version 1.08.10.26.25 adds Q1 (P1–3), Q2 (P4–6), Q3 (P7–9) and Q4
+(P10–13) to the period selector. Dates come from the configured accounting
+calendar, including week 53. Financial Year to Date ends today in Europe/London;
+for a previous financial year it ends on that year's final day. Future years do
+not offer a year-to-date range. Current ranges stop at the report generation time.
+
+Country and overall totals use explicit numeric alignment. Desktop tables wrap
+headings and store names into fixed-width columns; mobile retains horizontal
+scrolling. Stores with zero assignments show days since the last recorded
+assignment beneath their name. Hover, keyboard activation or tap reveals its exact
+date and time. A store without recorded history shows “No recorded assignments”.
+Removed assignments and preserved pre-billing assignments remain part of this
+activity history. Historical inactivity uses the range's final date, never newer
+assignments; current inactivity uses today's London date (calendar days, including
+DST changes).
+
+Search and the zero-assignment filter update the figures and totals shown. “Longest
+inactive first” sorts across countries, omits intervening country subtotals and
+places unknown history after measured inactivity. Excel respects these filters and
+ordering, includes last-assignment dates/day counts, and preserves platform-only
+pricing and editable value formulas. No database migration is needed.
