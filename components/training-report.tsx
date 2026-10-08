@@ -91,7 +91,6 @@ export default function TrainingReporting({access,platformAdmin,filter,onFilterC
   }
   const statusText=(r?:TrainingRecord)=>r?t(statusLabels[r.status]):t('Not assigned');
   return <section className="report training-report">
-    <div className="report-header"><h1>{t('Training progress')}</h1><Button variant="outline" disabled={loading||!data} onClick={exportReport}><Download/>{t('Export CSV')}</Button></div>
     <div className="scope report-scope">
       <div className="report-view-tabs pill-switch" role="group" aria-label={t('Report format')}><button aria-pressed={!isMatrix} className={!isMatrix?'selected':''} onClick={()=>setView('overview')}>{t('Overview')}</button>{filter.role==='site'&&<button aria-pressed={isMatrix} className={isMatrix?'selected':''} onClick={()=>setView('matrix')}>{t('Site matrix')}</button>}</div>
       <div className="report-location">
@@ -133,6 +132,7 @@ export default function TrainingReporting({access,platformAdmin,filter,onFilterC
     </div>}
     </div>
     {platformAdmin&&!isMatrix&&<details className="paper import original-tools"><summary>{t('Original induction tools')}</summary><Button variant="outline" disabled={busy} onClick={()=>originalAction('seed')}>{t('Load sample learners')}</Button><p>{t('Import previous LMS completions')} · <code>email,completed,completed_at,site_id</code></p><textarea aria-label={t('Previous LMS CSV')} value={csv} onChange={e=>setCsv(e.target.value)} placeholder="email,completed,completed_at,site_id"/><div><label className="file-label">{t('Choose CSV file')}<input type="file" accept=".csv,text/csv" onChange={async e=>{const f=e.target.files?.[0];if(f)setCsv(await f.text());}}/></label><Button disabled={!csv||busy} onClick={()=>{try{void originalAction('import',{records:parseCsv(csv)});}catch(e){setError(e instanceof Error?e.message:'Check the CSV.');}}}>{t('Import CSV')}</Button><span role="status">{t(message)}</span></div></details>}
+    <div className="report-export"><Button variant="outline" disabled={loading||!data} onClick={exportReport}><Download/>{t('Export CSV')}</Button></div>
     <Dialog open={!!cell} onOpenChange={open=>{if(!open)setCell(null);}}><DialogContent className="training-detail"><DialogHeader><DialogTitle>{cell?.person.name}</DialogTitle><DialogDescription>{cell?.course.title}</DialogDescription></DialogHeader>{cell&&<><div className="training-status detail-status">{cell.record?<i aria-hidden="true" className={'training-dot '+cell.record.status}/>:<span aria-hidden="true">—</span>}{statusText(cell.record)}</div><dl><div><dt>{t('Completed')}</dt><dd>{formatDate(cell.record?.completedAt||null,lang)}</dd></div><div><dt>{t('Expires')}</dt><dd>{cell.record?.expiresAt?formatDate(cell.record.expiresAt,lang):cell.record?.completedAt&&!cell.course.validityMonths?t('No expiry'):'—'}</dd></div>{cell.record?.score&&<div><dt>{t('Score')}</dt><dd>{cell.record.score}</dd></div>}<div><dt>{t('Language')}</dt><dd>{languageName(cell.course.language)}</dd></div></dl></>}</DialogContent></Dialog>
   </section>;
 }
