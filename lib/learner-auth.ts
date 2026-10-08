@@ -1,5 +1,12 @@
 import { randomBytes, scrypt as deriveKey, timingSafeEqual } from 'node:crypto';
 
+// Keep IDs distinct from email addresses and preserve leading zeroes.
+export function normalizeWorkdayId(value: unknown): string | null {
+  if (typeof value !== 'string') return null;
+  const id = value.trim().toUpperCase();
+  return /^[A-Z0-9][A-Z0-9._-]{0,49}$/.test(id) ? id : null;
+}
+
 export function validPassword(value: unknown): value is string {
   return typeof value === 'string' && value.length >= 8 && value.length <= 128;
 }

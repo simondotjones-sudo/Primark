@@ -57,6 +57,47 @@ export async function registrationChecks({m,check,query,invoke,loginAdmin,cookie
     assert.equal((await invoke(m.prototype,'POST','/api/prototype',{action:'register',email:'cross@example.test'},'',{origin:'https://evil.invalid'})).status,403);
     const pending=await (await getCourses(irishCookie)).json();assert.equal(pending.courses.length,0);assert.equal(pending.inductionPending,true);
   });
+  await check('Two-step registration stores names and optional Workday IDs without issuing a login code',async()=>{
+    const body={action:'register',firstName:'  Zoë ',surname:' O’Neill  Smith ',email:'WORKDAY-USER@example.test',workdayId:' 00ab-123 ',storeId:store.id,registrationCode:' SAFETY ',password:'Workday-Password-123'};
+    const created=await invoke(m.prototype,'POST','/api/prototype',body);assert.equal(created.status,200,await created.clone().text());
+    assert.deepEqual(await created.json(),{ok:true});assert(cookieFrom(created,'primark_session'));
+    const learner=await query('SELECT * FROM learners WHERE email=?','workday-user@example.test').first();
+    assert.equal(learner.first_name,'Zoë');assert.equal(learner.surname,'O’Neill Smith');assert.equal(learner.name,'Zoë O’Neill Smith');assert.equal(learner.workday_id,'00AB-123');assert.equal(learner.country,store.country);
+    const cookie='primark_session='+cookieFrom(created,'primark_session');
+    const state=await (await invoke(m.prototype,'GET','/api/prototype?view=me',undefined,cookie)).json();
+    assert.equal(state.learner.id,learner.id);assert.equal(state.account.platformAdmin,false);assert.equal(state.account.managerStoreId,null);
+    assert.equal((await invoke(m.prototype,'POST','/api/prototype',{...body,email:'duplicate-id@example.test',workdayId:'00AB-123'})).status,409);
+    assert.equal(await query('SELECT id FROM learners WHERE email=?','duplicate-id@example.test').first(),null);
+    for(const extra of [{firstName:''},{surname:' '},{firstName:'x'.repeat(51)},{workdayId:'id@example.test'},{workdayId:'bad id'},{workdayId:123},{workdayId:'x'.repeat(51)},{registrationCode:'wrong'}])assert.equal((await invoke(m.prototype,'POST','/api/prototype',{...body,...extra,email:'invalid-details@example.test'})).status,400);
+    for(const [i,workdayId] of [undefined,'','  '].entries()){
+      const email=`no-workday-${i}@example.test`;
+      assert.equal((await invoke(m.prototype,'POST','/api/prototype',{...body,email,workdayId})).status,200);
+      assert.equal((await query('SELECT workday_id FROM learners WHERE email=?',email).first()).workday_id,null);
+    }
+  });
+  await check('Email and Workday ID use the same password, session and learner record',async()=>{
+    const id=(await query('SELECT id FROM learners WHERE email=?','workday-user@example.test').first()).id;
+    for(const identifier of [' WORKDAY-USER@EXAMPLE.TEST ',' 00ab-123 ']){
+      const signedIn=await invoke(m.prototype,'POST','/api/prototype',{action:'login',identifier,password:'Workday-Password-123'});
+      assert.equal(signedIn.status,200);
+      const cookie='primark_session='+cookieFrom(signedIn,'primark_session');
+      assert.equal((await (await invoke(m.prototype,'GET','/api/prototype?view=me',undefined,cookie)).json()).learner.id,id);
+      assert.equal((await invoke(m.prototype,'POST','/api/prototype',{action:'login',identifier,password:'wrong-password'})).status,401);
+    }
+    assert.equal((await invoke(m.prototype,'POST','/api/prototype',{action:'login',identifier:'PR-UNKNOWN',password:'Workday-Password-123'})).status,401);
+    const adminLogin=await invoke(m.prototype,'POST','/api/prototype',{action:'login',identifier:process.env.PRIMARK_ADMIN_EMAIL,password:process.env.PRIMARK_ADMIN_PASSWORD});
+    assert.equal(adminLogin.status,200);assert(cookieFrom(adminLogin,'primark_admin'));
+  });
+  await check('Workday uniqueness is enforced by Postgres even if registration requests race',async()=>{
+    await assert.rejects(query('UPDATE learners SET workday_id=? WHERE email=?','00AB-123','no-workday-0@example.test').run(),error=>error.code==='23505');
+    assert.equal((await query('SELECT workday_id FROM learners WHERE email=?','no-workday-0@example.test').first()).workday_id,null);
+  });
+  await check('Alternating email and Workday ID cannot bypass the existing ten-attempt limit',async()=>{
+    assert.equal((await register('alias-limit@example.test',store,{workdayId:'RATE-LIMIT-ID'})).status,200);
+    for(let i=0;i<10;i++)assert.equal((await invoke(m.prototype,'POST','/api/prototype',{action:'login',identifier:i%2?'alias-limit@example.test':'rate-limit-id',password:'wrong-password'})).status,401);
+    assert.equal((await invoke(m.prototype,'POST','/api/prototype',{action:'login',identifier:'alias-limit@example.test',password:'Case-Sensitive-Password'})).status,429);
+    assert.equal((await invoke(m.prototype,'POST','/api/prototype',{action:'login',identifier:'RATE-LIMIT-ID',password:'Case-Sensitive-Password'})).status,429);
+  });
   await check('Existing pass codes can set a password once while preserving identity and learning records',async()=>{
     await query('INSERT INTO learners(id,name,email,code_hash,store_id,country,entered_at) VALUES(?,?,?,?,?,?,?)','legacy-account','Existing Learner','legacy-account@example.test',await m.hash('PR-OLD-CODE'),store.id,store.country,'2025-01-01').run();
     await query('INSERT INTO module_views(learner_id,module_key,viewed_at) VALUES(?,?,?)','legacy-account','welcome','2025-01-01').run();

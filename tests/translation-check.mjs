@@ -17,7 +17,7 @@ try {
   for(const file of interfaces){
     const sf=ts.createSourceFile(file,readFileSync(file,'utf8'),ts.ScriptTarget.Latest,true,ts.ScriptKind.TSX);
     const visit=n=>{
-      if(ts.isCallExpression(n)&&['t','setNotice','setMessage','setUploadLabel','setFullscreenMessage','setError'].includes(n.expression.getText(sf)))add(n.arguments[0]);
+      if(ts.isCallExpression(n)&&['t','setFormError','setNotice','setMessage','setUploadLabel','setFullscreenMessage','setError'].includes(n.expression.getText(sf)))add(n.arguments[0]);
       if(ts.isPropertyAssignment(n)&&n.name.getText(sf)==='key')add(n.initializer);
       if(ts.isJsxText(n)){const value=n.text.replace(/\s+/g,' ').trim();if(/[A-Za-z]{2}/.test(value)&&!rawAllowed.has(value))raw.push(file+': '+value);}
       if(ts.isJsxAttribute(n)&&['aria-label','title','placeholder','alt'].includes(n.name.getText(sf))&&n.initializer&&ts.isStringLiteral(n.initializer)&&/[A-Za-z]{2}/.test(n.initializer.text)&&!rawAllowed.has(n.initializer.text))raw.push(file+': '+n.initializer.text);

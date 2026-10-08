@@ -125,10 +125,23 @@ and upload/download a photo. No Netlify deployment was created by the source mig
 
 ## Registration, course library and Store Managers
 
+Registration has two steps: enter the `safety` induction code, then provide first name,
+surname, email, optional Workday ID, a searchable store and a password. Country is derived
+from the selected active store. The form keeps entered details when moving back or after
+an error, signs in immediately and opens My Courses without issuing a login code.
+The compact layout fits the first viewport on desktop and small phones, with natural
+scrolling retained for zoom, an open keyboard and longer validation messages.
+
 Registration accepts `safety` without case sensitivity (surrounding spaces are ignored).
 The code is an enrolment code, not a password or an admin permission. Passwords are
 8–128 characters and stored using individually salted scrypt hashes. Login uses email
-and password. Existing pass-code users choose **Login → Already have a pass code?**
+or Workday ID with the same password. Workday IDs preserve leading zeroes, ignore case
+and surrounding spaces, and are unique across learner accounts. They accept letters,
+numbers, periods, underscores and hyphens (1–50 characters); they do not verify employment
+or grant permissions. Recovery continues to use the account email. Migration
+`20261008010000_registration-identity` adds nullable names/Workday ID without changing
+existing accounts or progress; it must run before the new authentication code.
+Existing pass-code users choose **Login → Already have a pass code?**
 to verify their old code and set a password once, retaining their learner ID and progress.
 
 Migrations `004_registration-catalogue` and `005_seed-primark-courses` add the schema
