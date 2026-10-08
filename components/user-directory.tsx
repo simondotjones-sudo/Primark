@@ -70,17 +70,18 @@ export default function UserDirectory({type,onAssign,onAssignAll,onPermissions}:
 function EditDetails({person,onCancel,onSaved}:{person:UserPerson;onCancel:()=>void;onSaved:()=>void}){
   const {t,lang}=useLanguage();
   const [name,setName]=useState(person.name),[email,setEmail]=useState(person.email);
+  const [workdayId,setWorkdayId]=useState(person.workday_id||'');
   const [busy,setBusy]=useState(''),[error,setError]=useState(''),[message,setMessage]=useState('');
-  const dirty=name!==person.name||email!==person.email;
+  const dirty=name!==person.name||email!==person.email||workdayId!==(person.workday_id||'');
   async function act(action:'details'|'password-reset'){
     setBusy(action);setError('');setMessage('');
-    try{const response=await fetch('/api/users',{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:person.id,revision:person.revision,action,name,email,lang})});const result=await response.json();if(!response.ok)throw new Error(result.error);if(action==='details')onSaved();else setMessage('Password reset email sent.');}
+    try{const response=await fetch('/api/users',{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:person.id,revision:person.revision,action,name,email,workdayId,lang})});const result=await response.json();if(!response.ok)throw new Error(result.error);if(action==='details')onSaved();else setMessage('Password reset email sent.');}
     catch(e){setError(e instanceof Error?e.message:'Please try again.');}finally{setBusy('');}
   }
   return <form className="add-user-form" onSubmit={event=>{event.preventDefault();void act('details');}}>
     <h2>{t('Edit details')}</h2>{error&&<p className="error" role="alert">{t(error)}</p>}{message&&<p className="admin-success" role="status">{t(message)}</p>}
-    <fieldset disabled={!!busy}><label>{t('Name')}<Input value={name} onChange={e=>setName(e.target.value)} required minLength={2} maxLength={101}/></label><label>{t('Email')}<Input type="email" value={email} onChange={e=>setEmail(e.target.value)} required maxLength={254}/></label></fieldset>
-    <p className="access-note">{t('Changing the email signs the user out. Use the new email to sign in.')}</p>
+    <fieldset disabled={!!busy}><label>{t('Name')}<Input value={name} onChange={e=>setName(e.target.value)} required minLength={2} maxLength={101}/></label><label>{t('Email')}<Input type="email" value={email} onChange={e=>setEmail(e.target.value)} required maxLength={254}/></label><label>{t('Employee ID')}<Input value={workdayId} onChange={e=>setWorkdayId(e.target.value)} maxLength={50} placeholder={t('Optional')}/></label></fieldset>
+    <p className="access-note">{t('Changing the email or Employee ID signs the user out. Use the updated details to sign in.')}</p>
     <div className="editor-actions"><Button type="button" variant="outline" disabled={!!busy} onClick={onCancel}>{t('Cancel')}</Button><Button className="blue-button" disabled={!!busy||!dirty}>{t(busy==='details'?'Saving…':'Save details')}</Button></div>
     <div className="user-recovery"><h3>{t('Password')}</h3><p className="access-note">{t('Send a secure reset link to the saved email address. Email delivery must be configured.')}</p>{dirty&&<p className="access-note">{t('Save your changes before sending a reset email.')}</p>}<Button type="button" variant="outline" disabled={!!busy||dirty} onClick={()=>void act('password-reset')}>{t(busy==='password-reset'?'Sending…':'Send password reset email')}</Button></div>
   </form>;

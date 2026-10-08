@@ -57,6 +57,39 @@ export async function userAdministrationChecks({m,check,query,invoke,loginAdmin,
     assert.equal((await update(bootstrap,await find(person.id),{action:'details',name:person.id,email:before.email})).status,200);accounts.learner.email=before.email;
     await query('DELETE FROM user_access_audit WHERE learner_id=?',person.id).run();
   });
+  await check('Admins correct Employee IDs without losing history; duplicates, invalid IDs and stale edits fail',async()=>{
+    const person=await find(accounts.learner.id);
+    const change=(current,workdayId,cookie=accounts.store.cookie)=>update(cookie,current,{action:'details',name:current.name,email:current.email,workdayId});
+    await query('UPDATE learners SET workday_id=? WHERE id=?','001234',accounts.other.id).run();
+    assert.equal((await change(person,'001234')).status,409);
+    for(const id of ['bad id','user@example.test','X'.repeat(51),42])assert.equal((await change(person,id)).status,400);
+    assert.equal((await change(await find(accounts.uk.id),'UK-NEW')).status,403);
+    const before=await query('SELECT * FROM learners WHERE id=?',person.id).first();
+    const assignments=await query('SELECT * FROM course_assignments WHERE learner_id=?',person.id).all();
+    const progress=await query('SELECT * FROM scorm_progress WHERE learner_id=?',person.id).all();
+    const certificates=await query('SELECT * FROM certificates WHERE learner_id=?',person.id).all();
+    assert.equal((await change(person,'  000abc  ')).status,200);
+    let current=await find(person.id);assert.equal(current.workday_id,'000ABC');
+    assert.equal((await change(person,'STALE')).status,409);
+    const idLogin=await invoke(m.prototype,'POST','/api/prototype',{action:'login',email:'000abc',password});assert.equal(idLogin.status,200);
+    await query('INSERT INTO password_resets(token_hash,account_type,account_id,credential_hash,expires_at) VALUES(?,?,?,?,?)','employee-id-reset','learner',person.id,'unused','2099-01-01').run();
+    assert.equal((await change(current,'000xyz',accounts.country.cookie)).status,200);
+    assert.equal(await query('SELECT * FROM sessions WHERE learner_id=?',person.id).first(),null);
+    assert.equal(await query('SELECT * FROM password_resets WHERE account_id=?',person.id).first(),null);
+    assert.equal((await invoke(m.prototype,'POST','/api/prototype',{action:'login',email:'000abc',password})).status,401);
+    assert.equal((await invoke(m.prototype,'POST','/api/prototype',{action:'login',email:'000xyz',password})).status,200);
+    assert.equal((await login(accounts.learner)).status,200);
+    const after=await query('SELECT * FROM learners WHERE id=?',person.id).first();assert.equal(after.password_hash,before.password_hash);assert.equal(after.store_id,before.store_id);
+    assert.deepEqual(await query('SELECT * FROM course_assignments WHERE learner_id=?',person.id).all(),assignments);
+    assert.deepEqual(await query('SELECT * FROM scorm_progress WHERE learner_id=?',person.id).all(),progress);
+    assert.deepEqual(await query('SELECT * FROM certificates WHERE learner_id=?',person.id).all(),certificates);
+    current=await find(person.id);assert.equal((await change(current,'   ',accounts.org.cookie)).status,200);assert.equal((await find(person.id)).workday_id,null);
+    assert.equal((await invoke(m.prototype,'POST','/api/prototype',{action:'login',email:'000xyz',password})).status,401);
+    const audit=await query("SELECT * FROM user_access_audit WHERE learner_id=? AND action='details' ORDER BY id",person.id).all();assert.equal(audit.results.length,3);assert.equal(audit.results[0].next_state.workday_id,'000ABC');
+    await query('UPDATE learners SET workday_id=NULL WHERE id=?',accounts.other.id).run();
+    await query('DELETE FROM user_access_audit WHERE learner_id=?',person.id).run();
+    await query('DELETE FROM auth_limits').run();
+  });
   await check('Admin password reset is scoped, honest about configuration/delivery, and throttled',async()=>{
     const person=await find(accounts.learner.id),keys=['POSTMARK_SERVER_TOKEN','POSTMARK_FROM_EMAIL','PRIMARK_APP_URL'],env=keys.map(k=>process.env[k]),fetch=globalThis.fetch;let mails=[];
     try{

@@ -7,6 +7,7 @@ import type {UserPerson} from '@/lib/user-administration-types';
 import {allowLoginAttempt} from '@/lib/admin-auth';
 import {RecoveryError,requestPasswordReset} from '@/lib/password-recovery';
 import {isLanguage} from '@/lib/i18n';
+import {normalizeWorkdayId} from '@/lib/learner-auth';
 
 export async function changeUserAccess(originalActor:UserAdministrator,body:Record<string,unknown>){
   if(!body||typeof body!=='object'||Array.isArray(body)||typeof body.id!=='string'||typeof body.revision!=='string'||!['details','password-reset','access','archive','restore'].includes(String(body.action)))throw new CourseError('Choose an existing learner account.');
@@ -37,9 +38,13 @@ export async function changeUserAccess(originalActor:UserAdministrator,body:Reco
       if(name.length<2||name.length>101)throw new CourseError('Enter a name with 2–101 characters.');
       if(email.length>254||/[<>,;:"\\]/.test(email)||! /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))throw new CourseError('Enter a valid email address.');
       if(email===credentials()?.email)throw new CourseError('This email is already registered.',409);
-      try{await client.query('UPDATE learners SET name=$1,email=$2 WHERE id=$3',[name,email,target.id]);}
-      catch(error){if((error as {code?:string}).code==='23505')throw new CourseError('This email is already registered.',409);throw error;}
-      invalidateSessions=email!==target.email;
+      const rawId=body.workdayId===undefined?target.workday_id:body.workdayId;
+      if(rawId!==null&&typeof rawId!=='string')throw new CourseError('Check your Workday ID, or leave it blank.');
+      const workdayId=normalizeWorkdayId(rawId);
+      if(typeof rawId==='string'&&rawId.trim()&&!workdayId)throw new CourseError('Check your Workday ID, or leave it blank.');
+      try{await client.query('UPDATE learners SET name=$1,email=$2,workday_id=$3 WHERE id=$4',[name,email,workdayId,target.id]);}
+      catch(error){if((error as {code?:string}).code==='23505')throw new CourseError((error as {constraint?:string}).constraint?.includes('workday')?'This Employee ID is already linked to an account.':'This email is already registered.',409);throw error;}
+      invalidateSessions=email!==target.email||workdayId!==target.workday_id;
     }else if(body.action==='password-reset'){
       if(target.archived_at)throw new CourseError('Restore this account before sending a password reset email.');
       if(!await allowLoginAttempt('admin-recovery-actor:'+actor.email,30)||!await allowLoginAttempt('recovery-email:'+target.email,3))throw new CourseError('Too many attempts. Try again in 15 minutes.',429);

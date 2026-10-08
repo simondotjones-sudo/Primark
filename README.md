@@ -349,3 +349,9 @@ password or sign the user out until they complete the reset. Both details change
 and successful reset requests are audited without passwords or reset tokens.
 Migration `20261008130000_user-details-audit` extends the existing audit action
 constraint; it does not change existing accounts.
+
+Edit details also allows admins to correct or clear the optional **Employee ID**
+(the existing Workday ID used for login). Leading zeroes are preserved; IDs are
+trimmed, uppercased, validated and protected by the database uniqueness constraint.
+ID changes invalidate sessions and reset links, are included in revision checks and
+are audited. Training records remain associated with the same account.

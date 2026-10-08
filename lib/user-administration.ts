@@ -48,10 +48,10 @@ export function managedUsersSql(actor:UserAdministrator,stores:{id:string;countr
   return {sql,args};
 }
 export const canEditUsers=(actor:UserAdministrator)=>actor.platformAdmin||actor.access.scope!=='site';
-export const userColumns=`l.id,l.name,l.email,l.country,l.store_id,l.archived_at,
+export const userColumns=`l.id,l.name,l.email,l.workday_id,l.country,l.store_id,l.archived_at,
   r.scope,r.country AS reporting_country,r.site_id AS reporting_site_id,m.store_id AS manager_store_id,
   EXISTS(SELECT 1 FROM platform_admins p WHERE p.learner_id=l.id) AS platform_admin`;
 export const userJoins='FROM learners l LEFT JOIN reporting_access r ON r.learner_id=l.id LEFT JOIN store_managers m ON m.learner_id=l.id';
-export function userRevision(person:{name:string;email:string;store_id:string;country:string;archived_at:string|null;scope:string|null;reporting_country:string|null;reporting_site_id:string|null;manager_store_id:string|null;platform_admin:boolean}){
-  return JSON.stringify([person.name,person.email,person.store_id,person.country,person.archived_at,person.scope,person.reporting_country,person.reporting_site_id,person.manager_store_id,person.platform_admin]);
+export function userRevision(person:{name:string;email:string;workday_id:string|null;store_id:string;country:string;archived_at:string|null;scope:string|null;reporting_country:string|null;reporting_site_id:string|null;manager_store_id:string|null;platform_admin:boolean}){
+  return JSON.stringify([person.name,person.email,person.workday_id,person.store_id,person.country,person.archived_at,person.scope,person.reporting_country,person.reporting_site_id,person.manager_store_id,person.platform_admin]);
 }
