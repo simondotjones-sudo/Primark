@@ -366,6 +366,11 @@ footer strong{letter-spacing:.08em}
 .shell .pill-switch.pill-switch>button:focus-visible{outline:3px solid #008bc9;outline-offset:2px}
 .shell .pill-switch.pill-switch>button:disabled{cursor:default;opacity:.5}
 .course-view-switch.pill-switch{width:100%;max-width:650px;margin-inline:0}
+/* Size desktop segments to their labels so these controls cannot squash text. */
+@media(min-width:761px){
+  .user-view-tabs.pill-switch,.scope-buttons.pill-switch{display:grid;grid-auto-flow:column;grid-auto-columns:1fr;flex-shrink:0}
+  .shell :is(.user-view-tabs,.scope-buttons).pill-switch>button{min-width:104px;padding-inline:24px;white-space:nowrap;overflow-wrap:normal}
+}
 @media(max-width:760px){.pill-switch.pill-switch{width:100%;max-width:none;padding:5px;justify-self:stretch}.shell .pill-switch.pill-switch>button{min-height:46px;padding:9px 5px;font-size:.96rem}}
 @media(prefers-reduced-motion:reduce){.shell .pill-switch.pill-switch>button{transition:none}}
 
