@@ -6,6 +6,7 @@ export const syncAssignments=(learnerId:string|null=null)=>db().prepare('SELECT 
 const messages=new Set(['Only an expired assignment can be renewed.','No credit price is configured for this date.',
  'This store has no credits available. Contact a platform admin for a top-up.','Assignment not found.',
  'This assignment has changed. Refresh and try again.','Assignments can be removed only within 14 days of assignment.',
+ 'Started or completed assignments cannot be removed.',
  'Enter a removal reason between 3 and 500 characters.']);
 export function creditError(error:unknown){const e=error as {code?:string;message?:string};return e.code==='P0001'&&messages.has(e.message||'')?new CourseError(e.message!,409):error;}
 

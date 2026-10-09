@@ -20,7 +20,10 @@ export async function GET(request:NextRequest){try{
  h.assigned_at::text AS "assignedAt",h.started_at::text AS "startedAt",h.completed_at::text AS "completedAt",
  h.cancelled_at::text AS "cancelledAt",h.cancelled_by AS "cancelledBy",h.cancellation_reason AS reason,h.refunded,
  h.previous_id IS NOT NULL AS "hasPrevious",h.billed,
- (h.cancelled_at IS NULL AND a.history_id=h.id AND now()<h.assigned_at+interval '336 hours') AS "canRemove",
+ (h.cancelled_at IS NULL AND a.history_id=h.id AND now()>=h.assigned_at AND now()<h.assigned_at+interval '336 hours'
+  AND h.started_at IS NULL AND h.completed_at IS NULL
+  AND NOT EXISTS(SELECT 1 FROM scorm_launches s WHERE s.learner_id=h.learner_id AND s.course_id=h.course_id)
+  AND NOT EXISTS(SELECT 1 FROM scorm_progress s JOIN course_packages p ON p.id=s.package_id WHERE s.learner_id=h.learner_id AND p.course_id=h.course_id)) AS "canRemove",
  EXISTS(SELECT 1 FROM certificates cert WHERE cert.assignment_id=h.id AND cert.archived_at IS NULL AND cert.expires_at::timestamptz<=now()) AS "canRenew"
  ${actor.platformAdmin?',h.unit_cents AS "unitCents"':''}
  FROM assignment_history h LEFT JOIN course_assignments a ON a.history_id=h.id

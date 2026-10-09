@@ -518,3 +518,15 @@ footer strong{letter-spacing:.08em}
 .organisation-store-table .store-actions-column{width:270px}
 @media(min-width:601px) and (max-width:900px){.organisation-store-table .store-actions-column{width:110px}.organisation-store-table .organisation-store-actions{flex-direction:column;align-items:stretch;gap:8px}.organisation-store-table .organisation-store-actions button{white-space:normal;height:auto;min-height:36px}}
 @media(max-width:600px){.organisation-store-table .store-actions-column{width:80px}}
+
+/* Keep audience and assignment labels readable, with local scrolling on small screens. */
+.audience-tabs-scroll,.assignment-view-scroll{max-width:100%;min-width:0;overflow-x:auto;padding:3px}
+.audience-tabs.pill-switch.pill-switch,.assignment-view-tabs.pill-switch.pill-switch{display:grid;grid-auto-flow:column;grid-auto-columns:1fr;width:max-content;max-width:none}
+.assignment-view-tabs.pill-switch{margin-inline:0}
+.shell :is(.audience-tabs,.assignment-view-tabs).pill-switch>button{min-width:104px;padding-inline:24px;white-space:nowrap;overflow-wrap:normal}
+.assignment-history-filters{flex-wrap:wrap;align-items:center}
+@media(max-width:760px){
+  .audience-tabs.pill-switch,.assignment-view-tabs.pill-switch{min-width:100%}
+  .shell :is(.audience-tabs,.assignment-view-tabs).pill-switch>button{min-width:0;padding-inline:14px}
+  .assignment-view-scroll{width:100%}
+}
