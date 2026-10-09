@@ -129,7 +129,6 @@ p{line-height:1.55}.shell{min-height:100vh;display:flex;flex-direction:column}
 .courses-layout{display:block;margin-inline:auto}
 .courses-layout .learner-main{max-width:none}
 .courses-layout .sidebar{display:none}
-.courses-page h1{margin:0 0 26px}
 .course-view-switch button{border:0;border-radius:999px;background:transparent;color:#607582;min-height:49px;padding:10px 12px;text-align:center;font-weight:600;transition:background .15s,color .15s,box-shadow .15s}
 .course-view-switch button:hover{color:#007cae}
 .course-view-switch button[aria-pressed="true"]{background:#fff;color:#007cb9;box-shadow:0 2px 9px #18445b13}
