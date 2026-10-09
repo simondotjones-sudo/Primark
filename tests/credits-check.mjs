@@ -1,3 +1,4 @@
+// The named sample-account data migration is covered separately by sample-completion-check.mjs.
 import assert from 'node:assert/strict';
 import {mock} from 'node:test';
 import {readFileSync,readdirSync,mkdtempSync,writeFileSync,rmSync} from 'node:fs';
@@ -9,7 +10,7 @@ import {build} from 'esbuild';
 import {ZipReader,Uint8ArrayReader,TextWriter} from '@zip.js/zip.js';
 import {XMLParser} from 'fast-xml-parser';
 const pg=new PGlite();
-const migrations=readdirSync('netlify/database/migrations').sort();
+const migrations=readdirSync('netlify/database/migrations').sort().filter(name=>name!=='20261009160000_sample-learner-induction-completion');
 const migration=migrations.find(n=>n.endsWith('_period-credits'));
 for(const n of migrations.filter(n=>n<migration))await pg.exec(readFileSync(`netlify/database/migrations/${n}/migration.sql`,'utf8'));
 await pg.exec(`INSERT INTO learners(id,name,email,code_hash,store_id,country,entered_at) VALUES('existing','Existing learner','existing@test.invalid','unused','legacy-store','Ireland','2026-10-01');

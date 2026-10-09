@@ -1,3 +1,4 @@
+// The named sample-account data migration is covered separately by sample-completion-check.mjs.
 import assert from 'node:assert/strict';
 import {storeSetupChecks} from './store-setup-checks.mjs';
 import {userAdministrationChecks} from './user-administration-checks.mjs';
@@ -17,7 +18,7 @@ import { join } from 'node:path';
 import { AsyncLocalStorage } from 'node:async_hooks';
 import { createRequire } from 'node:module';
 const resolve=createRequire(import.meta.url).resolve;
-const pg=new PGlite();for(const name of readdirSync('netlify/database/migrations').sort())await pg.exec(readFileSync('netlify/database/migrations/'+name+'/migration.sql','utf8'));
+const pg=new PGlite();for(const name of readdirSync('netlify/database/migrations').sort().filter(name=>name!=='20261009160000_sample-learner-induction-completion'))await pg.exec(readFileSync('netlify/database/migrations/'+name+'/migration.sql','utf8'));
 // Reporting fixtures deliberately create thousands of assignments in a few stores.
 await pg.exec("INSERT INTO credit_ledger(id,store_id,kind,credits,recorded_at,actor) SELECT gen_random_uuid()::text,store_id,'manual_topup',50000,now(),'test fixture capacity' FROM store_credit_accounts; UPDATE store_credit_accounts SET balance=balance+50000");
 const context=new AsyncLocalStorage(), maps=new Map();

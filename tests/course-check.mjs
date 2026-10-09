@@ -1,3 +1,4 @@
+// The named sample-account data migration is covered separately by sample-completion-check.mjs.
 import { certificateChecks } from './certificate-checks.mjs';
 import assert from 'node:assert/strict';
 import { readFileSync, readdirSync, mkdtempSync, writeFileSync, rmSync } from 'node:fs';
@@ -12,7 +13,7 @@ const require=createRequire(import.meta.url);
 
 const dir=mkdtempSync(join(tmpdir(),'primark-course-check-'));
 const pg=new PGlite();
-for(const name of readdirSync('netlify/database/migrations').sort())await pg.exec(readFileSync('netlify/database/migrations/'+name+'/migration.sql','utf8'));
+for(const name of readdirSync('netlify/database/migrations').sort().filter(name=>name!=='20261009160000_sample-learner-induction-completion'))await pg.exec(readFileSync('netlify/database/migrations/'+name+'/migration.sql','utf8'));
 const context=new AsyncLocalStorage();
 const pool={async query(sql,values=[]){const result=await pg.query(sql,values);return {rows:result.rows,rowCount:result.affectedRows};},async connect(){return {...this,release(){}};}};
 const blobs=new Map();
