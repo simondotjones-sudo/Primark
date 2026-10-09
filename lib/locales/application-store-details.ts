@@ -1,4 +1,6 @@
 export const storeDetails:Record<string,string>={
+'Actions':'Acciones|Actions|Aktionen|Azioni|Acties|Ações|Działania|Acțiuni|Akce|Akcie|Dejanja|Műveletek|الإجراءات',
+'Search by store name or code':'Buscar por nombre o código de tienda|Rechercher par nom ou code du magasin|Nach Filialname oder Code suchen|Cerca per nome o codice negozio|Zoeken op winkelnaam of code|Pesquisar por nome ou código da loja|Szukaj po nazwie lub kodzie sklepu|Caută după numele sau codul magazinului|Hledat podle názvu nebo kódu prodejny|Hľadať podľa názvu alebo kódu predajne|Išči po imenu ali kodi trgovine|Keresés üzletnév vagy kód alapján|البحث باسم المتجر أو رمزه',
 'Edit':'Editar|Modifier|Bearbeiten|Modifica|Bewerken|Editar|Edytuj|Editează|Upravit|Upraviť|Uredi|Szerkesztés|تعديل',
 'Save changes':'Guardar cambios|Enregistrer les modifications|Änderungen speichern|Salva modifiche|Wijzigingen opslaan|Guardar alterações|Zapisz zmiany|Salvează modificările|Uložit změny|Uložiť zmeny|Shrani spremembe|Módosítások mentése|حفظ التغييرات',
 'Store details':'Detalles de la tienda|Détails du magasin|Filialdetails|Dettagli negozio|Winkelgegevens|Detalhes da loja|Dane sklepu|Detalii magazin|Podrobnosti prodejny|Podrobnosti predajne|Podrobnosti trgovine|Üzlet adatai|تفاصيل المتجر',
