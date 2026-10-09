@@ -4,6 +4,8 @@ import type {SafetyPassportRecord} from '@/lib/safety-passport';
 import {useLanguage} from '@/components/language-provider';
 import { certificateStatus, type Certificate } from '@/lib/certificates';
 import '@/app/certificates/certificates.css';
+import './assigned-courses.css';
+import {Check} from 'lucide-react';
 import { useEffect, useState } from 'react';
 import CourseMetadata from '@/components/course-metadata';
 import CourseProgress from '@/components/course-progress';
@@ -53,7 +55,7 @@ export default function AssignedCourses({view = 'all', hasLegacyCourse = false}:
     if (view === 'todo') return c.status !== 'Completed' || (c.certificate && certificateStatus(c.certificate.expiresAt) === 'Expired');
     return view === 'all';
   }) ?? [];
-  const showInductionPending = inductionPending && (view === 'all' || view === 'induction');
+  const showInductionPending = inductionPending && (view === 'all' || view === 'induction' || view === 'todo');
   return <section className="assigned-courses">
     {view === 'certs' ? (
       certificateError ? <p role="alert">{t(certificateError)}</p> :
@@ -86,7 +88,13 @@ export default function AssignedCourses({view = 'all', hasLegacyCourse = false}:
         return c.status==='Completed'&&c.category.trim().toLowerCase()==='induction'&&c.passport
           ? <div className="induction-course-pair" key={c.id}>{card}<SafetyPassport record={c.passport}/></div>
           : card;
-      })}</div> : !showInductionPending && !hasLegacyCourse && (view === 'completed' ? <div className="certificates-empty">{t("You haven't completed any courses yet.")}</div> : <p>{t(view === 'todo' ? "You're all caught up." : view === 'induction' ? "No induction courses have been assigned to you yet." : "No additional courses have been assigned to you yet.")}</p>)}
+      })}</div> : !showInductionPending && !hasLegacyCourse && (view === 'todo' ?
+        <div className="certificates-empty courses-clear" role="status">
+          <span className="courses-clear-tick" aria-hidden="true"><Check size={32} strokeWidth={2}/></span>
+          <h2>{t("You're all set!")}</h2>
+          <p>{t('Congratulations — you have no courses to do right now.')}</p>
+        </div>
+        : view === 'completed' ? <div className="certificates-empty">{t("You haven't completed any courses yet.")}</div> : <p>{t(view === 'induction' ? "No induction courses have been assigned to you yet." : "No additional courses have been assigned to you yet.")}</p>)}
     </>}
   </section>;
 }
