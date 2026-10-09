@@ -18,7 +18,7 @@ import { profileHref, profileScope, type ProfileAccount, type ReportFilter } fro
 import TrainingReporting from "@/components/training-report";
 import CertificatePaper from "@/components/certificate-paper";
 import type { Certificate } from "@/lib/certificates";
-import AssignedCourses from "@/components/assigned-courses";
+import AssignedCourses, {type CourseView} from "@/components/assigned-courses";
 import { ArrowLeft, BookOpen, Check, CheckCircle2, ClipboardCheck, LayoutGrid, Play, ShieldCheck, Video } from "lucide-react";
 import stores from "@/lib/stores.json";
 import { modules, questions } from "@/lib/course";
@@ -29,7 +29,6 @@ import { Progress } from "@/components/ui/progress";
 
 type Learner = {id:string;name:string;email:string;store_id:string;country:string;entered_at:string;started_at:string|null;completed_at:string|null;best_score:number|null;certificate_token:string|null;induction_enrolled:boolean};
 type Screen = "home"|"courses"|"module"|"quiz"|"result"|"pass";
-type CourseView = "all" | "todo" | "certs";
 const sampleCourses = [
   {title:"Manual Handling",image:"manual-handling",cover:manualHandlingCover,alt:"Colleagues moving stock on a trolley"},
   {title:"Security, loss prevention and personal safety",image:"security",cover:securityCover,alt:"Colleagues speaking on the shop floor"},
@@ -116,6 +115,7 @@ export default function Home() {
   },[learner]);
   async function run(fn:()=>Promise<void>){setBusy(true);setError("");try{await fn();}catch(e){setError(e instanceof Error?e.message:"Please try again.");}finally{setBusy(false);}}
   const complete=!!learner?.completed_at;
+  const showLegacyCourse=!!learner&&!learner.induction_enrolled&&courseView!=="certs"&&(courseView!=="todo"||!complete)&&(courseView!=="completed"||complete);
   const nextChapter=shownModules.findIndex(m=>!viewed.includes(m.key));
 
   return <div className={"shell"+(!account&&!loading?" login-screen":"")} lang={lang} dir={languageDirection(lang)}>
@@ -141,16 +141,16 @@ export default function Home() {
           </section>}
           {screen==="courses"&&<section className="courses-page">
             <h1>{t("My Courses")}</h1>
-            <div className="course-view-switch pill-switch" role="group" aria-label={t("My Courses")}>
-              {(["all","todo","certs"] as const).map(view=><button key={view} type="button" aria-pressed={courseView===view} onClick={()=>setCourseView(view)}>{t(view==="all"?"All":view==="todo"?"To do":"Certs")}</button>)}
-            </div>
-            {!learner.induction_enrolled&&courseView!=="certs"&&(courseView!=="todo"||!complete)&&<button className="course-feature" onClick={()=>setScreen(complete?"pass":"home")}>
-              <Image src={safetyPassCover} alt="" placeholder="blur" loading="eager" fetchPriority="high" sizes="(max-width: 760px) calc(100vw - 36px), (max-width: 1340px) calc(43vw - 135px), 420px" />
+            <div className="course-view-scroll"><div className="course-view-switch pill-switch" role="group" aria-label={t("My Courses")}>
+              {(["induction","all","todo","completed","certs"] as const).map(view=><button key={view} type="button" aria-pressed={courseView===view} onClick={event=>{setCourseView(view);event.currentTarget.scrollIntoView({block:"nearest",inline:"nearest"});}}>{t(view==="induction"?"Safety Induction":view==="all"?"All My Courses":view==="todo"?"Courses To Do":view==="completed"?"Courses Completed":"Certifications")}</button>)}
+            </div></div>
+            {showLegacyCourse&&<button className="course-feature" onClick={()=>setScreen(complete?"pass":"home")}>
+              <Image src={safetyPassCover} alt="" placeholder="blur" loading="eager" fetchPriority="high" sizes="(max-width: 760px) calc(100vw - 36px), (max-width: 1340px) calc(43vw - 24px), 552px" />
               <span className="course-feature-copy"><small>{complete?t("Completed"):t("Available now")}</small><strong>{t("Primark Safety Passport")}</strong><span>{complete?t("View my pass"):t("Continue learning")}</span></span>
             </button>}
-            <AssignedCourses view={courseView}/>{courseView==="all"&&!learner.induction_enrolled&&<><div className="section-title"><h2>{t("More courses")}</h2><span>{t("Coming soon")}</span></div>
+            <AssignedCourses view={courseView} hasLegacyCourse={showLegacyCourse}/>{courseView==="all"&&!learner.induction_enrolled&&<><div className="section-title"><h2>{t("More courses")}</h2><span>{t("Coming soon")}</span></div>
             <div className="course-catalog-grid">{sampleCourses.map((course,index)=><article className="course-tile" key={course.image}>
-              <Image src={course.cover} alt="" placeholder="blur" loading={index<2?"eager":"lazy"} sizes="(max-width: 760px) calc(100vw - 36px), (max-width: 1340px) calc(50vw - 178px), 480px"/>
+              <Image src={course.cover} alt="" placeholder="blur" loading={index<2?"eager":"lazy"} sizes="(max-width: 760px) calc(100vw - 36px), (max-width: 1340px) calc(50vw - 37px), 634px"/>
               <div><small>{t("Coming soon")}</small><h3>{t(course.title)}</h3>{course.image==="manual-handling"&&<p>{t("Includes a practical element")}</p>}</div>
             </article>)}</div></>}
           </section>}

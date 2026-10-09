@@ -16,7 +16,9 @@ type AssignedCourse = CoursePanelDetails & {
   scos: {id: string; title: string; status: string; score: string | null}[];
 };
 
-export default function AssignedCourses({view = 'all'}: {view?: 'all' | 'todo' | 'certs'}) {
+export type CourseView = 'induction' | 'all' | 'todo' | 'completed' | 'certs';
+
+export default function AssignedCourses({view = 'all', hasLegacyCourse = false}: {view?: CourseView; hasLegacyCourse?: boolean}) {
   const {t,date}=useLanguage();
 
   const [courses, setCourses] = useState<AssignedCourse[] | null>(null);
@@ -42,7 +44,13 @@ export default function AssignedCourses({view = 'all'}: {view?: 'all' | 'todo' |
     }).catch(e => {if (active) setCertificateError(e.message);});
     return () => {active = false;};
   }, [view, certificates, certificateError]);
-  const visibleCourses = courses?.filter(c => view === 'all' || c.status !== 'Completed' || (c.certificate && certificateStatus(c.certificate.expiresAt) === 'Expired')) ?? [];
+  const visibleCourses = courses?.filter(c => {
+    if (view === 'induction') return c.category.trim().toLowerCase() === 'induction';
+    if (view === 'completed') return c.status === 'Completed';
+    if (view === 'todo') return c.status !== 'Completed' || (c.certificate && certificateStatus(c.certificate.expiresAt) === 'Expired');
+    return view === 'all';
+  }) ?? [];
+  const showInductionPending = inductionPending && (view === 'all' || view === 'induction');
   return <section className="assigned-courses">
     {view === 'certs' ? (
       certificateError ? <p role="alert">{t(certificateError)}</p> :
@@ -57,12 +65,12 @@ export default function AssignedCourses({view = 'all'}: {view?: 'all' | 'todo' |
         </a>;
       })}</div> : <div className="certificates-empty">{t('Your certificates will appear here when you complete a course.')}</div>
     ) : <>
-    {inductionPending && <p>{t("Your induction is being prepared. It will appear here when it is available.")}</p>}
+    {showInductionPending && <p>{t("Your induction is being prepared. It will appear here when it is available.")}</p>}
     {error ? <p role="alert">{t(error)}</p> : courses === null ? <p>{t("Loading your courses…")}</p> : visibleCourses.length ?
       <div className="course-catalog-grid">{visibleCourses.map(c =>
         <article className="paper assigned-course" key={c.id}>
           <a href={`/learn/${c.id}/`} aria-label={t("Open {title}",{title:c.title})} className="assigned-course-cover"><CourseCover coverKey={c.coverKey}
-            sizes="(max-width: 760px) calc(100vw - 36px), (max-width: 1340px) calc(50vw - 178px), 480px" /></a>
+            sizes="(max-width: 760px) calc(100vw - 36px), (max-width: 1340px) calc(50vw - 37px), 634px" /></a>
           <div className="assigned-course-details">
           <h3><a href={`/learn/${c.id}/`}>{c.title}</a></h3>
           <CourseMetadata details={c}/>
@@ -72,7 +80,7 @@ export default function AssignedCourses({view = 'all'}: {view?: 'all' | 'todo' |
           <div className="assigned-course-actions"><a href={`/learn/${c.id}/`}>{t(c.status === 'Completed' ? 'Review course' : c.status === 'In progress' ? 'Continue course' : 'Start course')}</a>{c.certificate&&<a href={'/certificates/'+c.certificate.token+'/'}>{t("View certificate")}</a>}</div>
           </div>
         </article>
-      )}</div> : !inductionPending && <p>{t(view === 'todo' ? "You're all caught up." : "No additional courses have been assigned to you yet.")}</p>}
+      )}</div> : !showInductionPending && !hasLegacyCourse && <p>{t(view === 'todo' ? "You're all caught up." : view === 'completed' ? "You haven't completed any courses yet." : view === 'induction' ? "No induction courses have been assigned to you yet." : "No additional courses have been assigned to you yet.")}</p>}
     </>}
   </section>;
 }
