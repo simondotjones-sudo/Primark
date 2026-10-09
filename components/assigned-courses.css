@@ -3,3 +3,14 @@
 .courses-clear h2{margin:0;color:#173746;font-size:30px;font-weight:500;line-height:1.2;letter-spacing:-.025em;overflow-wrap:anywhere}
 .courses-clear p{max-width:480px;margin:10px 0 0;color:#617b89;font-size:15px;line-height:1.6;overflow-wrap:anywhere}
 @media(max-width:760px){.courses-clear{padding:34px 22px 38px}.courses-clear h2{font-size:26px}.courses-clear-tick{width:58px;height:58px;margin-bottom:18px}}
+
+@media(min-width:761px){
+ .main:has(.courses-layout){padding-top:24px;padding-bottom:48px}
+ .courses-layout .course-view-scroll{margin-bottom:18px}
+ .assigned-courses .assigned-course-cover{height:200px;aspect-ratio:auto;flex-shrink:0}
+ .assigned-courses .course-cover-image[data-cover="safety-pass"]{object-position:center top}
+ .assigned-courses .assigned-course-details{padding:18px 22px 20px}
+ .assigned-courses .assigned-course h3{font-size:21px;margin-bottom:10px}
+ .assigned-course-details>.course-metadata{margin-bottom:14px}
+ .assigned-courses .assigned-course-actions{margin-top:14px}
+}

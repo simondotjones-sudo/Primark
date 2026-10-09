@@ -23,5 +23,5 @@ const covers = {
 
 export default function CourseCover({coverKey, sizes}: {coverKey: CourseCoverKey; sizes: string}) {
   return <Image src={covers[coverKey] || safetyPass} alt="" fill
-    placeholder="blur" sizes={sizes} className="course-cover-image" />;
+    placeholder="blur" sizes={sizes} className="course-cover-image" data-cover={coverKey} />;
 }
