@@ -52,6 +52,44 @@ export async function storeSetupChecks({m,check,query,invoke,loginAdmin,cookieFr
   const pending=await post({action:'add',name:'Pending password store',country:store.country,adminEmail:'pending.store.admin@example.test'});assert.equal(pending.status,200);assert((await pending.json()).passwordSetupPending);
   const audit=await query('SELECT * FROM organisation_store_audit WHERE store_id=?',added.id).all();assert.equal(audit.results[0].actor,'store-setup-country@example.test');assert(!JSON.stringify(audit).includes(password));
  });
+ let editStore;
+ await check('Store details save name, code and contact without changing account credentials or credit balances',async()=>{
+  const create=await post({action:'add',name:'Edit details fixture',country:store.country,storeCode:'EDIT-001',adminEmail:'edit-admin@example.test',adminPassword:password});
+  assert.equal(create.status,200);editStore=(await create.json()).stores.find(s=>s.storeCode==='EDIT-001');
+  const manager=await query('SELECT * FROM learners WHERE email=?','edit-admin@example.test').first();
+  const balance=await query('SELECT balance,target FROM store_credit_accounts WHERE store_id=?',editStore.id).first();
+  const saved=await post({...editStore,action:'edit',name:'Updated store',storeCode:'007-EDIT',adminEmail:' Store.Contact@Example.test ',learnerCount:999},cookies.country);
+  assert.equal(saved.status,200,await saved.clone().text());editStore=(await saved.json()).stores.find(s=>s.id===editStore.id);
+  assert.equal(editStore.name,'Updated store');assert.equal(editStore.storeCode,'007-EDIT');assert.equal(editStore.adminEmail,'store.contact@example.test');assert.equal(editStore.learnerCount,0);
+  assert.deepEqual(await query('SELECT * FROM learners WHERE id=?',manager.id).first(),manager);
+  assert.deepEqual(await query('SELECT balance,target FROM store_credit_accounts WHERE store_id=?',editStore.id).first(),balance);
+  assert.equal((await query('SELECT store_name FROM store_credit_accounts WHERE store_id=?',editStore.id).first()).store_name,'Updated store');
+  assert.equal((await query("SELECT COUNT(*)::int AS n FROM organisation_store_audit WHERE store_id=? AND action='edit'",editStore.id).first()).n,1);
+ });
+ await check('Learner count includes active learners only and remains private and read-only',async()=>{
+  for(const [id,archived] of [['edit-active',null],['edit-archived','2026-10-08']])await query('INSERT INTO learners(id,name,email,code_hash,store_id,country,entered_at,archived_at) VALUES(?,?,?,?,?,?,?,?)',id,id,id+'@example.test',id,editStore.id,store.country,'2026-10-09',archived).run();
+  editStore=(await (await get(cookies.country)).json()).stores.find(s=>s.id===editStore.id);assert.equal(editStore.learnerCount,1);
+  const publicStore=(await m.directory.storeDirectory()).find(s=>s.id===editStore.id);assert(!publicStore.adminEmail);assert.equal(publicStore.learnerCount,undefined);assert.equal(publicStore.revision,undefined);
+  const saved=await post({...editStore,action:'edit',adminEmail:'',learnerCount:900});assert.equal(saved.status,200);editStore=(await saved.json()).stores.find(s=>s.id===editStore.id);assert.equal(editStore.adminEmail,'');assert.equal(editStore.learnerCount,1);
+ });
+ await check('Edits reject duplicate codes, invalid email, stale changes and out-of-scope stores atomically',async()=>{
+  const before=await query('SELECT * FROM organisation_stores WHERE id=?',editStore.id).first();
+  for(const fields of [{storeCode:store.storeCode},{storeCode:'bad code'},{adminEmail:'not-an-email'},{revision:'stale'}])assert([400,409].includes((await post({...editStore,action:'edit',...fields})).status));
+  assert.deepEqual(await query('SELECT * FROM organisation_stores WHERE id=?',editStore.id).first(),before);
+  assert.equal((await post({...editStore,action:'edit',country:uk.country},cookies.country)).status,403);
+  assert.equal((await post({...uk,action:'edit',country:store.country},cookies.country)).status,403,'Foreign store cannot be moved into scope');
+  assert.equal((await post({...editStore,action:'edit'},cookies.site)).status,403);
+  assert.equal((await post({...editStore,action:'edit'},cookies.country,{origin:'https://evil.invalid'})).status,403);
+ });
+ await check('Organisation admins can correct country while preserving IDs, grants, counts and archived state',async()=>{
+  const archived=await post({action:'archive',id:editStore.id});assert.equal(archived.status,200);editStore=(await archived.json()).stores.find(s=>s.id===editStore.id);
+  const saved=await post({...editStore,action:'edit',country:uk.country},cookies.organisation);assert.equal(saved.status,200,await saved.clone().text());editStore=(await saved.json()).stores.find(s=>s.id===editStore.id);
+  assert.equal(editStore.active,false);assert.equal(editStore.country,uk.country);assert.equal(editStore.learnerCount,1);
+  assert.equal((await query('SELECT country FROM learners WHERE id=?','edit-active').first()).country,uk.country);
+  assert.equal((await query("SELECT country FROM reporting_access WHERE scope='site' AND site_id=?",editStore.id).first()).country,uk.country);
+  const account=await query('SELECT country,active FROM store_credit_accounts WHERE store_id=?',editStore.id).first();assert.equal(account.country,uk.country);assert.equal(account.active,false);
+  assert(!(await (await get(cookies.country)).json()).stores.some(s=>s.id===editStore.id));
+ });
  await check('Revoking store setup permission immediately prevents creation',async()=>{
   await query('DELETE FROM reporting_access WHERE learner_id=?','store-setup-country').run();assert.equal((await post({action:'add',name:'Revoked test',country:store.country},cookies.country)).status,403);
  });
