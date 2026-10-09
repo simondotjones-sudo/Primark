@@ -80,7 +80,7 @@ export default function AssignedCourses({view = 'all', hasLegacyCourse = false}:
           <div className="assigned-course-actions"><a href={`/learn/${c.id}/`}>{t(c.status === 'Completed' ? 'Review course' : c.status === 'In progress' ? 'Continue course' : 'Start course')}</a>{c.certificate&&<a href={'/certificates/'+c.certificate.token+'/'}>{t("View certificate")}</a>}</div>
           </div>
         </article>
-      )}</div> : !showInductionPending && !hasLegacyCourse && <p>{t(view === 'todo' ? "You're all caught up." : view === 'completed' ? "You haven't completed any courses yet." : view === 'induction' ? "No induction courses have been assigned to you yet." : "No additional courses have been assigned to you yet.")}</p>}
+      )}</div> : !showInductionPending && !hasLegacyCourse && (view === 'completed' ? <div className="certificates-empty">{t("You haven't completed any courses yet.")}</div> : <p>{t(view === 'todo' ? "You're all caught up." : view === 'induction' ? "No induction courses have been assigned to you yet." : "No additional courses have been assigned to you yet.")}</p>)}
     </>}
   </section>;
 }
