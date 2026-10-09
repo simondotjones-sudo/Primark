@@ -58,4 +58,24 @@ export async function certificateChecks({m,check,query,first,call,learner,irelan
     assert.equal(m.certificateTypes.certificateStatus('2026-12-08T12:00:00.000Z',at),'Valid');
     assert.equal(m.certificateTypes.certificateDate(null),'No expiry');
   });
+  await check('Induction passports use the learner certificate snapshot and remain in Certifications',async()=>{
+    await query("UPDATE courses SET category=' Induction ' WHERE id=?",id);
+    const own=(await call(m.courses,'GET',undefined,{user:'irish-user'})).data.courses.find(c=>c.id===id);
+    assert.equal(own.passport.token,issued.token);assert.equal(own.passport.certificate_number,issued.certificate_number);
+    assert.equal(own.passport.learner_name,issued.learner_name);assert.equal(own.passport.course_title,issued.course_title);
+    assert.equal(own.passport.completed_at,issued.completed_at);assert.equal(own.passport.expires_at,issued.expires_at);
+    assert(own.passport.store_name);assert(!('learner_id' in own.passport));
+    const listed=(await call(m.certificates,'GET',undefined,{user:'irish-user'})).data.certificates;
+    assert(listed.some(c=>c.token===own.passport.token));
+    const other=(await call(m.courses,'GET',undefined,{user:'new-cert-user'})).data.courses.find(c=>c.id===id);
+    assert.notEqual(other.passport.token,issued.token);assert.equal(other.passport.learner_name,'new-cert-user');
+    await query("UPDATE certificates SET cancelled_at=now() WHERE token=?",issued.token);
+    assert.equal((await call(m.courses,'GET',undefined,{user:'irish-user'})).data.courses.find(c=>c.id===id).passport,null);
+    await query("UPDATE certificates SET cancelled_at=NULL,archived_at=now() WHERE token=?",issued.token);
+    assert.equal((await call(m.courses,'GET',undefined,{user:'irish-user'})).data.courses.find(c=>c.id===id).passport,null);
+    await query("UPDATE certificates SET archived_at=NULL WHERE token=?",issued.token);
+    await query("UPDATE courses SET category='Fire Safety' WHERE id=?",id);
+    assert.equal((await call(m.courses,'GET',undefined,{user:'irish-user'})).data.courses.find(c=>c.id===id).passport,null);
+  });
+
 }

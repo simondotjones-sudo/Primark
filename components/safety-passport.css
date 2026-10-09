@@ -1,0 +1,27 @@
+.induction-course-pair{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:17px;grid-column:1/-1;min-width:0}
+.safety-passport{position:relative;display:flex;flex-direction:column;min-width:0;overflow:hidden;padding:34px 36px 25px;border:1px solid #d7e7ed;border-radius:24px;background:linear-gradient(145deg,#f0faff 0%,#fff 46%);box-shadow:0 8px 30px #17425805;color:#173746}
+.safety-passport::before{content:"";position:absolute;inset:0 0 auto;height:4px;background:#00a4d6}
+.safety-passport-header{display:flex;align-items:center;justify-content:space-between;gap:20px;margin-bottom:32px}
+.safety-passport-header>div{min-width:0}
+.safety-passport-eyebrow{margin:0 0 8px;color:#0085b5;font-size:11px;line-height:1.4;letter-spacing:.13em;text-transform:uppercase;font-weight:600}
+.safety-passport h3{margin:0;color:#143b4d;font-size:clamp(21px,2vw,28px);font-weight:500;line-height:1.2;letter-spacing:-.025em;overflow-wrap:anywhere}
+.safety-passport-seal{display:grid;place-items:center;flex-shrink:0;width:68px;height:68px;border:1px solid #bce2ce;border-radius:50%;background:#edf8f1;color:#188057;box-shadow:inset 0 0 0 6px #ffffffb3}
+.safety-passport.is-expired .safety-passport-seal{border-color:#edc8cb;background:#fff1f1;color:#aa414b}
+.safety-passport-holder{margin:auto 0 28px}
+.safety-passport-label{margin:0 0 8px;color:#738895;font-size:12px;line-height:1.5}
+.safety-passport-name{margin:0 0 22px;font-size:clamp(28px,2.7vw,39px);line-height:1.13;font-weight:500;letter-spacing:-.035em;overflow-wrap:anywhere}
+.safety-passport-course{margin:0 0 10px;font-size:18px;line-height:1.4;font-weight:500;overflow-wrap:anywhere}
+.safety-passport-location{margin:0;color:#647f8d;font-size:13px;line-height:1.6;overflow-wrap:anywhere}
+.safety-passport-dates{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:20px;padding:20px 0;margin:0;border-top:1px solid #dde9ee;border-bottom:1px solid #dde9ee}
+.safety-passport-dates dt{color:#6f8592;font-size:11px;line-height:1.4;margin-bottom:7px}
+.safety-passport-dates dd{margin:0;font-size:17px;font-weight:500;line-height:1.4;overflow-wrap:anywhere}
+.safety-passport-proof{display:flex;justify-content:space-between;align-items:center;gap:20px;margin:22px 0 18px}
+.safety-passport-id{margin:14px 0 0;color:#78909c;font-size:10px;line-height:1.5}
+.safety-passport-id bdi{display:block;margin-top:3px;color:#3f6374;font-size:12px;letter-spacing:.05em;font-variant-numeric:tabular-nums}
+.safety-passport-verify{display:flex;flex-direction:column;align-items:center;gap:5px;flex-shrink:0;color:#647f8d;text-decoration:none;font-size:10px;line-height:1.4}
+.safety-passport-verify img{display:block;width:80px;height:80px;border:1px solid #e0eaee;border-radius:8px;padding:4px;background:#fff}
+.safety-passport-link{display:flex;align-items:center;justify-content:space-between;gap:12px;color:#007eaf;font-size:13px;font-weight:600;text-decoration:none;padding-top:16px;border-top:1px solid #e4edf1}
+.safety-passport-link:hover{color:#005f88}.safety-passport a:focus-visible{outline:3px solid #69b8dd;outline-offset:4px;border-radius:6px}
+@media(max-width:1000px){.safety-passport{padding:27px 25px 23px}.safety-passport-header{gap:14px}.safety-passport-seal{width:58px;height:58px}.safety-passport-header{margin-bottom:26px}}
+@media(max-width:760px){.induction-course-pair{grid-template-columns:1fr;gap:17px}.safety-passport{padding:28px 25px 23px}.safety-passport-holder{margin-top:6px}.safety-passport h3{font-size:24px}.safety-passport-name{font-size:32px}}
+@media(max-width:360px){.safety-passport{padding:24px 20px 20px}.safety-passport-header{align-items:flex-start;gap:10px}.safety-passport-seal{width:48px;height:48px}.safety-passport-seal svg{width:28px;height:28px}.safety-passport h3{font-size:21px}.safety-passport-dates{gap:12px}}

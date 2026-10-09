@@ -1,4 +1,6 @@
 'use client';
+import SafetyPassport from '@/components/safety-passport';
+import type {SafetyPassportRecord} from '@/lib/safety-passport';
 import {useLanguage} from '@/components/language-provider';
 import { certificateStatus, type Certificate } from '@/lib/certificates';
 import '@/app/certificates/certificates.css';
@@ -12,6 +14,7 @@ type AssignedCourse = CoursePanelDetails & {
   id: string; title: string; description: string; coverKey: CourseCoverKey;
   status: 'Not started' | 'In progress' | 'Completed';
   progressPercent: number | null;
+  passport?: SafetyPassportRecord | null;
   certificate:{token:string;expiresAt:string|null;completedAt:string}|null;
   scos: {id: string; title: string; status: string; score: string | null}[];
 };
@@ -67,8 +70,8 @@ export default function AssignedCourses({view = 'all', hasLegacyCourse = false}:
     ) : <>
     {showInductionPending && <p>{t("Your induction is being prepared. It will appear here when it is available.")}</p>}
     {error ? <p role="alert">{t(error)}</p> : courses === null ? <p>{t("Loading your courses…")}</p> : visibleCourses.length ?
-      <div className="course-catalog-grid">{visibleCourses.map(c =>
-        <article className="paper assigned-course" key={c.id}>
+      <div className="course-catalog-grid">{visibleCourses.map(c => {
+        const card = <article className="paper assigned-course" key={c.id}>
           <a href={`/learn/${c.id}/`} aria-label={t("Open {title}",{title:c.title})} className="assigned-course-cover"><CourseCover coverKey={c.coverKey}
             sizes="(max-width: 760px) calc(100vw - 36px), (max-width: 1340px) calc(50vw - 37px), 634px" /></a>
           <div className="assigned-course-details">
@@ -79,8 +82,11 @@ export default function AssignedCourses({view = 'all', hasLegacyCourse = false}:
           {c.certificate&&<><span className={'certificate-status is-'+certificateStatus(c.certificate.expiresAt).toLowerCase().replaceAll(' ','-')}>{t(certificateStatus(c.certificate.expiresAt))}</span><p className="course-expiry">{c.certificate.expiresAt?t('Expires {date}',{date:date(c.certificate.expiresAt)}):t('No expiry')}</p></>}
           <div className="assigned-course-actions"><a href={`/learn/${c.id}/`}>{t(c.status === 'Completed' ? 'Review course' : c.status === 'In progress' ? 'Continue course' : 'Start course')}</a>{c.certificate&&<a href={'/certificates/'+c.certificate.token+'/'}>{t("View certificate")}</a>}</div>
           </div>
-        </article>
-      )}</div> : !showInductionPending && !hasLegacyCourse && (view === 'completed' ? <div className="certificates-empty">{t("You haven't completed any courses yet.")}</div> : <p>{t(view === 'todo' ? "You're all caught up." : view === 'induction' ? "No induction courses have been assigned to you yet." : "No additional courses have been assigned to you yet.")}</p>)}
+        </article>;
+        return c.status==='Completed'&&c.category.trim().toLowerCase()==='induction'&&c.passport
+          ? <div className="induction-course-pair" key={c.id}>{card}<SafetyPassport record={c.passport}/></div>
+          : card;
+      })}</div> : !showInductionPending && !hasLegacyCourse && (view === 'completed' ? <div className="certificates-empty">{t("You haven't completed any courses yet.")}</div> : <p>{t(view === 'todo' ? "You're all caught up." : view === 'induction' ? "No induction courses have been assigned to you yet." : "No additional courses have been assigned to you yet.")}</p>)}
     </>}
   </section>;
 }
