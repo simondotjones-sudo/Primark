@@ -298,6 +298,7 @@ await check('Organisation store lifecycle enforces admin access and preserves hi
  const added=(await result.json()).stores.find(s=>s.name==='New Store');assert(added.active);
  assert.equal((await invoke(m.organisation,'POST',endpoint,{action:'add',name:'new store',country:'ireland'},cookie)).status,400);
  const before=(await query('SELECT COUNT(*) AS n FROM learners').first()).n;
+ const auditBefore=(await query('SELECT COUNT(*) AS n FROM organisation_store_audit WHERE store_id=?',store.id).first()).n;
  assert.equal((await invoke(m.organisation,'POST',endpoint,{action:'archive',id:store.id},cookie)).status,200);
  assert(!(await m.directory.storeDirectory(false)).some(s=>s.id===store.id));
  assert((await m.directory.storeDirectory()).some(s=>s.id===store.id));
@@ -306,7 +307,7 @@ await check('Organisation store lifecycle enforces admin access and preserves hi
  assert.equal(registration.status,400);
  assert.equal((await invoke(m.organisation,'POST',endpoint,{action:'restore',id:store.id},cookie)).status,200);
  assert((await m.directory.storeDirectory(false)).some(s=>s.id===store.id));
- assert.equal((await query('SELECT COUNT(*) AS n FROM organisation_store_audit WHERE store_id=?',store.id).first()).n,2);
+ assert.equal((await query('SELECT COUNT(*) AS n FROM organisation_store_audit WHERE store_id=?',store.id).first()).n,auditBefore+2);
 });
 await storeSetupChecks({m,check,query,invoke,loginAdmin,cookieFrom,store,uk});
 await platformAdminChecks({m,check,query,invoke,loginAdmin,cookieFrom,store});

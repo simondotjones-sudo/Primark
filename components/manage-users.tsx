@@ -1,4 +1,5 @@
 'use client';
+import {storeLabel} from '@/lib/store-label';
 import AssignmentHistory from '@/components/assignment-history';
 import UserDirectory from '@/components/user-directory';
 import {useCallback,useEffect,useRef,useState} from 'react';
@@ -54,7 +55,7 @@ export default function ManageUsers(){
  <Tabs value={view} onValueChange={setView}>
  {view!=='assign'?<TabsList className="user-view-tabs pill-switch" aria-label={t('Manage Users')}><TabsTrigger value="users">{t('All users')}</TabsTrigger><TabsTrigger value="learners">{t('Learners')}</TabsTrigger><TabsTrigger value="admins">{t('Admins')}</TabsTrigger></TabsList>:<Button variant="outline" className="users-back" disabled={busy} onClick={()=>setView('users')}>{t('← Back to accounts')}</Button>}
  {view==='assign'&&<>
- {platformAdmin?<div className="user-location"><label>{t('Country')}<NativeSelect value={country} disabled={busy} onChange={e=>{setCountry(e.target.value);changeStore('');}}><option value="">{t('All countries')}</option>{[...new Set(stores.map(s=>s.country))].sort().map(c=><option key={c} value={c}>{countryLabel(c)}</option>)}</NativeSelect></label><label>{t('Store')}<NativeSelect value={storeId} disabled={busy} onChange={e=>changeStore(e.target.value)}><option value="">{t('All stores')}</option>{stores.filter(s=>s.active&&(!country||s.country===country)).map(s=><option key={s.id} value={s.id}>{s.name}</option>)}</NativeSelect></label></div>:data?.store&&<p className="user-store-name">{data.store.name} · {countryLabel(data.store.country)}</p>}
+ {platformAdmin?<div className="user-location"><label>{t('Country')}<NativeSelect value={country} disabled={busy} onChange={e=>{setCountry(e.target.value);changeStore('');}}><option value="">{t('All countries')}</option>{[...new Set(stores.map(s=>s.country))].sort().map(c=><option key={c} value={c}>{countryLabel(c)}</option>)}</NativeSelect></label><label>{t('Store')}<NativeSelect value={storeId} disabled={busy} onChange={e=>changeStore(e.target.value)}><option value="">{t('All stores')}</option>{stores.filter(s=>s.active&&(!country||s.country===country)).map(s=><option key={s.id} value={s.id}>{storeLabel(s)}</option>)}</NativeSelect></label></div>:data?.store&&<p className="user-store-name">{data.store.name} · {countryLabel(data.store.country)}</p>}
  <div ref={feedback} aria-live="polite">{error&&<p className="error" role="alert">{t(error)}</p>}{notice&&<p className="admin-success" role="status">{t(notice)}</p>}</div>
  {loading&&<p className="empty">{t('Loading accounts…')}</p>}
  </>}

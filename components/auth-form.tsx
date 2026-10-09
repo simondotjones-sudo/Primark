@@ -1,4 +1,5 @@
 'use client';
+import {storeLabel} from '@/lib/store-label';
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Combobox } from '@base-ui/react/combobox';
 import { ArrowLeft, ArrowRight, Check, ChevronDown, Eye, EyeOff } from 'lucide-react';
@@ -22,7 +23,7 @@ export default function AuthForm({lang,busy,error,onClearError,onAuthenticate}:P
   const [mode,setMode]=useState('register'),[step,setStep]=useState(1),[formError,setFormError]=useState(''),[storeSearch,setStoreSearch]=useState('');
   const detailsHeading=useRef<HTMLHeadingElement>(null);
   const loginPasswordInput=useRef<HTMLInputElement>(null),focusLoginPassword=useRef(false);
-  const storeItems=useMemo(()=>stores.map(s=>({value:s.id,label:`${s.name} · ${countryName(s.country,lang)}`})),[stores,lang]);
+  const storeItems=useMemo(()=>stores.map(s=>({value:s.id,label:`${storeLabel(s)} · ${countryName(s.country,lang)}`})),[stores,lang]);
   const selectedStore=stores.find(s=>s.id===storeId);
   const details=mode==='register'&&step===2;
   useEffect(()=>{if(new URLSearchParams(location.search).get('login')==='1')setMode('login');},[]);

@@ -16,6 +16,7 @@ await pg.exec(`INSERT INTO learners(id,name,email,code_hash,store_id,country,ent
  INSERT INTO courses(id,title,audience_json,created_at,updated_at) VALUES('existing-course','Existing course','{}','2026-10-01','2026-10-01');
  INSERT INTO course_assignments VALUES('existing','existing-course','original manager','2026-10-01T00:00:00Z');`);
 await pg.exec(readFileSync(`netlify/database/migrations/${migration}/migration.sql`,'utf8'));
+for(const n of migrations.filter(n=>n>migration))await pg.exec(readFileSync(`netlify/database/migrations/${n}/migration.sql`,'utf8'));
 const context=new AsyncLocalStorage();
 const pool={async query(sql,args=[]){const r=await pg.query(sql,args);return {rows:r.rows,rowCount:r.affectedRows};},async connect(){return {...this,release(){}};}};
 globalThis.__creditTest={pool,identity:()=>context.getStore()?.admin?{email:'platform@test.invalid'}:null,cookie:()=>context.getStore()?.user||''};
@@ -165,5 +166,14 @@ await check('Assignment sort reaches the API and Excel without regrouping or cha
  }finally{mock.timers.reset();}
 });
 
+await check('Archived unused stores leave the period report while historical activity remains reportable',async()=>{
+ await q("SELECT ensure_store_credits('retired-empty','Unused legacy','Ireland')");
+ await q("UPDATE store_credit_accounts SET active=false WHERE store_id IN ('retired-empty','credit-ie')");
+ try {
+  const report=await reportAtClose(['retired-empty','credit-ie'],'2026-2027-P1',true);
+  assert(!report.rows.some(r=>r.storeId==='retired-empty'));
+  assert(report.rows.some(r=>r.storeId==='credit-ie'));
+ } finally {await q("UPDATE store_credit_accounts SET active=true WHERE store_id='credit-ie'");}
+});
 console.log(`${checks} credit and accounting checks passed in isolated PostgreSQL.`);
 await pg.close();rmSync(dir,{recursive:true,force:true});

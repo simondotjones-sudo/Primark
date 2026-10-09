@@ -1,4 +1,5 @@
 import stores from '@/lib/stores.json';
+import type {StoreOption} from '@/lib/store-label';
 import type { ReportingAccess } from '@/lib/reporting-types';
 
 export type ProfileView = 'learn' | 'report' | 'courses' | 'access' | 'shots' | 'store' | 'organisation';
@@ -24,7 +25,7 @@ export function profileViews(account: ProfileAccount): { value: ProfileView; lab
   ];
 }
 
-export function profileScope(access: ReportingAccess, desired: Partial<ReportFilter> = {}, directory=stores) {
+export function profileScope(access: ReportingAccess, desired: Partial<ReportFilter> = {}, directory:StoreOption[]=stores) {
   const stores=directory;
   const roles: ReportFilter['role'][] = access.scope === 'organisation' ? ['global', 'country', 'site']
     : access.scope === 'country' ? ['country', 'site'] : ['site'];

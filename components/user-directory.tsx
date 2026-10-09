@@ -1,4 +1,5 @@
 'use client';
+import {storeLabel} from '@/lib/store-label';
 import {useEffect,useState} from 'react';
 import {useLanguage} from '@/components/language-provider';
 import {Button} from '@/components/ui/button';
@@ -42,7 +43,7 @@ export default function UserDirectory({type,onAssign,onAssignAll,onPermissions}:
         <div className="directory-actions">{data?.canAssign&&<Button variant="outline" onClick={onAssignAll}>{t('Assign courses')}</Button>}<Button className="blue-button" disabled={!data||loading} onClick={()=>{setMessage('');setCreating(true);}}>{t('Add user')}</Button></div></div>
       <div className="directory-filters">
         {data?.access.scope==='organisation'&&<label>{t('Country')}<NativeSelect value={country} aria-label={t('Filter users by country')} onChange={e=>{setCountry(e.target.value);setStoreId('');setPage(1);}}><option value="">{t('All countries')}</option>{countries.map(c=><option key={c} value={c}>{countryLabel(c)}</option>)}</NativeSelect></label>}
-        {data?.access.scope!=='site'&&<label>{t('Store')}<NativeSelect value={storeId} aria-label={t('Filter users by store')} onChange={e=>{setStoreId(e.target.value);setPage(1);}}><option value="">{t('All stores')}</option>{data?.stores.filter(s=>!country||s.country===country).map(s=><option key={s.id} value={s.id}>{s.name}{!s.active?' · '+t('Archived'):''}</option>)}</NativeSelect></label>}
+        {data?.access.scope!=='site'&&<label>{t('Store')}<NativeSelect value={storeId} aria-label={t('Filter users by store')} onChange={e=>{setStoreId(e.target.value);setPage(1);}}><option value="">{t('All stores')}</option>{data?.stores.filter(s=>!country||s.country===country).map(s=><option key={s.id} value={s.id}>{storeLabel(s)}{!s.active?' · '+t('Archived'):''}</option>)}</NativeSelect></label>}
         <label>{t('Account status')}<NativeSelect value={status} onChange={e=>{setStatus(e.target.value);setPage(1);setMessage('');}}><option value="active">{t('Active')}</option><option value="archived">{t('Archived')}</option></NativeSelect></label>
       </div>
       {loading?<p className="empty" role="status">{t('Loading accounts…')}</p>:data&&<>
@@ -102,7 +103,7 @@ function EditAccess({person,options,onCancel,onSaved}:{person:UserPerson;options
   return <form className="add-user-form" onSubmit={save}><h2>{person.name}</h2><p className="access-note">{person.email}</p>{error&&<p className="error" role="alert">{t(error)}</p>}<fieldset disabled={busy}>
     <label>{t('Access')}<NativeSelect value={role} onChange={e=>setRole(e.target.value as UserRole)}>{(['learner','manager',...options.roles] as UserRole[]).map(r=><option key={r} value={r}>{t(userRoleLabels[r])}</option>)}</NativeSelect></label>
     {needsCountry&&<label>{t('Country')}<NativeSelect required value={country} disabled={options.access.scope==='country'} onChange={e=>{setCountry(e.target.value);setStoreId('');}}><option value="">{t('Choose a country')}</option>{countries.map(c=><option key={c} value={c}>{countryLabel(c)}</option>)}</NativeSelect></label>}
-    {needsStore&&<label>{t('Store')}<NativeSelect required value={storeId} disabled={!country} onChange={e=>setStoreId(e.target.value)}><option value="">{t('Choose a store')}</option>{stores.filter(s=>s.country===country).map(s=><option key={s.id} value={s.id}>{s.name}</option>)}</NativeSelect></label>}
+    {needsStore&&<label>{t('Store')}<NativeSelect required value={storeId} disabled={!country} onChange={e=>setStoreId(e.target.value)}><option value="">{t('Choose a store')}</option>{stores.filter(s=>s.country===country).map(s=><option key={s.id} value={s.id}>{storeLabel(s)}</option>)}</NativeSelect></label>}
   </fieldset><p className="access-explanation">{t(role==='learner'?'This account can access its own learning.':'Admin-only accounts use Reporting. Sign in with a personal learner account for training.')}</p><p className="access-note">{t('The user will need to sign in again after access changes.')}</p><div className="editor-actions"><Button type="button" variant="outline" disabled={busy} onClick={onCancel}>{t('Cancel')}</Button><Button className="blue-button" disabled={busy}>{t(busy?'Saving…':'Save access')}</Button></div></form>;
 }
 function AddUser({options,initialType,onCancel,onCreated}:{options:UserOptions;initialType:string;onCancel:()=>void;onCreated:()=>void}) {
@@ -126,7 +127,7 @@ function AddUser({options,initialType,onCancel,onCreated}:{options:UserOptions;i
       <label>{t('Account type')}<NativeSelect value={type} onChange={e=>setType(e.target.value)}><option value="learner">{t('Learner')}</option><option value="admin">{t('Admin only')}</option></NativeSelect></label>
       {type==='admin'&&<label>{t('Access')}<NativeSelect value={role} onChange={e=>setRole(e.target.value)}>{options.roles.map(value=><option value={value} key={value}>{t(value==='site'?'Store Manager':value==='country'?'Country reporting admin':value==='organisation'?'Primark reporting admin':'Platform admin')}</option>)}</NativeSelect></label>}
       {needsCountry&&<label>{t('Country')}<NativeSelect required value={country} disabled={!!options.access.country} onChange={e=>{setCountry(e.target.value);setStoreId('');}}><option value="">{t('Choose a country')}</option>{countries.map(c=><option key={c} value={c}>{countryLabel(c)}</option>)}</NativeSelect></label>}
-      {needsStore&&<label>{t('Store')}<NativeSelect required value={storeId} disabled={!!options.access.siteId||!country} onChange={e=>setStoreId(e.target.value)}><option value="">{t('Choose a store')}</option>{options.stores.filter(s=>s.active&&s.country===country).map(s=><option key={s.id} value={s.id}>{s.name}</option>)}</NativeSelect></label>}
+      {needsStore&&<label>{t('Store')}<NativeSelect required value={storeId} disabled={!!options.access.siteId||!country} onChange={e=>setStoreId(e.target.value)}><option value="">{t('Choose a store')}</option>{options.stores.filter(s=>s.active&&s.country===country).map(s=><option key={s.id} value={s.id}>{storeLabel(s)}</option>)}</NativeSelect></label>}
       {type==='learner'&&<label>{t('Workday ID')}<Input name="workdayId" maxLength={50} placeholder={t('Optional')}/></label>}
       <label>{t('Password')}<Input name="password" type="password" autoComplete="new-password" required minLength={type==='admin'?16:8} maxLength={128}/></label>
     </fieldset>

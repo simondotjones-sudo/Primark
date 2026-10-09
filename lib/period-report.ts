@@ -50,7 +50,10 @@ export async function periodReport(storeIds:string[]|null,periodId:string|null,p
  (b.as_of-(h.last_assigned_at AT TIME ZONE 'Europe/London')::date)::int AS "daysSinceAssignment"
  ${platformAdmin?',COALESCE(e.value_cents,0) AS "valueCents"':''}
  FROM store_credit_accounts a CROSS JOIN bounds b LEFT JOIN events e ON e.store_id=a.store_id LEFT JOIN evidence h ON h.store_id=a.store_id
- WHERE (?::text[] IS NULL OR a.store_id=ANY(?::text[])) ORDER BY a.country,a.store_name,a.store_id`).bind(period.startsOn,period.endsOn,clock.toISOString(),asOf,storeIds,storeIds).all<PeriodRow>();
+ WHERE (?::text[] IS NULL OR a.store_id=ANY(?::text[]))
+ AND (a.active OR EXISTS(SELECT 1 FROM assignment_history historic WHERE historic.store_id=a.store_id)
+  OR EXISTS(SELECT 1 FROM credit_ledger historic WHERE historic.store_id=a.store_id AND historic.kind NOT IN ('opening','period_topup')))
+ ORDER BY a.country,a.store_name,a.store_id`).bind(period.startsOn,period.endsOn,clock.toISOString(),asOf,storeIds,storeIds).all<PeriodRow>();
  const rate=platformAdmin?await db().prepare('SELECT cents FROM credit_rates WHERE effective_at<=now() ORDER BY effective_at DESC LIMIT 1').first<{cents:number}>():null;
  return periodReportView({period,periods,ranges,asOf,sort:'store',rows,countries:[],totals:totalPeriodRows(rows,platformAdmin),platformAdmin,generatedAt:clock.toISOString(),...(rate?{currentRateCents:rate.cents}:{})});
 }

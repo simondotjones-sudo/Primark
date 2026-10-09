@@ -1,4 +1,5 @@
 'use client';
+import {storeLabel} from '@/lib/store-label';
 import type {LocalizedText} from '@/lib/ui-copy';
 import { useEffect, useMemo, useState } from 'react';
 import { Download, Search, Store, X } from 'lucide-react';
@@ -120,7 +121,7 @@ export default function TrainingReporting({access,platformAdmin,filter,onFilterC
       <div className="report-view-tabs pill-switch" role="group" aria-label={t('Report format')}><button aria-pressed={view==='overview'} className={view==='overview'?'selected':''} onClick={()=>setView('overview')}><span>{t('Overview')}</span></button>{filter.role==='site'&&<button aria-pressed={isMatrix} className={isMatrix?'selected':''} onClick={()=>setView('matrix')}><span>{t('Site matrix')}</span></button>}<button aria-pressed={isActivity} className={isActivity?'selected':''} onClick={()=>setView('activity')}><span>{t('User activity')}</span></button><button aria-pressed={isPeriod} className={isPeriod?'selected':''} onClick={()=>setView('period')}><span>{t('Period report')}</span></button></div>
       <div className="report-location">
         <label><span className="sr-only">{t('Country')}</span><NativeSelect aria-label={t('Reporting country')} value={filter.role==='global'?'all':filter.country} disabled={filter.role==='global'||scope.countries.length<2} onChange={e=>changeScope({country:e.target.value})}>{filter.role==='global'?<option value="all">{t('All countries')}</option>:scope.countries.map(c=><option key={c} value={c}>{countryName(c,lang)}</option>)}</NativeSelect></label>
-        <label className="store-picker"><span className="sr-only">{t('Store')}</span><NativeSelect aria-label={t('Reporting store')} value={filter.role==='site'?filter.site:'all'} disabled={filter.role!=='site'||scope.sites.length<2} onChange={e=>changeScope({site:e.target.value})}>{filter.role!=='site'?<option value="all">{t('All stores')}</option>:scope.sites.map(s=><option key={s.id} value={s.id}>{s.name}</option>)}</NativeSelect></label>
+        <label className="store-picker"><span className="sr-only">{t('Store')}</span><NativeSelect aria-label={t('Reporting store')} value={filter.role==='site'?filter.site:'all'} disabled={filter.role!=='site'||scope.sites.length<2} onChange={e=>changeScope({site:e.target.value})}>{filter.role!=='site'?<option value="all">{t('All stores')}</option>:scope.sites.map(s=><option key={s.id} value={s.id}>{storeLabel(s)}</option>)}</NativeSelect></label>
       </div>
       <div className="scope-buttons pill-switch" role="group" aria-label={t('Reporting view')}>{scope.roles.map(role=><button key={role} aria-pressed={filter.role===role} className={filter.role===role?'selected':''} onClick={()=>changeScope({role})}>{t(role==='global'?'Global':role==='country'?'Country':'Store')}</button>)}</div>
     </div>
