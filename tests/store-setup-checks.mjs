@@ -90,6 +90,58 @@ export async function storeSetupChecks({m,check,query,invoke,loginAdmin,cookieFr
   const account=await query('SELECT country,active FROM store_credit_accounts WHERE store_id=?',editStore.id).first();assert.equal(account.country,uk.country);assert.equal(account.active,false);
   assert(!(await (await get(cookies.country)).json()).stores.some(s=>s.id===editStore.id));
  });
+ let deletedStore;
+ const newEmptyStore=async(name)=>{const response=await post({action:'add',name,country:store.country});assert.equal(response.status,200,await response.clone().text());const created=(await response.json()).stores.find(s=>s.name===name);const archived=await post({action:'archive',id:created.id});assert.equal(archived.status,200);return (await archived.json()).stores.find(s=>s.id===created.id);};
+ await check('Deleting stores requires an archived eligible store, existing scope and same-origin protection',async()=>{
+  assert.equal((await post({action:'delete',id:store.id})).status,409);
+  assert.equal((await post({action:'delete',id:uk.id},cookies.country)).status,403);
+  const candidate=await newEmptyStore('Deletion permission fixture');assert(candidate.canDelete);
+  assert.equal((await post({action:'delete',id:candidate.id},cookies.site)).status,403);
+  assert.equal((await post({action:'delete',id:candidate.id},cookies.country,{origin:'https://evil.invalid'})).status,403);
+  assert((await m.directory.storeDirectory()).some(s=>s.id===candidate.id));
+ });
+ await check('An imported unused archived store disappears permanently and retains its audit and credit records',async()=>{
+  const baseline=m.stores.find(s=>!s.active&&s.country===store.country);assert(baseline);
+  // Remove only this test suite's synthetic capacity grant; production data is not used.
+  await query("DELETE FROM credit_ledger WHERE store_id=? AND actor='test fixture capacity'",baseline.id).run();
+  deletedStore=(await (await get(cookies.country)).json()).stores.find(s=>s.id===baseline.id);assert(deletedStore.canDelete);
+  const ledger=(await query('SELECT * FROM credit_ledger WHERE store_id=? ORDER BY id',baseline.id).all()).results;
+  const response=await post({action:'delete',id:baseline.id},cookies.country);assert.equal(response.status,200,await response.clone().text());
+  assert(!(await response.json()).stores.some(s=>s.id===baseline.id));
+  assert(!(await m.directory.storeDirectory(true,true)).some(s=>s.id===baseline.id));assert(!(await m.directory.storeDirectory()).some(s=>s.id===baseline.id));
+  const tombstone=await query('SELECT deleted_at,deleted_by,active FROM organisation_stores WHERE id=?',baseline.id).first();assert(tombstone.deleted_at);assert.equal(tombstone.deleted_by,'store-setup-country@example.test');assert.equal(tombstone.active,false);
+  assert.deepEqual((await query('SELECT * FROM credit_ledger WHERE store_id=? ORDER BY id',baseline.id).all()).results,ledger);
+  assert.equal((await query("SELECT COUNT(*)::int AS n FROM organisation_store_audit WHERE store_id=? AND action='delete'",baseline.id).first()).n,1);
+  for(const action of ['restore','edit','delete'])assert.equal((await post({action,id:baseline.id})).status,400);
+  assert(!(await m.directory.storeDirectory()).some(s=>'canDelete' in s));
+ });
+ await check('Active and archived learners, admin accounts and late links hide Delete and block forged requests',async()=>{
+  for(const archived of [null,'2026-10-09']){
+   const candidate=await newEmptyStore('Linked deletion '+String(archived)),id='delete-person-'+String(archived);
+   assert(candidate.canDelete);
+   await query('INSERT INTO learners(id,name,email,code_hash,store_id,country,entered_at,archived_at) VALUES(?,?,?,?,?,?,?,?)',id,id,id+'@example.test',id,candidate.id,store.country,'2026-10-09',archived).run();
+   const refreshed=(await (await get(cookies.country)).json()).stores.find(s=>s.id===candidate.id);assert.equal(refreshed.learnerCount,archived?0:1);assert.equal(refreshed.canDelete,false);
+   assert.equal((await post({action:'delete',id:candidate.id,canDelete:true,learnerCount:0})).status,409);
+   assert.equal((await query('SELECT deleted_at FROM organisation_stores WHERE id=?',candidate.id).first()).deleted_at,null);
+  }
+  const response=await post({action:'add',name:'Admin-only deletion fixture',country:store.country,adminEmail:'delete-admin@example.test'});assert.equal(response.status,200);const candidate=(await response.json()).stores.find(s=>s.name==='Admin-only deletion fixture');
+  await post({action:'archive',id:candidate.id});const refreshed=(await (await get(cookies.country)).json()).stores.find(s=>s.id===candidate.id);assert.equal(refreshed.learnerCount,0);assert.equal(refreshed.canDelete,false);assert.equal((await post({action:'delete',id:candidate.id})).status,409);
+ });
+ await check('Historical completion, course audience and credit activity protect empty archived stores',async()=>{
+  for(const kind of ['legacy','audience','credits']){
+   const candidate=await newEmptyStore('Protected deletion '+kind);
+   if(kind==='legacy')await query('INSERT INTO legacy_completions(email,completed,store_id,imported_at) VALUES(?,1,?,?)','delete-history@example.test',candidate.id,'2026-10-09').run();
+   if(kind==='audience')await query('INSERT INTO courses(id,title,audience_json,created_at,updated_at) VALUES(?,?,?,?,?)','delete-audience','Delete fixture',JSON.stringify({sites:[candidate.id]}),'2026-10-09','2026-10-09').run();
+   if(kind==='credits')await query("INSERT INTO credit_ledger(id,store_id,kind,credits,recorded_at,actor) VALUES(?,?,'manual_topup',1,now(),'test')",crypto.randomUUID(),candidate.id).run();
+   const refreshed=(await (await get(cookies.country)).json()).stores.find(s=>s.id===candidate.id);assert.equal(refreshed.learnerCount,0);assert.equal(refreshed.canDelete,false);assert.equal((await post({action:'delete',id:candidate.id})).status,409);
+  }
+ });
+ await check('Database guards reject stale references or resurrection after deletion',async()=>{
+  await assert.rejects(query('INSERT INTO learners(id,name,email,code_hash,store_id,country,entered_at) VALUES(?,?,?,?,?,?,?)','stale-delete','Stale','stale-delete@example.test','stale-delete',deletedStore.id,store.country,'2026-10-09').run(),error=>error.code==='23514');
+  await assert.rejects(query('INSERT INTO courses(id,title,audience_json,created_at,updated_at) VALUES(?,?,?,?,?)','stale-deleted-audience','Stale',JSON.stringify({sites:[deletedStore.id]}),'2026-10-09','2026-10-09').run(),error=>error.code==='23514');
+  await assert.rejects(query('UPDATE organisation_stores SET active=true WHERE id=?',deletedStore.id).run(),error=>error.code==='23514');
+  assert.equal(await query('SELECT id FROM learners WHERE id=?','stale-delete').first(),null);
+ });
  await check('Revoking store setup permission immediately prevents creation',async()=>{
   await query('DELETE FROM reporting_access WHERE learner_id=?','store-setup-country').run();assert.equal((await post({action:'add',name:'Revoked test',country:store.country},cookies.country)).status,403);
  });

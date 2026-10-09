@@ -15,6 +15,7 @@ export default function OrganisationAdmin(){
  const [storeCode,setStoreCode]=useState(''),[adminEmail,setAdminEmail]=useState(''),[adminPassword,setAdminPassword]=useState('');
  const [filterCountry,setFilterCountry]=useState(''),[filterStatus,setFilterStatus]=useState('active'),[search,setSearch]=useState(''),[busy,setBusy]=useState(false),[error,setError]=useState(''),[notice,setNotice]=useState(''),[pending,setPending]=useState<DirectoryStore|null>(null);
  const [editing,setEditing]=useState<DirectoryStore|null>(null),[editCountry,setEditCountry]=useState(''),[editError,setEditError]=useState('');
+ const [pendingDelete,setPendingDelete]=useState<DirectoryStore|null>(null);
  const editButton=useRef<HTMLButtonElement|null>(null);
  const feedback=useRef<HTMLDivElement>(null);
  useEffect(()=>{const controller=new AbortController();fetch('/api/admin/organisation',{cache:'no-store',signal:controller.signal}).then(async r=>{const data=await r.json();if(!r.ok)throw new Error(data.error);setStores(data.stores);setCanAddCountry(data.canAddCountry);const c=data.access.scope==='country'?data.access.country:'';setFixedCountry(c);setCountry(c);setLoaded(true);}).catch(e=>{if(e.name!=='AbortError')setError(e.message);});return()=>controller.abort();},[]);
@@ -24,15 +25,16 @@ export default function OrganisationAdmin(){
   try{
    const r=await fetch('/api/admin/organisation',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)}),data=await r.json();
    if(!r.ok){
-    if(body.action==='edit'&&r.status===409){
+    if(['edit','delete'].includes(body.action)&&r.status===409){
      try{const latest=await fetch('/api/admin/organisation',{cache:'no-store'});if(latest.ok)setStores((await latest.json()).stores);}catch{/* Preserve the save error if refreshing also fails. */}
     }
     throw new Error(data.error);
    }
    setStores(data.stores);setPending(null);
    if(body.action==='edit'){setEditing(null);setNotice('Store updated.');}
+   if(body.action==='delete'){setPendingDelete(null);setNotice('Store deleted.');}
    if(body.action==='add'){setName('');setCountry(fixedCountry);setNewCountry('');setStoreCode('');setAdminEmail('');setAdminPassword('');setNotice(data.passwordSetupPending?'Store and admin account created. Set a password using email recovery once email is configured.':data.adminCreated?'Store and admin account created.':'Store created.');}
-  }catch(e){const message=e instanceof Error?e.message:'Please try again.';if(body.action==='edit')setEditError(message);else setError(message);}
+  }catch(e){const message=e instanceof Error?e.message:'Please try again.';if(body.action==='edit')setEditError(message);else{setPendingDelete(null);setError(message);}}
   finally{setBusy(false);}
  }
  const countries=[...new Set(stores.map(s=>s.country))].sort();
@@ -55,9 +57,15 @@ export default function OrganisationAdmin(){
  <section className="paper course-editor"><h2>{t('Stores')}</h2><div className="organisation-store-filters"><label>{t('Country')}<NativeSelect value={filterCountry} onChange={e=>setFilterCountry(e.target.value)}><option value="">{t('All countries')}</option>{countries.map(c=><option key={c} value={c}>{countryLabel(c)}</option>)}</NativeSelect></label><label>{t('Status')}<NativeSelect value={filterStatus} onChange={e=>{setFilterStatus(e.target.value);setPending(null);}}><option value="active">{t('Active')}</option><option value="archived">{t('Archived')}</option><option value="all">{t('All')}</option></NativeSelect></label><label className="organisation-store-search">{t('Search stores')}<Input type="search" placeholder={t('Search by store name or code')} value={search} onChange={e=>setSearch(e.target.value)}/></label></div>
  {pending&&<div className="auth-notice" role="alert"><p>{t('Archive this store? Training records are retained.')}{' '}<strong>{pending.name}</strong></p><Button disabled={busy} onClick={()=>void change({action:'archive',id:pending.id})}>{t('Archive store')}</Button><Button disabled={busy} variant="outline" onClick={()=>setPending(null)}>{t('Cancel')}</Button></div>}
  <table className="organisation-store-table"><thead><tr><th scope="col">{t('Store')}</th><th scope="col" className="store-code-column">{t('Store code')}</th><th scope="col" className="store-learners-column">{t('Learners')}</th><th scope="col" className="store-actions-column"><span className="sr-only">{t('Actions')}</span></th></tr></thead><tbody>
- {shown.map(s=><tr key={s.id}><th scope="row"><strong>{s.name}</strong><small>{countryLabel(s.country)} · {t(s.active?'Active':'Archived')}</small>{s.adminEmail&&<small>{s.adminEmail}</small>}</th><td className="store-code-column">{s.storeCode?<span className="store-code-pill" dir="ltr">{s.storeCode}</span>:<span className="store-code-empty">—</span>}</td><td className="store-learners-column">{s.learnerCount??0}</td><td className="store-actions-column"><div className="organisation-store-actions"><Button variant="outline" disabled={busy} onClick={event=>{editButton.current=event.currentTarget;setEditing({...s});setEditCountry('');setEditError('');setPending(null);}}>{t('Edit')}</Button><Button variant="outline" disabled={busy} onClick={()=>s.active?setPending(s):void change({action:'restore',id:s.id})}>{t(s.active?'Archive':'Restore')}</Button></div></td></tr>)}
+ {shown.map(s=><tr key={s.id}><th scope="row"><strong>{s.name}</strong><small>{countryLabel(s.country)} · {t(s.active?'Active':'Archived')}</small>{s.adminEmail&&<small>{s.adminEmail}</small>}</th><td className="store-code-column">{s.storeCode?<span className="store-code-pill" dir="ltr">{s.storeCode}</span>:<span className="store-code-empty">—</span>}</td><td className="store-learners-column">{s.learnerCount??0}</td><td className="store-actions-column"><div className="organisation-store-actions"><Button variant="outline" disabled={busy} onClick={event=>{editButton.current=event.currentTarget;setEditing({...s});setEditCountry('');setEditError('');setPending(null);}}>{t('Edit')}</Button><Button variant="outline" disabled={busy} onClick={()=>s.active?setPending(s):void change({action:'restore',id:s.id})}>{t(s.active?'Archive':'Restore')}</Button>{!s.active&&s.canDelete&&<Button variant="destructive" disabled={busy} onClick={()=>{setPendingDelete(s);setPending(null);}}>{t('Delete')}</Button>}</div></td></tr>)}
  </tbody></table>{!shown.length&&<p className="empty">{t('No matching stores.')}</p>}</section></>}
  </main>
+ <Dialog open={!!pendingDelete} onOpenChange={open=>{if(!open&&!busy)setPendingDelete(null);}}>
+ <DialogContent className="store-details-dialog" showCloseButton={!busy}>
+ <DialogHeader><DialogTitle>{t('Delete store?')}</DialogTitle><DialogDescription>{t('This removes the store from all lists. This cannot be undone.')}</DialogDescription></DialogHeader>
+ <p><strong>{pendingDelete?.name}</strong>{pendingDelete?.storeCode?' · '+pendingDelete.storeCode:''}</p>
+ <div className="store-details-actions"><Button variant="outline" disabled={busy} onClick={()=>setPendingDelete(null)}>{t('Cancel')}</Button><Button variant="destructive" disabled={busy} onClick={()=>pendingDelete&&void change({action:'delete',id:pendingDelete.id})}>{t(busy?'Deleting…':'Delete store')}</Button></div>
+ </DialogContent></Dialog>
  <Dialog open={!!editing} onOpenChange={open=>{if(!open&&!busy)setEditing(null);}}>
  <DialogContent className="store-details-dialog" showCloseButton={!busy} onCloseAutoFocus={event=>{event.preventDefault();editButton.current?.focus();}}>
  <DialogHeader><DialogTitle>{t('Store details')}</DialogTitle><DialogDescription>{editing?.name}</DialogDescription></DialogHeader>

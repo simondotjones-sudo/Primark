@@ -12,7 +12,7 @@ const visible=(actor:UserAdministrator,stores:Awaited<ReturnType<typeof storeDir
 export async function GET(){try{const actor=await requireStoreAdministrator();return json({stores:visible(actor,await storeDirectory(true,true)),access:actor.access,canAddCountry:actor.platformAdmin||actor.access.scope==='organisation'});}catch(error){return failed(error);}}
 export async function POST(request:NextRequest){try{
   const original=await requireStoreAdministrator(request),body=await bodyJson(request,10000);
-  if(!body||typeof body!=='object'||Array.isArray(body)||!['add','edit','archive','restore'].includes(body.action))throw new CourseError('Invalid request.');
+  if(!body||typeof body!=='object'||Array.isArray(body)||!['add','edit','archive','restore','delete'].includes(body.action))throw new CourseError('Invalid request.');
   const stores=await storeDirectory(true,true);
   const existing=body.action==='add'?undefined:stores.find(s=>s.id===body.id);
   if(body.action!=='add'&&!existing)throw new CourseError('Choose a store.');
@@ -44,10 +44,18 @@ export async function POST(request:NextRequest){try{
       actor={...actor,email:String(current.email),platformAdmin:!!current.platform_admin,access:{scope:current.scope as UserAdministrator['access']['scope'],country:current.country as string|null,siteId:current.site_id as string|null}};
       requireStoreScope(actor);
     }
-    const current=existing?(await client.query('SELECT country,name,active,store_code,updated_at FROM organisation_stores WHERE id=$1 FOR UPDATE',[id])).rows[0]:undefined;
+    const current=existing?(await client.query('SELECT country,name,active,store_code,updated_at,deleted_at FROM organisation_stores WHERE id=$1 FOR UPDATE',[id])).rows[0]:undefined;
     const currentCountry=String(current?.country||existing?.country||country);
     if(!actor.platformAdmin&&actor.access.scope==='country'&&(country!==actor.access.country||currentCountry!==actor.access.country))throw new CourseError('You can manage stores only within your assigned country.',403);
     acting=actor;
+    if(current?.deleted_at)throw new CourseError('Choose a store.',409);
+    if(body.action==='delete'){
+      if(!current||!(await client.query('SELECT store_can_delete($1) AS allowed',[id])).rows[0]?.allowed)throw new CourseError('Only archived stores with no linked accounts or records can be deleted.',409);
+      await client.query('UPDATE organisation_stores SET deleted_at=$2,deleted_by=$3,updated_at=$2,updated_by=$3 WHERE id=$1',[id,date,actor.email]);
+      await client.query('UPDATE store_credit_accounts SET active=false WHERE store_id=$1',[id]);
+      await client.query("INSERT INTO organisation_store_audit(id,store_id,actor,action,recorded_at) VALUES($1,$2,$3,'delete',$4)",[crypto.randomUUID(),id,actor.email,date]);
+      return;
+    }
     if(body.action==='edit'&&(body.revision??null)!==(current?.updated_at??null))throw new CourseError('This store changed. Close and reopen its details.',409);
     if(!details){name=String(current?.name||name);country=currentCountry;code=(current?.store_code as string|null)??code;}
     if(body.action==='add'&&email){
