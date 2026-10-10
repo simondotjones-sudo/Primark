@@ -22,3 +22,16 @@
  .assessor-results .directory-filters label:last-child{flex-basis:100%}
  .assessor-list article{padding:18px}
 }
+
+.assessment-evidence-upload{margin:24px 0;padding:20px;background:#f4f9fb;border:1px solid #dae8ef;border-radius:14px}
+.assessment-evidence-upload h3,.assessment-evidence-history h3{font-size:15px;margin:0 0 10px}
+.assessment-evidence-upload .evidence-help,.evidence-empty{font-size:13px;color:#617988}
+.assessment-evidence-list{list-style:none;margin:12px 0 0;padding:0;display:grid;gap:10px}
+.assessment-evidence-list li{display:flex;align-items:center;justify-content:space-between;gap:12px;min-width:0;padding:10px 0;border-top:1px solid #dce7ed}
+.assessment-evidence-list li>div{min-width:0}
+.assessment-evidence-list a{color:#007ca7;overflow-wrap:anywhere;text-decoration:underline;text-underline-offset:3px}
+.assessment-evidence-list small{display:block;flex-shrink:0;color:#617988;font-size:12px;margin-top:4px}
+.assessment-evidence-list button{flex-shrink:0;margin:0;padding:8px 12px;font-size:13px}
+.assessment-evidence-history{margin:18px 0}
+.assessment-evidence-history .assessment-evidence-list li{align-items:flex-start}
+@media(max-width:600px){.assessment-evidence-upload{padding:14px}.assessment-evidence-list li{align-items:flex-start}.assessment-evidence-list small{white-space:normal}}
