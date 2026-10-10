@@ -30,7 +30,7 @@ export async function GET(request:NextRequest) {try {
   if(type!=='all')where+=` AND ${type==='admin'?'NOT ':''}(${learnerOnlySql()})`;
   if(country){where+=' AND (l.country=? OR r.country=? OR m.store_id=ANY(?::text[]))';args.push(country,country,stores.filter(s=>s.country===country).map(s=>s.id));}
   if(storeId){where+=' AND (l.store_id=? OR r.site_id=? OR m.store_id=?)';args.push(storeId,storeId,storeId);}
-  where+=" AND (?='' OR strpos(lower(l.name || ' ' || l.email || ' ' || COALESCE(l.workday_id,'')),?)>0)";args.push(search,search);
+  where+=" AND (?='' OR strpos(lower(l.name || ' ' || COALESCE(l.email,'') || ' ' || COALESCE(l.workday_id,'') || ' ' || COALESCE(l.legacy_access_code,'')),?)>0)";args.push(search,search);
   const pageSize=25;
   const [people,count]=await Promise.all([
     db().prepare(`SELECT ${userColumns},NOT (${learnerOnlySql()}) AS admin_only ${userJoins} WHERE ${where} ORDER BY lower(l.name),l.id LIMIT ? OFFSET ?`).bind(...args,pageSize,(page-1)*pageSize).all<UserPerson>(),

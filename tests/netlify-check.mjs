@@ -1,5 +1,6 @@
 // The named sample-account data migration is covered separately by sample-completion-check.mjs.
 import assert from 'node:assert/strict';
+import {legacyLoginChecks} from './legacy-login-checks.mjs';
 import {storeSetupChecks} from './store-setup-checks.mjs';
 import {userAdministrationChecks} from './user-administration-checks.mjs';
 import {adminOnlyChecks} from './admin-only-checks.mjs';
@@ -105,7 +106,7 @@ await m.database.db().prepare('INSERT INTO learners(id,name,email,code_hash,stor
 await m.database.db().prepare('INSERT INTO sessions(token_hash,learner_id,expires_at) VALUES(?,?,?)').bind(await m.hash(learnerToken),learnerId,'2099-01-01').run();
 const learnerCookie='primark_session='+learnerToken;
 await check('Learner registration, returning sign-in, assessment and certificate persist in Postgres',async()=>{
- const registered=await m.prototype.POST(req('/api/prototype','POST',{action:'register',name:'New Learner',email:'new@example.test',storeId:store.id,country:store.country,registrationCode:' SaFeTy ',password:'My-fixture-password'}));assert.equal(registered.status,200);
+ const registered=await m.prototype.POST(req('/api/prototype','POST',{action:'register',workdayId:'TEST-NEW',name:'New Learner',email:'new@example.test',storeId:store.id,country:store.country,registrationCode:' SaFeTy ',password:'My-fixture-password'}));assert.equal(registered.status,200);
  const logged=await m.prototype.POST(req('/api/prototype','POST',{action:'login',email:'new@example.test',password:'My-fixture-password'}));assert.equal(logged.status,200);const cookie=logged.headers.get('set-cookie').split(';')[0];
  for(const chapter of m.lessons.modules){const r=await m.prototype.POST(req('/api/prototype','POST',{action:'view',key:chapter.key},cookie));assert.equal(r.status,200);}
  const duplicate=await m.prototype.POST(req('/api/prototype','POST',{action:'view',key:'welcome'},cookie));assert.equal((await duplicate.json()).viewed.length,6);
@@ -229,7 +230,7 @@ await check('Existing dual-cookie sessions cannot inherit platform-admin permiss
  assert.equal((await getReport(cookie)).status,403);
 });
 await check('Learner registration and sign-in end and revoke the previous platform session',async()=>{
- const res=await invoke(m.prototype,'POST','/api/prototype',{action:'register',name:'Switch User',email:'switch@example.test',storeId:store.id,country:store.country,registrationCode:'safety',password:'My-fixture-password'},reportingAdmin);assert.equal(res.status,200);assert(res.headers.get('set-cookie').includes('primark_admin=;'));
+ const res=await invoke(m.prototype,'POST','/api/prototype',{action:'register',workdayId:'TEST-SWITCH',name:'Switch User',email:'switch@example.test',storeId:store.id,country:store.country,registrationCode:'safety',password:'My-fixture-password'},reportingAdmin);assert.equal(res.status,200);assert(res.headers.get('set-cookie').includes('primark_admin=;'));
  assert.equal(await context.run({cookie:reportingAdmin},()=>m.auth.getAdminUser()),null);
  await query('UPDATE learners SET password_hash=? WHERE id=?',await m.learnerAuth.hashPassword('My-fixture-password'),'same-site').run();reportingAdmin=await loginAdmin();const logged=await invoke(m.prototype,'POST','/api/prototype',{action:'login',email:'same-site@example.test',password:'My-fixture-password'},reportingAdmin);assert.equal(logged.status,200);assert(logged.headers.get('set-cookie').includes('primark_admin=;'));
  assert.equal(await context.run({cookie:reportingAdmin},()=>m.auth.getAdminUser()),null);
@@ -304,7 +305,7 @@ await check('Organisation store lifecycle enforces admin access and preserves hi
  assert(!(await m.directory.storeDirectory(false)).some(s=>s.id===store.id));
  assert((await m.directory.storeDirectory()).some(s=>s.id===store.id));
  assert.equal((await query('SELECT COUNT(*) AS n FROM learners').first()).n,before);
- const registration=await invoke(m.prototype,'POST','/api/prototype',{action:'register',email:'archived@example.test',name:'Archive Test',storeId:store.id,country:store.country,registrationCode:'safety',password:'test-password-123'});
+ const registration=await invoke(m.prototype,'POST','/api/prototype',{action:'register',workdayId:'TEST-ARCHIVED',email:'archived@example.test',name:'Archive Test',storeId:store.id,country:store.country,registrationCode:'safety',password:'test-password-123'});
  assert.equal(registration.status,400);
  assert.equal((await invoke(m.organisation,'POST',endpoint,{action:'restore',id:store.id},cookie)).status,200);
  assert((await m.directory.storeDirectory(false)).some(s=>s.id===store.id));
@@ -315,4 +316,5 @@ await platformAdminChecks({m,check,query,invoke,loginAdmin,cookieFrom,store});
 await passwordRecoveryChecks({m,check,query,invoke,loginAdmin,cookieFrom,store});
 await adminOnlyChecks({m,check,query,invoke,loginAdmin,cookieFrom,store,uk});
 await userAdministrationChecks({m,check,query,invoke,loginAdmin,cookieFrom,store,uk});
+await legacyLoginChecks({m,check,query,invoke,loginAdmin,cookieFrom,store});
 console.log(`${passed} Netlify migration checks passed.`);await pg.close();rmSync(dir,{recursive:true,force:true});

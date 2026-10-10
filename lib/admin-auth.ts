@@ -41,7 +41,7 @@ export async function getAdminUser(): Promise<{email: string; learnerId?: string
   if (learnerToken) {
     return db().prepare(`SELECT l.email,l.id AS "learnerId" FROM sessions s
       JOIN learners l ON l.id=s.learner_id JOIN platform_admins p ON p.learner_id=l.id
-      WHERE s.token_hash=? AND s.expires_at>? AND l.archived_at IS NULL`)
+      WHERE s.token_hash=? AND s.expires_at>? AND l.archived_at IS NULL AND s.email_pending=false AND NULLIF(btrim(l.email),'') IS NOT NULL`)
       .bind(createHash('sha256').update(learnerToken).digest('hex'), new Date().toISOString())
       .first<{email: string; learnerId: string}>();
   }

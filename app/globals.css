@@ -530,3 +530,6 @@ footer strong{letter-spacing:.08em}
   .shell :is(.audience-tabs,.assignment-view-tabs).pill-switch>button{min-width:0;padding-inline:14px}
   .assignment-view-scroll{width:100%}
 }
+
+/* Keep the required email step centred within the existing login layout. */
+.login-screen .entry.email-completion{grid-template-columns:minmax(0,470px);justify-content:center}
