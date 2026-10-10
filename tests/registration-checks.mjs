@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs';
 
 export async function registrationChecks({m,check,query,invoke,loginAdmin,cookieFrom,store,uk,pg}) {
   const admin=await loginAdmin();
-  const register=(email,site=store,extra={})=>invoke(m.prototype,'POST','/api/prototype',{action:'register',name:'Registration Test',email,country:site.country,storeId:site.id,registrationCode:'safety',password:'Case-Sensitive-Password',...extra});
+  const register=(email,site=store,extra={})=>invoke(m.prototype,'POST','/api/prototype',{action:'register',name:'Registration Test',email,workdayId:email.split('@')[0],country:site.country,storeId:site.id,registrationCode:'safety',password:'Case-Sensitive-Password',...extra});
   const getCourses=cookie=>invoke(m.courses,'GET','/api/courses',undefined,cookie);
   const german=m.stores.find(s=>s.country==='Germany');
   let irishCookie,germanCookie,irishId,germanId;
@@ -57,10 +57,10 @@ export async function registrationChecks({m,check,query,invoke,loginAdmin,cookie
     assert.equal((await invoke(m.prototype,'POST','/api/prototype',{action:'register',email:'cross@example.test'},'',{origin:'https://evil.invalid'})).status,403);
     const pending=await (await getCourses(irishCookie)).json();assert.equal(pending.courses.length,0);assert.equal(pending.inductionPending,true);
   });
-  await check('Two-step registration stores names and optional Workday IDs without issuing a login code',async()=>{
+  await check('Two-step registration stores names and required Workday IDs without issuing a login code',async()=>{
     const body={action:'register',firstName:'  Zoë ',surname:' O’Neill  Smith ',email:'WORKDAY-USER@example.test',workdayId:' 00ab-123 ',storeId:store.id,registrationCode:' SAFETY ',password:'Workday-Password-123'};
     const created=await invoke(m.prototype,'POST','/api/prototype',body);assert.equal(created.status,200,await created.clone().text());
-    assert.deepEqual(await created.json(),{ok:true});assert(cookieFrom(created,'primark_session'));
+    assert.deepEqual(await created.json(),{ok:true,returnTo:'/?courses=1'});assert(cookieFrom(created,'primark_session'));
     const learner=await query('SELECT * FROM learners WHERE email=?','workday-user@example.test').first();
     assert.equal(learner.first_name,'Zoë');assert.equal(learner.surname,'O’Neill Smith');assert.equal(learner.name,'Zoë O’Neill Smith');assert.equal(learner.workday_id,'00AB-123');assert.equal(learner.country,store.country);
     const cookie='primark_session='+cookieFrom(created,'primark_session');
@@ -71,8 +71,8 @@ export async function registrationChecks({m,check,query,invoke,loginAdmin,cookie
     for(const extra of [{firstName:''},{surname:' '},{firstName:'x'.repeat(51)},{workdayId:'id@example.test'},{workdayId:'bad id'},{workdayId:123},{workdayId:'x'.repeat(51)},{registrationCode:'wrong'}])assert.equal((await invoke(m.prototype,'POST','/api/prototype',{...body,...extra,email:'invalid-details@example.test'})).status,400);
     for(const [i,workdayId] of [undefined,'','  '].entries()){
       const email=`no-workday-${i}@example.test`;
-      assert.equal((await invoke(m.prototype,'POST','/api/prototype',{...body,email,workdayId})).status,200);
-      assert.equal((await query('SELECT workday_id FROM learners WHERE email=?',email).first()).workday_id,null);
+      assert.equal((await invoke(m.prototype,'POST','/api/prototype',{...body,email,workdayId})).status,400);
+      assert.equal(await query('SELECT id FROM learners WHERE email=?',email).first(),null);
     }
   });
   await check('Email and Workday ID use the same password, session and learner record',async()=>{
@@ -89,8 +89,8 @@ export async function registrationChecks({m,check,query,invoke,loginAdmin,cookie
     assert.equal(adminLogin.status,200);assert(cookieFrom(adminLogin,'primark_admin'));
   });
   await check('Workday uniqueness is enforced by Postgres even if registration requests race',async()=>{
-    await assert.rejects(query('UPDATE learners SET workday_id=? WHERE email=?','00AB-123','no-workday-0@example.test').run(),error=>error.code==='23505');
-    assert.equal((await query('SELECT workday_id FROM learners WHERE email=?','no-workday-0@example.test').first()).workday_id,null);
+    await assert.rejects(query('UPDATE learners SET workday_id=? WHERE email=?','00AB-123','new-safety@example.test').run(),error=>error.code==='23505');
+    assert.equal((await query('SELECT workday_id FROM learners WHERE email=?','new-safety@example.test').first()).workday_id,'NEW-SAFETY');
   });
   await check('Alternating email and Workday ID cannot bypass the existing ten-attempt limit',async()=>{
     assert.equal((await register('alias-limit@example.test',store,{workdayId:'RATE-LIMIT-ID'})).status,200);
@@ -116,6 +116,7 @@ export async function registrationChecks({m,check,query,invoke,loginAdmin,cookie
   await check('Published English fallback is assigned once and drafts never launch',async()=>{
     await ready('legacy-154');
     const germanResponse=await register('german-fallback@example.test',german);assert.equal(germanResponse.status,200);
+    assert.equal((await germanResponse.clone().json()).returnTo,'/learn/legacy-154/');
     germanCookie='primark_session='+cookieFrom(germanResponse,'primark_session');
     germanId=(await query('SELECT id FROM learners WHERE email=?','german-fallback@example.test').first()).id;
     assert.equal((await query('SELECT course_id FROM learner_inductions WHERE learner_id=?',germanId).first()).course_id,'legacy-154');
@@ -126,7 +127,7 @@ export async function registrationChecks({m,check,query,invoke,loginAdmin,cookie
   });
   await check('Country induction wins for new joiners; existing assignments and SCORM resume remain pinned',async()=>{
     await ready('legacy-264');
-    const response=await register('german-local@example.test',german);assert.equal(response.status,200);const cookie='primark_session='+cookieFrom(response,'primark_session');
+    const response=await register('german-local@example.test',german);assert.equal(response.status,200);assert.equal((await response.clone().json()).returnTo,'/learn/legacy-264/');const cookie='primark_session='+cookieFrom(response,'primark_session');
     assert.deepEqual((await (await getCourses(cookie)).json()).courses.map(c=>c.id),['legacy-264']);
     assert.deepEqual((await (await getCourses(germanCookie)).json()).courses.map(c=>c.id),['legacy-154']);
     assert.equal((await invoke(m.scorm,'POST','/api/scorm',{action:'launch',courseId:'legacy-154'},cookie)).status,403);

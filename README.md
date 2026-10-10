@@ -139,16 +139,15 @@ and upload/download a photo. No Netlify deployment was created by the source mig
 ## Registration, course library and Store Managers
 
 Registration has two steps: enter the `safety` induction code, then provide first name,
-surname, email, optional Workday ID, a searchable store and a password. Country is derived
+surname, email, required Workday ID, a searchable store and a password. Country is derived
 from the selected active store. The form keeps entered details when moving back or after
-an error, signs in immediately and opens My Courses without issuing a login code.
+an error, uses **Get Started**, signs in immediately and opens the assigned published Safety Induction course. If no induction is flagged and ready for their country (or the default), it opens My Courses. New registrations do not receive a legacy login code.
 The compact layout fits the first viewport on desktop and small phones, with natural
 scrolling retained for zoom, an open keyboard and longer validation messages.
 
 Registration accepts `safety` without case sensitivity (surrounding spaces are ignored).
 The code is an enrolment code, not a password or an admin permission. Passwords are
-8–128 characters and stored using individually salted scrypt hashes. Login uses email
-or Workday ID with the same password. Workday IDs preserve leading zeroes, ignore case
+8–128 characters and stored using individually salted scrypt hashes. Login uses email, Workday ID or the retained legacy access code with the same password. Workday IDs preserve leading zeroes, ignore case
 and surrounding spaces, and are unique across learner accounts. They accept letters,
 numbers, periods, underscores and hyphens (1–50 characters); they do not verify employment
 or grant permissions. Recovery continues to use the account email. Migration
@@ -513,3 +512,21 @@ No assignment emails are sent. Pending tiles direct the learner to their Store M
 
 `node tests/renewals-check.mjs` covers expiry boundaries, access checks, history,
 charging, country rules, retries, removals and the learner/configuration APIs.
+
+## Legacy login and email completion
+
+Migration `20261010050000_legacy-login` allows historic learners with no email, adds
+`learners.legacy_access_code` and marks restricted email-completion sessions. Import
+original codes into this nullable field alongside the original account; no codes
+are generated or fabricated. Existing `code_hash` values cannot be reversed for
+display. A verified first-password setup retains the supplied old pass code.
+Manage Users shows the legacy code read-only, including for historic users; updates
+from the Edit User API cannot change it.
+
+Password login supports email, Workday ID and legacy access code. An ambiguous
+imported identifier is rejected. Accounts without an email receive a 15-minute
+restricted session and must supply a unique email before using learning or admin
+features. Email uniqueness ignores case and surrounding whitespace and includes
+archived accounts. The database enforces uniqueness for simultaneous requests.
+Saving the email preserves learner identity and learning history and replaces
+all prior sessions. This collects an address; it does not verify mailbox ownership.

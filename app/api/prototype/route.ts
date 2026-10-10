@@ -1,3 +1,4 @@
+import { inTransaction } from '@/lib/database';
 import {syncAssignments,creditError} from '@/lib/credits';
 import { learnerOnlySql } from "@/lib/account-type";
 import { allowLoginAttempt, ADMIN_COOKIE, credentials, getAdminUser, passwordMatches, safeReturnTo } from '@/lib/admin-auth';
@@ -9,7 +10,7 @@ import type { PreparedStatement } from "@/lib/database";
 import { NextRequest, NextResponse } from "next/server";
 import {storeDirectory} from '@/lib/store-directory';
 import { modules, questions } from "@/lib/course";
-import { completeIfReady, currentLearner, db, hash, now, progressFor, randomToken, withSession, type Learner } from "@/lib/server";
+import { completeIfReady, currentLearner, pendingEmailLearner, db, hash, now, progressFor, randomToken, withSession, type Learner } from "@/lib/server";
 
 import { isPlatformAdmin, CourseError } from "@/lib/course-admin";
 import { sameOrigin } from "@/lib/shot-server";
@@ -25,6 +26,7 @@ const emailAddress = (value: unknown) => typeof value === "string" && value.trim
 
 const privateHeaders = { "Cache-Control": "private, no-store" };
 async function learnerState(request: NextRequest) {
+  if (await pendingEmailLearner(request)) return NextResponse.json({learner:null,account:null,viewed:[],platformAdmin:false,reportingAccess:null,requiresEmail:true},{headers:privateHeaders});
   const stores=await storeDirectory();const storeById=new Map(stores.map(s=>[s.id,s]));
   const learner = await currentLearner(request);
   const admin = await getAdminUser();
@@ -142,7 +144,7 @@ export async function POST(request: NextRequest) {
       // Keep older open registration pages working during deployment.
       const name = splitName ? `${firstName} ${surname}` : cleanName(body.name);
       const workdayId = normalizeWorkdayId(body.workdayId);
-      if (body.workdayId !== undefined && body.workdayId !== '' && (typeof body.workdayId !== 'string' || (body.workdayId.trim() && !workdayId))) return fail('Check your Workday ID, or leave it blank.');
+      if (!workdayId) return fail('Enter a valid Workday ID.');
       const storeId = typeof body.storeId === "string" ? body.storeId : "";
       const store = storeById.get(storeId);
       if (!email || name.length < 2 || name.length > 101 || !store || !store.active) return fail("Enter your name, a valid email and a store.");
@@ -150,9 +152,9 @@ export async function POST(request: NextRequest) {
       if (typeof body.registrationCode !== 'string' || body.registrationCode.trim().toLowerCase() !== 'safety') return fail('Enter the registration code provided by Primark.');
       if (!validPassword(body.password)) return fail('Create a password with 8–128 characters.');
       if (body.country !== undefined && body.country !== store.country) return fail('Choose a store in your selected country.');
-      const existing = await database.prepare("SELECT id FROM learners WHERE email=?").bind(email).first();
+      const existing = await database.prepare("SELECT id FROM learners WHERE lower(btrim(email))=?").bind(email).first();
       if (existing) return fail('This email is already registered. Choose Login to continue.', 409);
-      if (workdayId && await database.prepare('SELECT id FROM learners WHERE workday_id=?').bind(workdayId).first()) return fail('This Workday ID is already linked to an account. Log in, or leave it blank to continue with email.',409);
+      if (await database.prepare('SELECT id FROM learners WHERE workday_id=? OR upper(btrim(legacy_access_code))=?').bind(workdayId,workdayId).first()) return fail('This Workday ID is already linked to an account. Choose Login to continue.',409);
       const id = crypto.randomUUID();
       const induction=inductionFor(await readyCourses(),store.country);
       const changes=[database.prepare("INSERT INTO learners(id,name,email,code_hash,store_id,country,entered_at,password_hash,induction_enrolled,first_name,surname,workday_id) VALUES(?,?,?,?,?,?,?,?,true,?,?,?) ON CONFLICT DO NOTHING")
@@ -161,31 +163,35 @@ export async function POST(request: NextRequest) {
       changes.push(syncAssignments(id));
       const inserted=await database.batch(changes);
       if (!inserted[0].meta.changes) {
-        const emailTaken=await database.prepare('SELECT id FROM learners WHERE email=?').bind(email).first();
-        return emailTaken ? fail('This email is already registered. Choose Login to continue.',409) : fail('This Workday ID is already linked to an account. Log in, or leave it blank to continue with email.',409);
+        const emailTaken=await database.prepare('SELECT id FROM learners WHERE lower(btrim(email))=?').bind(email).first();
+        return emailTaken ? fail('This email is already registered. Choose Login to continue.',409) : fail('This Workday ID is already linked to an account. Choose Login to continue.',409);
       }
-      return withSession(request,id,{ ok: true });
+      return withSession(request,id,{ ok: true, returnTo: induction ? `/learn/${encodeURIComponent(induction.id)}/` : '/?courses=1' });
     }
     if (action === "login") {
       const identifier = body.identifier ?? body.email;
       const email = emailAddress(identifier);
-      const workdayId = email ? null : normalizeWorkdayId(identifier);
+      const loginCode = !email && typeof identifier === 'string' && /^[A-Za-z0-9][A-Za-z0-9._-]{0,99}$/.test(identifier.trim()) ? identifier.trim().toUpperCase() : null;
       const password = typeof body.password === 'string' ? body.password : '';
-      if ((!email && !workdayId) || !password || password.length > 1024) return fail('Enter your email or Workday ID and password.');
-      if (!await allowLoginAttempt(email ? 'learner:'+email : 'workday:'+workdayId)) return fail("Too many attempts. Try again in 15 minutes.",429);
+      if ((!email && !loginCode) || !password || password.length > 1024) return fail('Enter your email, Workday ID or access code and password.');
+      if (!await allowLoginAttempt(email ? 'learner:'+email : 'identifier:'+loginCode)) return fail("Too many attempts. Try again in 15 minutes.",429);
       if (email && email === credentials()?.email) {
         if (!await allowLoginAttempt('platform-admin')) return fail('Too many attempts. Try again in 15 minutes.',429);
         if (await passwordMatches(email,password)) return await createAdminSession(request,body.returnTo);
       }
       if (password.length > 128) return fail('Those details did not match.',401);
-      const learner = await database.prepare(`SELECT id,password_hash,
+      const matches = await database.prepare(`SELECT id,email,password_hash,
         EXISTS(SELECT 1 FROM platform_admins p WHERE p.learner_id=learners.id) AS platform_admin
-        FROM learners WHERE ${email ? 'email' : 'workday_id'}=? AND archived_at IS NULL`)
-        .bind(email||workdayId).first<{id:string;password_hash:string|null;platform_admin:boolean}>();
+        FROM learners WHERE ${email ? 'lower(btrim(email))=?' : '(workday_id=? OR upper(btrim(legacy_access_code))=? OR code_hash=?)'} AND archived_at IS NULL LIMIT 2`)
+        .bind(...(email ? [email] : [loginCode,loginCode,await hash(loginCode!)]))
+        .all<{id:string;email:string|null;password_hash:string|null;platform_admin:boolean}>();
+      // Ambiguous imported aliases must not silently select a different account.
+      const learner = matches.results.length === 1 ? matches.results[0] : null;
       // Both aliases share an account limit, so alternating identifiers cannot bypass it.
       if (learner && !await allowLoginAttempt('learner-account:'+learner.id)) return fail('Too many attempts. Try again in 15 minutes.',429);
       const correct = await verifyPassword(password, learner?.password_hash || null);
       if (!learner || !correct) return fail('Those details did not match.',401);
+      if (!learner.email?.trim()) return withSession(request,learner.id,{ok:true,requiresEmail:true},true);
       return withSession(request,learner.id,{ ok: true, ...(learner.platform_admin ? {returnTo:body.returnTo ? safeReturnTo(body.returnTo) : "/?view=report"} : {}) });
     }
     if (action === 'set-password') {
@@ -193,13 +199,38 @@ export async function POST(request: NextRequest) {
       const code = typeof body.code === 'string' ? body.code.trim().toUpperCase() : '';
       if (!email || !code || !validPassword(body.password)) return fail('Enter your email, existing pass code and a new password with 8–128 characters.');
       if (!await allowLoginAttempt('learner:'+email)) return fail('Too many attempts. Try again in 15 minutes.',429);
-      const learner = await database.prepare('SELECT id FROM learners WHERE email=? AND code_hash=? AND password_hash IS NULL AND archived_at IS NULL').bind(email,await hash(code)).first<{id:string}>();
+      const learner = await database.prepare('SELECT id FROM learners WHERE lower(btrim(email))=? AND code_hash=? AND password_hash IS NULL AND archived_at IS NULL').bind(email,await hash(code)).first<{id:string}>();
       if (!learner) return fail('Those details did not match, or a password is already set. Use Login if you already have a password.',401);
-      const saved = await database.prepare('UPDATE learners SET password_hash=?,code_hash=? WHERE id=? AND password_hash IS NULL AND archived_at IS NULL')
-        .bind(await hashPassword(body.password),await hash(randomToken()),learner.id).run();
+      const saved = await database.prepare('UPDATE learners SET password_hash=?,code_hash=?,legacy_access_code=COALESCE(legacy_access_code,?) WHERE id=? AND password_hash IS NULL AND archived_at IS NULL')
+        .bind(await hashPassword(body.password),await hash(randomToken()),code,learner.id).run();
       if (!saved.meta.changes) return fail('A password is already set. Use Login.',409);
       await database.prepare('DELETE FROM sessions WHERE learner_id=?').bind(learner.id).run();
       return withSession(request,learner.id,{ok:true});
+    }
+    if (action === 'complete-email') {
+      const pending = await pendingEmailLearner(request);
+      if (!pending) return fail('Your sign-in expired. Please log in again.',401);
+      const email = emailAddress(body.email);
+      if (!email) return fail('Enter a valid email address.');
+      if (!await allowLoginAttempt('email-link:'+pending.id,20)) return fail('Too many attempts. Try again in 15 minutes.',429);
+      if (email === credentials()?.email) return fail('This email is already registered. Use a different email address.',409);
+      try {
+        await inTransaction(async client => {
+          const tokenHash=await hash(request.cookies.get('primark_session')!.value);
+          const account=await client.query(`SELECT l.id FROM learners l WHERE l.id=$1 AND l.archived_at IS NULL
+            AND NULLIF(btrim(l.email),'') IS NULL AND EXISTS(SELECT 1 FROM sessions s WHERE s.learner_id=l.id
+              AND s.token_hash=$2 AND s.email_pending=true AND s.expires_at>$3) FOR UPDATE`,[pending.id,tokenHash,now()]);
+          if (!account.rows.length) throw new CourseError('Your sign-in expired. Please log in again.',401);
+          const existing=await client.query('SELECT id FROM learners WHERE lower(btrim(email))=$1',[email]);
+          if(existing.rows.length)throw new CourseError('This email is already registered. Use a different email address.',409);
+          await client.query('UPDATE learners SET email=$1 WHERE id=$2',[email,pending.id]);
+          await client.query('DELETE FROM sessions WHERE learner_id=$1',[pending.id]);
+        });
+      } catch(error) {
+        if ((error as {code?:string}).code==='23505') return fail('This email is already registered. Use a different email address.',409);
+        throw error;
+      }
+      return withSession(request,pending.id,{ok:true});
     }
     if (action === "logout") {
       const cookie = request.cookies.get("primark_session")?.value;

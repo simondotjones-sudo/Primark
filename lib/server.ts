@@ -38,14 +38,22 @@ export async function learnerForSession(token: string | undefined): Promise<Lear
   return (await db().prepare(`
     SELECT l.id,l.name,l.email,l.store_id,l.country,l.entered_at,l.started_at,l.completed_at,l.best_score,l.certificate_token,l.induction_enrolled,NOT (${learnerOnlySql()}) AS admin_only
     FROM sessions s JOIN learners l ON l.id=s.learner_id
-    WHERE s.token_hash=? AND s.expires_at>? AND l.archived_at IS NULL
+    WHERE s.token_hash=? AND s.expires_at>? AND l.archived_at IS NULL AND s.email_pending=false AND NULLIF(btrim(l.email),'') IS NOT NULL
   `).bind(await hash(token), now()).first<Learner>()) ?? null;
 }
-export async function withSession(request: NextRequest, learnerId: string, data: unknown) {
+export async function pendingEmailLearner(request: NextRequest) {
+  const token = request.cookies.get('primark_session')?.value;
+  if (!token) return null;
+  return db().prepare(`SELECT l.id FROM sessions s JOIN learners l ON l.id=s.learner_id
+    WHERE s.token_hash=? AND s.expires_at>? AND s.email_pending=true
+    AND l.archived_at IS NULL AND NULLIF(btrim(l.email),'') IS NULL`)
+    .bind(await hash(token),now()).first<{id:string}>();
+}
+export async function withSession(request: NextRequest, learnerId: string, data: unknown, emailPending = false) {
   const token = randomToken();
-  const expiry = new Date(Date.now() + 30 * 86400000);
-  const statements = [db().prepare("INSERT INTO sessions(token_hash,learner_id,expires_at) SELECT ?,id,? FROM learners WHERE id=? AND archived_at IS NULL")
-    .bind(await hash(token), expiry.toISOString(), learnerId),
+  const expiry = new Date(Date.now() + (emailPending ? 15 * 60000 : 30 * 86400000));
+  const statements = [db().prepare("INSERT INTO sessions(token_hash,learner_id,expires_at,email_pending) SELECT ?,id,?,? FROM learners WHERE id=? AND archived_at IS NULL")
+    .bind(await hash(token), expiry.toISOString(), emailPending, learnerId),
     db().prepare("UPDATE learners SET last_login_at=GREATEST(last_login_at,?) WHERE id=? AND archived_at IS NULL")
       .bind(now(),learnerId)];
   const adminToken = request.cookies.get('primark_admin')?.value;

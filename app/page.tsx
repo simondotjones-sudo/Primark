@@ -1,4 +1,5 @@
 "use client";
+import CompleteEmail from "@/components/complete-email";
 import {useLanguage,LanguagePicker} from "@/components/language-provider";
 import { useCallback, useEffect, useRef, useState } from "react";
 import QRCode from "qrcode";
@@ -52,6 +53,7 @@ export default function Home() {
   const copyLang=contentLanguage(lang);
   const shownModules=modules.map((m,i)=>copyLang==="en"?m:{...m,...moduleCopy[copyLang][i],short:moduleCopy[copyLang][i].title});
   const shownQuestions=questions.map((q,i)=>copyLang==="en"?q:{...q,...questionCopy[copyLang][i]});
+  const [requiresEmail,setRequiresEmail]=useState(false);
   const [platformAdmin,setPlatformAdmin]=useState(false);
   const [reportingAccess,setReportingAccess]=useState<ReportingAccess|null>(null);
   const accessKey=useRef("");
@@ -76,7 +78,7 @@ export default function Home() {
   const refreshMe=useCallback(async()=>{
     const data=await api("?view=me");
     const access:ReportingAccess|null=data.reportingAccess||null;
-    setPlatformAdmin(!!data.platformAdmin);setLearner(data.learner);setAccount(data.account||null);
+    setRequiresEmail(!!data.requiresEmail);setPlatformAdmin(!!data.platformAdmin);setLearner(data.learner);setAccount(data.account||null);
     // Keep the same access object when a profile/focus refresh confirms the same permissions.
     // The dashboard reloads only when its scope or filters actually change.
     setReportingAccess(previous=>previous?.scope===access?.scope&&previous?.country===access?.country&&previous?.siteId===access?.siteId?previous:access);
@@ -124,11 +126,11 @@ export default function Home() {
       onFilterChange={next=>{setRole(next.role);setScopeCountry(next.country);setScopeSite(next.site);setArea("report");}}
       onSignOut={async()=>{if(platformAdmin){const response=await fetch("/api/admin/session",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"logout"})});if(!response.ok)throw new Error("Could not sign out. Please try again.");}else await post("logout");await refreshMe();setArea("learn");setScreen("home");}}/></div></header>
     <main className="main">
-    {error&&(account||loading)&&<div className="error" role="alert">{t(error)}<button onClick={()=>setError("")} aria-label={t("Dismiss error")}>×</button></div>}
-    {(area==="learn"||!reportingAccess) ? loading?<div className="paper loading">{t("Loading induction…")}</div> : !learner?
+    {error&&!requiresEmail&&(account||loading)&&<div className="error" role="alert">{t(error)}<button onClick={()=>setError("")} aria-label={t("Dismiss error")}>×</button></div>}
+    {requiresEmail ? <CompleteEmail busy={busy} error={error} onSave={email=>{void run(async()=>{await post('complete-email',{email});setRequiresEmail(false);setScreen('courses');await refreshMe();});}} onCancel={()=>{void run(async()=>{await post('logout');location.assign('/?login=1');});}}/> : (area==="learn"||!reportingAccess) ? loading?<div className="paper loading">{t("Loading induction…")}</div> : !learner?
       <div className="entry">
         <div className="entry-copy"><span className="eyebrow">{t("FOR NEW STORE COLLEAGUES")}</span><h1>{t("Start safe.")}<br/>{t("Feel ready for day one.")}</h1><p>{t("Your safety training, ready when you are.")}</p><div className="steps"><span><b>01</b> {t("Choose your store")}</span><span><b>02</b> {t("Learn at your pace")}</span><span><b>03</b> {t("Show your pass")}</span></div><div className="soft-note"><ShieldCheck/>{t("Your progress is saved so you can come back.")}</div></div>
-        <AuthForm lang={lang} busy={busy} error={error} onClearError={()=>setError("")} onAuthenticate={(action,fields)=>{void run(async()=>{const result=await post(action,{...fields,returnTo:new URLSearchParams(location.search).get("returnTo")});if(result.returnTo){location.assign(result.returnTo);return;}setArea("learn");setScreen("courses");await refreshMe();});}}/>
+        <AuthForm lang={lang} busy={busy} error={error} onClearError={()=>setError("")} onAuthenticate={(action,fields)=>{void run(async()=>{const result=await post(action,{...fields,returnTo:new URLSearchParams(location.search).get("returnTo")});if(result.requiresEmail){await refreshMe();return;}if(result.returnTo){location.assign(result.returnTo);return;}setArea("learn");setScreen("courses");await refreshMe();});}}/>
       </div> :
       <div className={"learn-layout"+(screen==="courses"?" courses-layout":"")}><aside className="sidebar"><small>{t("YOUR LEARNING")}</small><button className={screen==="courses"?"selected":""} onClick={()=>setScreen("courses")}><LayoutGrid/>{t("My Courses")}</button>{!learner.induction_enrolled&&<><hr className="course-divider"/><button className={screen==="home"?"selected":""} onClick={()=>setScreen("home")}><BookOpen/>{t("Safety Passport")}</button>{shownModules.map((m,i)=><button key={m.key} className={"chapter-nav "+(screen==="module"&&moduleIndex===i?"selected":"")} onClick={()=>{setModuleIndex(i);setScreen("module");}}><span className={"number "+(viewed.includes(m.key)?"checked":"")}>{viewed.includes(m.key)?<Check/>:i+1}</span>{m.short}</button>)}<button className={screen==="quiz"?"selected":""} onClick={()=>{setScreen("quiz");setQuestionIndex(0);}}><ClipboardCheck/>{t("Assessment")}</button>{complete&&<button className={screen==="pass"?"selected":""} onClick={()=>setScreen("pass")}><ShieldCheck/>{t("My Safety Passport")}</button>}</>}</aside>
         <div className="learner-main">
