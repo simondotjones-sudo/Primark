@@ -1,1 +1,24 @@
-.assessor-page{max-width:1200px;margin:auto;padding:24px;color:#163746}.assessor-page header{display:flex;align-items:center;justify-content:space-between;margin-bottom:32px}.assessor-page header>a{font-size:28px;color:#009cbe;font-weight:700;text-decoration:none;letter-spacing:3px}.assessor-page h1{font-size:32px}.assessor-page h2{font-size:19px}.assessor-page nav,.assessor-filters{display:flex;gap:12px;flex-wrap:wrap;margin:24px 0}.assessor-page button{padding:10px 16px;border:1px solid #a9c8d1;border-radius:8px;background:white;cursor:pointer;margin:4px}.assessor-page button[aria-pressed=true],.assessor-page button[type=submit]{background:#007f9c;color:white}.assessor-page button:disabled{opacity:.5;cursor:wait}.assessor-panel,.assessor-list article{border:1px solid #d5e4e9;border-radius:14px;padding:24px;margin:18px 0;background:#fff}.assessor-page input,.assessor-page select,.assessor-page textarea{padding:10px;border:1px solid #a9c8d1;border-radius:7px;max-width:100%;font:inherit}.assessor-page form{max-width:680px}.assessor-page label{display:flex;flex-direction:column;gap:8px;margin:16px 0}.assessor-page label.assessor-check{flex-direction:row;align-items:start}.assessor-check input{margin-top:4px}.assessor-page textarea{min-height:100px}.assessor-list{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:14px}.assessor-page .error{color:#b42318}.assessor-page p{margin:12px 0}@media(max-width:600px){.assessor-page{padding:16px}.assessor-filters>*{width:100%}}
+.assessor-page{min-width:0;color:#203f51}
+.assessor-page .assessor-tabs{margin-bottom:24px}
+.assessor-results .directory-toolbar input{max-width:none}
+.assessor-results>p{color:#617988;line-height:1.6;margin:12px 0}
+.assessor-list{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,280px),1fr));gap:14px;margin-top:22px}
+.assessor-list article{min-width:0;border:1px solid #e3ebf0;border-radius:15px;padding:20px;background:#fafcfd;overflow-wrap:anywhere}
+.assessor-list h2{font-size:19px;margin:0 0 12px}
+.assessor-list p,.assessor-panel p{margin:12px 0;line-height:1.6}
+.assessor-panel{margin-top:24px;scroll-margin-top:100px}
+.assessor-panel form{max-width:680px}
+.assessor-panel label{display:flex;flex-direction:column;gap:8px;margin:16px 0}
+.assessor-panel label.assessor-check{flex-direction:row;align-items:flex-start}
+.assessor-check input{flex-shrink:0;margin-top:4px}
+.assessor-panel input:not([type=checkbox]),.assessor-panel select,.assessor-panel textarea{width:100%;max-width:100%;min-height:44px;padding:10px;border:1px solid #d6e4ec;border-radius:10px;background:#fff;color:#203f51;font:inherit}
+.assessor-panel textarea{min-height:100px}
+.assessor-list button,.assessor-panel button{min-height:44px;padding:10px 16px;border:1px solid #d6e4ec;border-radius:10px;background:#f1f6f8;color:#203f51;cursor:pointer;margin:4px 4px 4px 0;font:inherit}
+.assessor-panel button:not([type=button]){background:#008bc4;color:white;border-color:#008bc4}
+.assessor-page button:disabled{opacity:.5;cursor:wait}
+.assessor-page .error{color:#b42318}
+@media(max-width:760px){
+ .assessor-page .assessor-tabs>button{font-size:13px;line-height:1.35}
+ .assessor-results .directory-filters label:last-child{flex-basis:100%}
+ .assessor-list article{padding:18px}
+}
