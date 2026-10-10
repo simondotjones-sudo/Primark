@@ -1,3 +1,5 @@
+import {CourseError} from './course-admin';
+import {buildScheduledReport} from './scheduled-reports';
 import {createHash,randomBytes} from 'node:crypto';
 import {inTransaction} from './database';
 import type {EmailCandidate} from './email-types';
@@ -27,6 +29,11 @@ export async function runEmailNotifications(){
    const {rows:[candidate]}=await client.query(`SELECT c.* FROM learning_email_candidates() c WHERE c.event_key=$1 AND $2::timestamptz=$3::timestamptz`,[job.event_key,job.activation,s.active_since]);
    if(!candidate){await client.query("UPDATE email_outbox SET status='cancelled',error_code='no_longer_eligible' WHERE id=$1",[job.id]);return {skip:true as const};}
    const c=candidate as unknown as EmailCandidate;
+   if(c.kind==='manager_digest'||c.kind==='country_digest'){
+    try{c.payload=await buildScheduledReport(c.kind,c.payload);}
+    catch(error){if(!(error instanceof CourseError)||error.status!==409)throw error;
+     await client.query("UPDATE email_outbox SET status='cancelled',error_code='report_scope_unavailable' WHERE id=$1",[job.id]);return {skip:true as const};}
+   }
    await client.query('UPDATE email_outbox SET to_email=$2 WHERE id=$1',[job.id,c.email]);
    let token:string|undefined;
    if(c.invitation_id){

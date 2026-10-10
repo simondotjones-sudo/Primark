@@ -51,7 +51,7 @@ export async function POST(request:NextRequest){try{
   await client.query('INSERT INTO organisation_settings_audit(actor,previous_state,next_state) VALUES($1,$2,$3)',[actor.email,JSON.stringify(old),JSON.stringify(next)]);
 
   // Requiring a category also enables its templates, without turning live mail on.
-  const groups:Partial<Record<FeatureId,string[]>>={assignment_emails:['course_assigned','pathway_assigned'],registration_reminders:['invitation_reminder','account_reminder'],expiry_reminders:['expiry_reminder','expired']};
+  const groups:Partial<Record<FeatureId,string[]>>={assignment_emails:['course_assigned','pathway_assigned'],registration_reminders:['invitation_reminder','account_reminder'],expiry_reminders:['expiry_reminder','expired'],weekly_store_reports:['manager_digest'],monthly_country_reports:['country_digest']};
   const forced=Object.entries(groups).filter(([id])=>choices[id as FeatureId].policy==='required').flatMap(([,kinds])=>kinds!);
   if(forced.length){
    const {rows:[mail]}=await client.query('SELECT * FROM email_settings WHERE id=1 FOR UPDATE');
@@ -63,7 +63,7 @@ export async function POST(request:NextRequest){try{
    }
   }
   // Queued messages disabled by this change must never spring back to life later.
-  await client.query("UPDATE email_outbox o SET status='cancelled',error_code='feature_disabled' WHERE status='queued' AND (NOT feature_enabled('email_notifications') OR (kind IN ('course_assigned','pathway_assigned') AND NOT feature_enabled('assignment_emails')) OR (kind IN ('invitation_reminder','account_reminder') AND NOT feature_enabled('registration_reminders')) OR (kind IN ('expiry_reminder','expired') AND NOT feature_enabled('expiry_reminders')))");
+  await client.query("UPDATE email_outbox o SET status='cancelled',error_code='feature_disabled' WHERE status='queued' AND (NOT feature_enabled('email_notifications') OR (kind IN ('course_assigned','pathway_assigned') AND NOT feature_enabled('assignment_emails')) OR (kind IN ('invitation_reminder','account_reminder') AND NOT feature_enabled('registration_reminders')) OR (kind IN ('expiry_reminder','expired') AND NOT feature_enabled('expiry_reminders')) OR (kind='manager_digest' AND NOT feature_enabled('weekly_store_reports')) OR (kind='country_digest' AND NOT feature_enabled('monthly_country_reports')))");
  });
  return await response(actor.platformAdmin);
 }catch(e){return failed(e);}}

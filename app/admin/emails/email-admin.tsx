@@ -1,4 +1,6 @@
 'use client';
+import ScheduledReports from './scheduled-reports';
+import type {ReportSchedule} from '@/lib/scheduled-reports';
 import {useFeatures} from '@/hooks/use-features';
 import {useEffect,useState} from 'react';
 import PageHeader from '@/components/page-header';
@@ -10,7 +12,7 @@ import {emailKinds,emailLabels,type EmailKind,type EmailSettings} from '@/lib/em
 import type {DirectoryStore} from '@/lib/store-directory';
 type Invitation={id:string;name:string;email:string;store_id:string;created_at:string;requested_at:string|null;first_sent_at:string|null;accepted_at:string|null;cancelled_at:string|null;registered:boolean};
 type Log={id:string;kind:EmailKind;status:string;created_at:string;sent_at:string|null;attempts:number;error_code:string|null;provider_id:string|null;email:string};
-type Data={settings:EmailSettings;stores:DirectoryStore[];connection:{configured:boolean;ready:boolean};invitations:Invitation[];log:Log[];total:{logs:number;invitations:number}};
+type Data={schedules:ReportSchedule[];settings:EmailSettings;stores:DirectoryStore[];connection:{configured:boolean;ready:boolean};invitations:Invitation[];log:Log[];total:{logs:number;invitations:number}};
 export default function EmailAdmin(){
  const features=useFeatures();
  const {t,date}=useLanguage(),[data,setData]=useState<Data|null>(null),[tab,setTab]=useState('settings'),[page,setPage]=useState(1),[busy,setBusy]=useState(false),[error,setError]=useState(''),[notice,setNotice]=useState('');
@@ -19,14 +21,14 @@ export default function EmailAdmin(){
  async function load(){const r=await fetch('/api/admin/emails?page='+page,{cache:'no-store'}),d=await r.json();if(!r.ok)throw new Error(d.error);setData(d);setSavedMode(d.settings.mode);setExpiry(d.settings.expiry_days.join(', '));setDeadline(d.settings.deadline_days.join(', '));}
  useEffect(()=>{void load().catch(e=>setError(e.message));},[page]); // eslint-disable-line react-hooks/exhaustive-deps
  async function action(body:Record<string,unknown>){
-  setBusy(true);setError('');setNotice('');try{const r=await fetch('/api/admin/emails',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)}),d=await r.json();if(!r.ok)throw new Error(d.error);if(body.action==='preview')setPreview(d);else{await load();setNotice('Saved');}return true;}catch(e){setError(e instanceof Error?e.message:'Please try again.');return false;}finally{setBusy(false);}
+  setBusy(true);setError('');setNotice('');try{const r=await fetch('/api/admin/emails',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)}),d=await r.json();if(!r.ok)throw new Error(d.error);if(['preview','report_preview'].includes(String(body.action)))setPreview(d);else{await load();setNotice('Saved');}return true;}catch(e){setError(e instanceof Error?e.message:'Please try again.');return false;}finally{setBusy(false);}
  }
  const update=(patch:Partial<EmailSettings>)=>data&&setData({...data,settings:{...data.settings,...patch}});
  const numbers=(value:string)=>value.trim()?value.split(',').map(x=>Number(x.trim())):[];
  const modes={off:'Off',preview:'Preview',live:'Live'};
  const statuses:Record<string,string>={queued:'Queued',sending:'Sending…',sent:'Accepted by email provider',failed:'Failed',cancelled:'Cancelled',unknown:'Delivery uncertain'};
  return <div className="shell course-admin"><PageHeader title={t('Email notifications')} view="emails"/><main className="main email-admin">
- <nav className="email-tabs" aria-label={t('Email notifications')}>{[['settings','Settings'],['previews','Email previews'],['invitations','Invitations'],['log','Delivery log']].map(([value,label])=><Button key={value} type="button" variant={tab===value?'default':'outline'} aria-pressed={tab===value} onClick={()=>{setTab(value);setPage(1);}}>{t(label)}</Button>)}</nav>
+ <nav className="email-tabs" aria-label={t('Email notifications')}>{[['settings','Settings'],['reports','Scheduled reports'],['previews','Email previews'],['invitations','Invitations'],['log','Delivery log']].map(([value,label])=><Button key={value} type="button" variant={tab===value?'default':'outline'} aria-pressed={tab===value} onClick={()=>{setTab(value);setPage(1);setPreview(null);}}>{t(label)}</Button>)}</nav>
  {error&&<p className="error" role="alert">{t(error)}</p>}{notice&&<p className="admin-success" role="status">{t(notice)}</p>}
  {!data?<p role="status">{t('Loading…')}</p>:<>
  <div className="email-mode" role="status"><strong>{t(modes[savedMode])}</strong><span>{t(savedMode==='live'&&data.connection.ready?'Live email is enabled.':'Live sending is disabled. Previews do not send emails.')}</span></div>
@@ -34,9 +36,10 @@ export default function EmailAdmin(){
  {tab==='settings'&&<section className="paper course-editor"><h2>{t('Email settings')}</h2><form onSubmit={e=>{e.preventDefault();void action({action:'settings',...data.settings,expiry_days:numbers(expiry),deadline_days:numbers(deadline)});}}><fieldset disabled={busy||!features.email_notifications}>
  <div className="email-fields"><label>{t('Mode')}<NativeSelect value={data.settings.mode} onChange={e=>update({mode:e.target.value as EmailSettings['mode']})}><option value="off">{t('Off')}</option><option value="preview">{t('Preview')}</option><option value="live" disabled={!data.connection.ready}>{t('Live')}</option></NativeSelect></label>
  <label>{t('Expiry reminders: days before expiry')}<Input value={expiry} onChange={e=>setExpiry(e.target.value)} placeholder="30, 14, 3" required/></label><label>{t('Deadline reminders: days before due date')}<Input value={deadline} onChange={e=>setDeadline(e.target.value)} placeholder="7, 1"/></label><label>{t('Invitation reminder: hours after sending')}<Input type="number" min={1} max={168} required value={data.settings.invitation_hours} onChange={e=>update({invitation_hours:Number(e.target.value)})}/></label></div>
- <p className="access-note">{t('Weekly manager summaries run on Mondays at 08:00 London time. Emails are currently in English.')}</p>
+ <p className="access-note">{t('Configure timing under Scheduled reports. Emails are in English.')}</p>
  <div className="email-checks">{emailKinds.map(k=><label key={k}><input type="checkbox" checked={data.settings.enabled.includes(k)} onChange={e=>update({enabled:e.target.checked?[...data.settings.enabled,k]:data.settings.enabled.filter(x=>x!==k)})}/>{t(emailLabels[k])}</label>)}</div>
  </fieldset><Button disabled={busy} className="blue-button">{t(busy?'Saving…':'Save settings')}</Button></form></section>}
+ {tab==='reports'&&<><ScheduledReports schedules={data.schedules} stores={data.stores} busy={busy} action={action} enabled={data.settings.enabled}/>{preview&&<section className="paper course-editor"><h3>{preview.Subject}</h3><iframe title={t('Email preview')} sandbox="" srcDoc={preview.HtmlBody}/><details><summary>{t('Plain text')}</summary><pre>{preview.TextBody}</pre></details></section>}</>}
  {tab==='previews'&&<section className="paper course-editor"><h2>{t('Email previews')}</h2><p>{t('Sample data only. Nothing is sent or queued.')}</p><div className="email-preview-controls"><label>{t('Template')}<NativeSelect value={kind} onChange={e=>{setKind(e.target.value as typeof kind);setPreview(null);}}>{emailKinds.map(k=><option key={k} value={k}>{t(emailLabels[k])}</option>)}<option value="password_reset">{t('Reset password')}</option></NativeSelect></label><Button disabled={busy} onClick={()=>void action({action:'preview',kind})}>{t('Preview')}</Button></div>
  {preview&&<><h3>{preview.Subject}</h3><iframe title={t('Email preview')} sandbox="" srcDoc={preview.HtmlBody}/><details><summary>{t('Plain text')}</summary><pre>{preview.TextBody}</pre></details></>}</section>}
  {tab==='invitations'&&<><section className="paper course-editor"><h2>{t('Prepare invitation')}</h2><p>{t('Prepare an invitation for someone who has not created an account. Queue it when live email is enabled.')}</p><form onSubmit={async e=>{e.preventDefault();const f=e.currentTarget;if(await action({action:'invite',...Object.fromEntries(new FormData(f))}))f.reset();}}><fieldset className="email-fields" disabled={busy||!features.email_notifications}><label>{t('Name')}<Input name="name" required minLength={2} maxLength={101}/></label><label>{t('Email')}<Input name="email" type="email" required maxLength={254}/></label><label>{t('Store')}<NativeSelect name="storeId" required><option value="">{t('Choose a store.')}</option>{data.stores.filter(s=>s.active).map(s=><option key={s.id} value={s.id}>{s.name} · {s.country}</option>)}</NativeSelect></label></fieldset><Button disabled={busy}>{t('Prepare invitation')}</Button></form></section>

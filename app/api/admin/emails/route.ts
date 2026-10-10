@@ -1,3 +1,5 @@
+import {reportSchedules,saveReportSchedule,buildScheduledReport,reportFeature} from '@/lib/scheduled-reports';
+import {requireFeature} from '@/lib/features';
 import type {NextRequest} from 'next/server';
 import {bodyJson,CourseError,failed,json} from '@/lib/course-admin';
 import {requireUserAdministrator} from '@/lib/user-administration';
@@ -13,18 +15,26 @@ export async function GET(request:NextRequest){try{
  const page=Number(request.nextUrl.searchParams.get('page')||1);
  if(!Number.isSafeInteger(page)||page<1||page>100000)throw new CourseError('Choose a valid page.');
  const c=emailConnection();
- const [settings,stores,log,invitations,total]=await Promise.all([emailSettings(),storeDirectory(),
+ const [settings,stores,log,invitations,total,schedules]=await Promise.all([emailSettings(),storeDirectory(),
   db().prepare(`SELECT o.id,o.kind,o.status,o.created_at,o.sent_at,o.attempts,o.error_code,o.provider_id,COALESCE(o.to_email,l.email,i.email) AS email
    FROM email_outbox o LEFT JOIN learners l ON l.id=o.recipient_id LEFT JOIN learning_invitations i ON i.id=o.invitation_id ORDER BY o.id DESC LIMIT 25 OFFSET ?`).bind((page-1)*25).all(),
   db().prepare(`SELECT i.id,i.name,i.email,i.store_id,i.created_at,i.requested_at,i.first_sent_at,i.accepted_at,i.cancelled_at,
    EXISTS(SELECT 1 FROM learners l WHERE lower(l.email)=lower(i.email)) AS registered
    FROM learning_invitations i ORDER BY i.created_at DESC LIMIT 25 OFFSET ?`).bind((page-1)*25).all(),
-  db().prepare('SELECT (SELECT count(*)::int FROM email_outbox) AS logs,(SELECT count(*)::int FROM learning_invitations) AS invitations').first()]);
- return json({settings,stores,connection:{configured:c.configured,ready:c.ready},log:log.results,invitations:invitations.results,total,page,pageSize:25});
+  db().prepare('SELECT (SELECT count(*)::int FROM email_outbox) AS logs,(SELECT count(*)::int FROM learning_invitations) AS invitations').first(),reportSchedules()]);
+ return json({settings,stores,schedules,connection:{configured:c.configured,ready:c.ready},log:log.results,invitations:invitations.results,total,page,pageSize:25});
 }catch(e){return failed(e);}}
 export async function POST(request:NextRequest){try{
  const actor=await requireUserAdministrator(request);requireEmailAdmin(actor);
  const b=await bodyJson(request,8000);
+ if(b.action==='report_schedule')return json({schedules:await saveReportSchedule(actor,b)});
+ if(b.action==='report_preview'){
+  if(b.kind!=='manager_digest'&&b.kind!=='country_digest')throw new CourseError('Choose a scheduled report.');
+  await requireFeature(reportFeature[b.kind as keyof typeof reportFeature]);
+  if(typeof b.scope!=='string'||b.scope.length>150)throw new CourseError('Choose a report scope.');
+  const payload=await buildScheduledReport(b.kind,{name:actor.email,store:b.scope,reportScope:b.scope,path:'/?view=report'});
+  return json(renderLearningEmail(b.kind,payload,emailConnection().origin||'https://preview.invalid'));
+ }
  if(b.action==='settings')return json({settings:await saveEmailSettings(actor,b)});
  if(b.action==='invite')return json({id:await createInvitation(actor,b)},201);
  if(['queue','cancel'].includes(b.action)){
@@ -34,7 +44,7 @@ export async function POST(request:NextRequest){try{
  if(b.action==='preview'){
   if(!emailKinds.includes(b.kind)&&b.kind!=='password_reset')throw new CourseError('Choose an email template.');
   const settings=await emailSettings(),days=b.kind==='deadline_reminder'?settings.deadline_days[0]||7:settings.expiry_days[0]||30;
-  return json(renderLearningEmail(b.kind as EmailKind|'password_reset',{name:'Sample Learner',title:'Safety Induction',date:new Date(Date.now()+days*86400000).toISOString(),days,hours:settings.invitation_hours,store:'Sample store',overdue:3,expiring:2,assessment:1,path:b.kind==='manager_digest'?'/?view=report':undefined},emailConnection().origin||'https://preview.invalid'));
+  return json(renderLearningEmail(b.kind as EmailKind|'password_reset',{name:'Sample Learner',title:'Safety Induction',date:new Date(Date.now()+days*86400000).toISOString(),days,hours:settings.invitation_hours,store:b.kind==='country_digest'?'Sample country':'Sample store',...(['manager_digest','country_digest'].includes(b.kind)?{report:{generatedAt:new Date().toISOString(),compliance:90,assessed:100,compliant:90,withinDeadline:4,overdue:3,expired:7,expiring:2,assessment:1,rows:b.kind==='manager_digest'?[{name:'Sample Learner',course:'Safety Induction',due:new Date(Date.now()-86400000).toISOString()}]:[]}}:{}),overdue:3,expiring:2,assessment:1,path:['manager_digest','country_digest'].includes(b.kind)?'/?view=report':undefined},emailConnection().origin||'https://preview.invalid'));
  }
  throw new CourseError('Choose an email action.');
 }catch(e){if((e as {code?:string}).code==='23505')return failed(new CourseError('An invitation already exists for this email.',409));return failed(e);}}

@@ -178,3 +178,24 @@ export async function trainingReport(siteIds:string[]|null,selection=allCourses,
   return {courses:q.visibleCourses(data.courseIds),employees:data.employees.map(p=>person(p,q.stores)),records:data.records,generatedAt:q.generatedAt,legacy:historical.map(l=>({email:l.email,completedAt:l.completed_at,storeName:q.stores.find(s=>s.id===l.store_id)?.name||''}))};
 }
 
+
+// Scheduled emails share the dashboard's assignment, expiry, refresher and deadline rules.
+export async function scheduledTrainingSummary(siteIds:string[],includeLearners:boolean){
+ const q=await reportQuery(siteIds),settings=await organisationSettings();
+ const assessed=settings.exclude_within_deadline?'NOT within_deadline':'true';
+ const overdue=`status NOT IN ('completed','expired') AND "dueAt"::timestamptz<now() AND NOT compliant`;
+ const {results:[r]}=await q.run<{compliance:number|null;assessed:number;compliant:number;withinDeadline:number;overdue:number;expired:number;expiring:number;assessment:number;rows:{name:string;course:string;due:string}[]}>(`SELECT
+  (SELECT floor(1000.0*count(*) FILTER(WHERE compliant)/NULLIF(count(*) FILTER(WHERE ${assessed}),0))/10 FROM compliance_records) AS compliance,
+  (SELECT count(*)::int FROM compliance_records WHERE ${assessed}) AS assessed,
+  (SELECT count(*)::int FROM compliance_records WHERE compliant) AS compliant,
+  (SELECT count(*)::int FROM compliance_records WHERE within_deadline) AS "withinDeadline",
+  (SELECT count(*)::int FROM compliance_records WHERE ${overdue}) AS overdue,
+  (SELECT count(*)::int FROM compliance_records WHERE status='expired') AS expired,
+  (SELECT count(*)::int FROM expiring_records) AS expiring,
+  (SELECT count(*)::int FROM course_assignments a JOIN assignment_history h ON h.id=a.history_id JOIN people l ON l.id=a.learner_id
+   WHERE l.archived_at IS NULL AND h.cancelled_at IS NULL AND h.superseded_at IS NULL AND h.completed_at IS NULL AND h.assessor_required AND h.theory_completed_at IS NOT NULL) AS assessment,
+  ${includeLearners?`COALESCE((SELECT json_agg(row) FROM (SELECT l.name,COALESCE(c.title,'Safety Passport (original)') AS course,r."dueAt" AS due
+    FROM compliance_records r JOIN people l ON l.id=r."learnerId" LEFT JOIN ready c ON c.id=r."courseId"
+    WHERE ${overdue.replaceAll('status','r.status')} ORDER BY r."dueAt",l.name,l.id,r."courseId" LIMIT 50) row),'[]')`:`'[]'::json`} AS rows`);
+ return {...r,compliance:r.compliance===null?null:Number(r.compliance),generatedAt:q.generatedAt};
+}

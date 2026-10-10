@@ -37,6 +37,7 @@ export default function FeatureSettings(){
  {locked&&<small className="feature-lock"><LockKeyhole size={12}/>{t(choice.policy==='required'?'Required by Platform Admin':'Managed by Platform Admin')}</small>}
  </div></div>;})}</section>;})}</div>
  {!visible.length&&<p className="paper feature-empty">{t('No features match your search.')}</p>}
+ <p><a href="/admin/emails">{t('Configure email notifications and scheduled reports')}</a></p>
  <section className="feature-essential"><LockKeyhole size={18}/><div><strong>{t('Always protected')}</strong><p>{t('Permissions, audit history and existing training evidence remain protected. Existing quiz and assessor requirements continue to apply.')}</p></div></section>
  <div className="feature-save"><span>{t(dirty?'You have unsaved changes.':'All changes saved.')}</span><Button variant="outline" disabled={busy||!dirty} onClick={()=>{setData({...data,choices:structuredClone(saved!)});setError('');}}>{t('Discard changes')}</Button><Button className="blue-button" disabled={busy||!dirty} onClick={()=>void save()}>{t(busy?'Saving…':'Save settings')}</Button></div>
  </>}

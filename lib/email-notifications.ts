@@ -32,7 +32,7 @@ export async function saveEmailSettings(actor:UserAdministrator,b:Record<string,
   const {rows:[old]}=await client.query('SELECT * FROM email_settings WHERE id=1 FOR UPDATE');
   if(old.revision!==b.revision)throw new CourseError('These settings changed. Reload before saving.',409);
   const features=(await client.query('SELECT features FROM organisation_settings WHERE id=1')).rows[0].features as Record<string,{policy:string}>;
-  const groups:Record<string,string[]>= {assignment_emails:['course_assigned','pathway_assigned'],registration_reminders:['invitation_reminder','account_reminder'],expiry_reminders:['expiry_reminder','expired']};
+  const groups:Record<string,string[]>= {assignment_emails:['course_assigned','pathway_assigned'],registration_reminders:['invitation_reminder','account_reminder'],expiry_reminders:['expiry_reminder','expired'],weekly_store_reports:['manager_digest'],monthly_country_reports:['country_digest']};
   for(const [key,kinds] of Object.entries(groups))if(features[key]?.policy==='required'&&kinds.some(k=>!(b.enabled as string[]).includes(k)))throw new CourseError('This feature is managed by Platform Admin.',403);
   if(features.email_notifications?.policy==='required'&&old.mode==='live'&&b.mode!=='live')throw new CourseError('This feature is managed by Platform Admin.',403);
 

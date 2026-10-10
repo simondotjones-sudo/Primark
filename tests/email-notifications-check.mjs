@@ -20,6 +20,8 @@ const pool={async query(sql,args=[]){const r=await pg.query(sql,args);return {ro
 globalThis.__creditTest={pool,identity:()=>context.getStore()?.admin?{email:'platform@test.invalid'}:null,cookie:()=>context.getStore()?.user||''};
 const dir=mkdtempSync(join(tmpdir(),'primark-credit-check-')),entry=join(dir,'entry.ts');
 writeFileSync(entry,`export * as mail from '${process.cwd()}/lib/email-notifications.ts';
+export * as reports from '${process.cwd()}/lib/scheduled-reports.ts';
+export * as training from '${process.cwd()}/lib/training-report.ts';
 export * as worker from '${process.cwd()}/lib/email-worker.ts';
 export * as api from '${process.cwd()}/app/api/admin/emails/route.ts';
 export * as invites from '${process.cwd()}/app/api/invitations/route.ts';
@@ -161,11 +163,71 @@ try{
   await q('UPDATE assignment_history SET completed_at=$2 WHERE id=$1',id,at(0));await q('UPDATE email_outbox SET next_attempt_at=$2 WHERE id=$1',job.id,at(-1));globalThis.fetch=send;const before=messages.length;await m.worker.runEmailNotifications();assert.equal(messages.length,before);assert.equal((await one('SELECT status FROM email_outbox WHERE id=$1',job.id)).status,'cancelled');
  });
  await check('Manager summary is scoped to the current store, scheduled Monday 08:00 London with DST',async()=>{
-  await settings(['manager_digest']);const monday='2026-10-12T07:00:00Z';const rows=await candidates(monday);assert.equal(rows.length,1);assert.equal(rows[0].recipient_id,'manager');assert.equal(rows[0].payload.overdue,1);assert(!JSON.stringify(rows[0].payload).includes('test.invalid'));
+  await settings(['manager_digest']);const monday='2026-10-12T07:00:00Z';const rows=await candidates(monday);assert.equal(rows.length,1);assert.equal(rows[0].recipient_id,'manager');assert.equal(rows[0].payload.reportScope,store.id);const built=await m.reports.buildScheduledReport('manager_digest',rows[0].payload);assert(built.report.overdue>=1);assert(built.report.rows.some(r=>r.name==='uncertain'));assert(!built.report.rows.some(r=>r.name==='archived'));assert(!JSON.stringify(rows[0].payload).includes('test.invalid'));
   assert.equal((await candidates('2026-10-12T06:59:59Z')).length,0);assert.equal((await candidates('2026-11-02T07:59:59Z')).length,0);assert.equal((await candidates('2026-11-02T08:00:00Z')).length,1);
  });
+ await check('Report schedules enforce access, feature gates, validation, revision checks and audit',async()=>{
+  const schedules=await m.reports.reportSchedules();const weekly=schedules.find(s=>s.kind==='manager_digest');
+  const body={action:'report_schedule',...weekly,weekday:3,hour:9,timezone:'Europe/Dublin'};
+  for(const user of ['', 'learner','site','manager'])assert.equal((await call(m.api,'POST','/api/admin/emails',body,{user})).status,403);
+  assert.equal((await call(m.api,'POST','/api/admin/emails',{...body,monthday:31},{user:'org'})).status,400);
+  assert.equal((await call(m.api,'POST','/api/admin/emails',{...body,timezone:'Invented/Zone'},{user:'org'})).status,400);
+  assert.equal((await call(m.api,'POST','/api/admin/emails',body,{user:'org',origin:'https://evil.invalid'})).status,403);
+  assert.equal((await call(m.api,'POST','/api/admin/emails',body,{user:'org'})).status,200);
+  assert.equal((await call(m.api,'POST','/api/admin/emails',body,{user:'org'})).status,409);
+  assert.equal((await candidates('2026-10-12T07:00:00Z')).length,0);
+  assert.equal((await candidates('2026-10-14T07:59:59Z')).length,0);
+  assert.equal((await candidates('2026-10-14T08:00:00Z')).length,1);
+  assert((await q("SELECT * FROM audit_events WHERE entity='scheduled_report'")).length);
+  await q("UPDATE organisation_settings SET features=jsonb_set(features,'{weekly_store_reports,policy}','\"disabled\"')");
+  assert.equal((await candidates('2026-10-14T08:00:00Z')).length,0);
+  assert.equal((await call(m.api,'POST','/api/admin/emails',{...body,revision:weekly.revision+1},{user:'org'})).status,403);
+  await q("UPDATE organisation_settings SET features=jsonb_set(features,'{weekly_store_reports,policy}','\"optional\"')");
+ });
+ await check('Monthly recipients follow current country permissions and parent feature switches',async()=>{
+  await settings(['country_digest']);assert.equal((await candidates('2026-11-01T08:00:00Z')).length,0);
+  await q("UPDATE organisation_settings SET features=jsonb_set(features,'{monthly_country_reports,enabled}','true')");
+  await person('country-report-admin');await q("INSERT INTO reporting_access VALUES('country-report-admin','country',$1,NULL,'test',$2)",store.country,at(0));
+  const rows=await candidates('2026-11-01T08:00:00Z');
+  assert(rows.some(r=>r.recipient_id==='org'&&r.payload.reportScope===store.country));
+  const mine=rows.filter(r=>r.recipient_id==='country-report-admin');assert.equal(mine.length,1);assert.equal(mine[0].payload.reportScope,store.country);
+  const summary=await m.reports.buildScheduledReport('country_digest',mine[0].payload);assert.equal(summary.report.rows.length,0);assert(summary.report.assessed>0);
+  assert(!rows.some(r=>['learner','manager','site','archived'].includes(r.recipient_id)));
+  assert.equal(new Set(rows.map(r=>r.event_key)).size,rows.length);
+  assert.equal((await candidates('2026-11-01T07:59:59Z')).length,0);
+  assert.equal((await candidates('2026-11-02T08:00:00Z')).length,0);
+  assert((await candidates('2026-07-01T07:00:00Z')).length>0);
+  await q("DELETE FROM reporting_access WHERE learner_id='country-report-admin'");
+  assert(!(await candidates('2026-11-01T08:00:00Z')).some(r=>r.recipient_id==='country-report-admin'));
+  await q("UPDATE organisation_settings SET features=jsonb_set(features,'{scheduled_reports,enabled}','false')");assert.equal((await candidates('2026-11-01T08:00:00Z')).length,0);
+  await q("UPDATE organisation_settings SET features=jsonb_set(features,'{scheduled_reports,enabled}','true')");
+ });
+ await check('Report previews share dashboard compliance, are scoped, and never send or queue',async()=>{
+  const before=messages.length,queued=(await q('SELECT id FROM email_outbox')).length;
+  const summary=await m.reports.buildScheduledReport('manager_digest',{name:'Manager',reportScope:store.id});
+  const overview=await m.training.trainingOverview([store.id]);
+  assert.equal(summary.report.compliance,overview.metrics.compliance);assert.equal(summary.report.assessed,overview.metrics.assessed);
+  const other=(await m.storeDirectory()).find(s=>s.active&&s.id!==store.id);
+  const empty=await m.reports.buildScheduledReport('manager_digest',{name:'Manager',reportScope:other.id});assert.equal(empty.report.overdue,0);assert.equal(empty.report.rows.length,0);
+  const body={action:'report_preview',kind:'manager_digest',scope:store.id};
+  assert.equal((await call(m.api,'POST','/api/admin/emails',body,{user:'manager'})).status,403);
+  const response=await call(m.api,'POST','/api/admin/emails',body,{user:'org'});assert.equal(response.status,200,await response.clone().text());
+  const preview=await response.json();assert(preview.TextBody.includes('Compliance:'));assert(preview.TextBody.includes('uncertain'));
+  assert.equal(messages.length,before);assert.equal((await q('SELECT id FROM email_outbox')).length,queued);
+ });
+ await check('Worker generates reports once per period and rechecks access before delivery',async()=>{
+  await settings(['manager_digest']);
+  const local=new Date().getUTCDay()||7,hour=new Date().getUTCHours();
+  await q("UPDATE scheduled_report_settings SET weekday=$1,hour=$2,timezone='UTC' WHERE kind='manager_digest'",local,hour);
+  const before=messages.length;await m.worker.runEmailNotifications();assert.equal(messages.length,before+1);assert(messages.at(-1).TextBody.includes('Compliance:'));
+  await m.worker.runEmailNotifications();assert.equal(messages.length,before+1);
+  const event=(await candidates()).find(r=>r.kind==='manager_digest');
+  await q("UPDATE email_outbox SET status='queued',next_attempt_at=now() WHERE event_key=$1",event.event_key);
+  await q("DELETE FROM store_managers WHERE learner_id='manager'");await m.worker.runEmailNotifications();assert.equal(messages.length,before+1);
+  assert.equal((await one('SELECT status FROM email_outbox WHERE event_key=$1',event.event_key)).status,'cancelled');
+ });
  await check('All templates escape authored content and contain plain-text alternatives',async()=>{
-  for(const kind of ['invitation','invitation_reminder','account_ready','account_reminder','course_assigned','pathway_assigned','deadline_reminder','overdue','expiry_reminder','expired','certificate_ready','assessment_pending','manager_digest','password_reset']){const p=m.template.renderLearningEmail(kind,{name:'<img src=x onerror=alert(1)>',title:'<script>evil</script>',date:at(0),days:3},'https://learning.test.invalid');assert(p.TextBody);assert(!p.HtmlBody.includes('<script>'));assert(!p.HtmlBody.includes('<img src=x'));if(kind!=='password_reset')assert(p.HtmlBody.includes('&lt;img'));}
+  for(const kind of ['invitation','invitation_reminder','account_ready','account_reminder','course_assigned','pathway_assigned','deadline_reminder','overdue','expiry_reminder','expired','certificate_ready','assessment_pending','manager_digest','country_digest','password_reset']){const p=m.template.renderLearningEmail(kind,{name:'<img src=x onerror=alert(1)>',title:'<script>evil</script>',date:at(0),days:3},'https://learning.test.invalid');assert(p.TextBody);assert(!p.HtmlBody.includes('<script>'));assert(!p.HtmlBody.includes('<img src=x'));if(kind!=='password_reset')assert(p.HtmlBody.includes('&lt;img'));}
  });
  console.log(`PASS ${checks} email notification integration checks`);
 }finally{globalThis.fetch=originalFetch;for(const key of ['POSTMARK_SERVER_TOKEN','POSTMARK_FROM_EMAIL','PRIMARK_APP_URL','CONTEXT','PRIMARK_EMAIL_DELIVERY']){if(env[key]===undefined)delete process.env[key];else process.env[key]=env[key];}await pg.close();rmSync(dir,{recursive:true,force:true});}
