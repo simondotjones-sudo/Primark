@@ -1,3 +1,4 @@
+import {invitationForToken} from '@/lib/email-notifications';
 import { inTransaction } from '@/lib/database';
 import {syncAssignments,creditError} from '@/lib/credits';
 import { learnerOnlySql } from "@/lib/account-type";
@@ -137,6 +138,8 @@ export async function POST(request: NextRequest) {
     if ((action === "seed" || action === "import") && !await isPlatformAdmin()) return fail("Platform admin sign-in is required.",403);
     const database = db();
     if (action === "register") {
+      const invitation=body.invitationToken?await invitationForToken(body.invitationToken):null;
+      if(invitation&&(invitation.registered||body.email!==invitation.email||body.storeId!==invitation.store_id))return fail('This invitation is no longer available.');
       const email = emailAddress(body.email);
       const cleanName = (value:unknown) => typeof value === 'string' ? value.trim().replace(/\s+/g, ' ') : '';
       const firstName = cleanName(body.firstName), surname = cleanName(body.surname);
@@ -150,7 +153,7 @@ export async function POST(request: NextRequest) {
       const store = storeById.get(storeId);
       if (!email || name.length < 2 || name.length > 101 || !store || !store.active) return fail("Enter your name, a valid email and a store.");
       if (!await allowLoginAttempt('register:'+email, 10)) return fail('Too many attempts. Try again in 15 minutes.',429);
-      if (typeof body.registrationCode !== 'string' || body.registrationCode.trim().toLowerCase() !== 'safety') return fail('Enter the registration code provided by Primark.');
+      if (!invitation && (typeof body.registrationCode !== 'string' || body.registrationCode.trim().toLowerCase() !== 'safety')) return fail('Enter the registration code provided by Primark.');
       if (!validPassword(body.password)) return fail('Create a password with 8–128 characters.');
       if (body.country !== undefined && body.country !== store.country) return fail('Choose a store in your selected country.');
       const existing = await database.prepare("SELECT id FROM learners WHERE lower(btrim(email))=?").bind(email).first();
@@ -162,6 +165,7 @@ export async function POST(request: NextRequest) {
         .bind(id,name,email,await hash(randomToken()),storeId,store.country,now(),await hashPassword(body.password),firstName||null,surname||null,workdayId)];
       if(induction)changes.push(database.prepare('INSERT INTO learner_inductions(learner_id,course_id,assigned_at) SELECT id,?,? FROM learners WHERE id=?').bind(induction.id,now(),id));
       changes.push(syncAssignments(id));
+      if(invitation)changes.push(database.prepare('SELECT accept_learning_invitation(?,?)').bind(await hash(String(body.invitationToken)),id));
       const inserted=await database.batch(changes);
       if (!inserted[0].meta.changes) {
         const emailTaken=await database.prepare('SELECT id FROM learners WHERE lower(btrim(email))=?').bind(email).first();

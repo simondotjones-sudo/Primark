@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import {createHash} from 'node:crypto';
 
 export async function passwordRecoveryChecks({m,check,query,invoke,loginAdmin,cookieFrom,store}) {
-  const envKeys=['POSTMARK_SERVER_TOKEN','POSTMARK_FROM_EMAIL','PRIMARK_APP_URL'];
+  const envKeys=['PRIMARK_EMAIL_DELIVERY','CONTEXT','POSTMARK_SERVER_TOKEN','POSTMARK_FROM_EMAIL','PRIMARK_APP_URL'];
   const previous=Object.fromEntries(envKeys.map(key=>[key,process.env[key]]));
   const originalFetch=globalThis.fetch, messages=[];
   const email='recovery-fixture@example.test', id='recovery-fixture', oldPassword='Original-Password-123';
@@ -14,11 +14,14 @@ export async function passwordRecoveryChecks({m,check,query,invoke,loginAdmin,co
   const login=(email,password)=>invoke(m.prototype,'POST','/api/prototype',{action:'login',email,password});
   try {
     await query('DELETE FROM auth_limits').run();
-    process.env.POSTMARK_SERVER_TOKEN='fixture-token';process.env.POSTMARK_FROM_EMAIL='sender@example.test';process.env.PRIMARK_APP_URL='https://primark.example.test';
+    process.env.PRIMARK_EMAIL_DELIVERY='enabled';process.env.CONTEXT='production';process.env.POSTMARK_SERVER_TOKEN='fixture-token';process.env.POSTMARK_FROM_EMAIL='sender@example.test';process.env.PRIMARK_APP_URL='https://primark.example.test';
     globalThis.fetch=async(url,options)=>{assert.equal(url,'https://api.postmarkapp.com/email');messages.push(JSON.parse(options.body));return Response.json({ErrorCode:0});};
     await query('INSERT INTO learners(id,name,email,code_hash,password_hash,store_id,country,entered_at) VALUES(?,?,?,?,?,?,?,?)',id,'Recovery Fixture',email,await m.hash('legacy-unused'),await m.learnerAuth.hashPassword(oldPassword),store.id,store.country,'2026-01-01').run();
     await query('INSERT INTO module_views(learner_id,module_key,viewed_at) VALUES(?,?,?)',id,'welcome','2026-01-02').run();
     let token, spare, cookie;
+    await check('Recovery does not send when the production email switch is disabled',async()=>{
+      process.env.PRIMARK_EMAIL_DELIVERY='disabled';const count=messages.length;assert.equal((await request(email)).status,400);assert.equal(messages.length,count);process.env.PRIMARK_EMAIL_DELIVERY='enabled';await query('DELETE FROM auth_limits').run();
+    });
     await check('Recovery sends only to the account email, hides account existence, and uses hashed 30-minute tokens with a trusted origin',async()=>{
       const known=await request(email,{host:'hostile.invalid',origin:'https://hostile.invalid'});assert.equal(known.status,200);
       token=tokens()[0];assert.match(token,/^[a-f0-9]{64}$/);assert.equal(links()[0].origin,'https://primark.example.test');
@@ -88,7 +91,7 @@ export async function passwordRecoveryChecks({m,check,query,invoke,loginAdmin,co
     await check('Missing sender settings show an honest unavailable state; failed deliveries invalidate their tokens',async()=>{
       await query('DELETE FROM auth_limits').run();delete process.env.POSTMARK_SERVER_TOKEN;
       const missing=await request(email);assert.equal(missing.status,400);assert.match((await missing.json()).error,/not available yet/);
-      process.env.POSTMARK_SERVER_TOKEN='fixture-token';
+      process.env.PRIMARK_EMAIL_DELIVERY='enabled';process.env.CONTEXT='production';process.env.POSTMARK_SERVER_TOKEN='fixture-token';
       await query('DELETE FROM password_resets').run();
       globalThis.fetch=async()=>Response.json({ErrorCode:422},{status:422});
       assert.equal((await request(email)).status,200);assert.equal(Number((await query('SELECT COUNT(*) AS count FROM password_resets').first()).count),0);

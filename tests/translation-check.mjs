@@ -7,8 +7,8 @@ import ts from 'typescript';
 
 const temp=mkdtempSync(join(tmpdir(),'primark-translations-'));
 try {
-  await build({stdin:{contents:`export * from './lib/ui-copy';export * from './lib/i18n';export * from './lib/locales/application';export * from './lib/course-catalogue';export * from './lib/profile';`,resolveDir:process.cwd()},bundle:true,platform:'node',format:'esm',outfile:join(temp,'copy.mjs')});
-  const {tr,translationFor,languageOptions,languageDirection,isLanguage,applicationRows,courseCategories,profileViews,moduleCopy,questionCopy,formatDate,countryName}=await import(join(temp,'copy.mjs'));
+  await build({stdin:{contents:`export * from './lib/ui-copy';export * from './lib/i18n';export * from './lib/locales/application';export * from './lib/course-catalogue';export * from './lib/profile';export {emailLabels} from './lib/email-types';`,resolveDir:process.cwd()},bundle:true,platform:'node',format:'esm',outfile:join(temp,'copy.mjs')});
+  const {emailLabels,tr,translationFor,languageOptions,languageDirection,isLanguage,applicationRows,courseCategories,profileViews,moduleCopy,questionCopy,formatDate,countryName}=await import(join(temp,'copy.mjs'));
   const keys=new Set(),raw=[];
   const files=dir=>readdirSync(dir,{withFileTypes:true}).flatMap(f=>f.isDirectory()?files(join(dir,f.name)):[join(dir,f.name)]);
   const interfaces=[...files('app'),...files('components')].filter(f=>f.endsWith('.tsx')&&!f.includes('translation-audit-fixture')&&(!f.includes('components/ui/')||f.endsWith('/dialog.tsx')));
@@ -25,14 +25,14 @@ try {
     };visit(sf);
   }
   // Dynamic labels whose source is structured data, rather than literal t() calls.
-  for(const value of [...courseCategories,...profileViews({managerStoreId:'test',reportingAccess:{scope:'organisation'},platformAdmin:true}).map(v=>v.label),
+  for(const value of [...Object.values(emailLabels),...courseCategories,...profileViews({managerStoreId:'test',reportingAccess:{scope:'organisation'},platformAdmin:true}).map(v=>v.label),
     'Learner','Store Manager','Site reporting admin','Country reporting admin','Primark reporting admin','Platform admin',
     'Valid','Expiring soon','Expired','Not started','In progress','Completed','not attempted','incomplete','browsed','passed','failed','draft','published',
     'Required','Optional photo','Reuse existing shots','Screenshot later','Preview','Saved','Saving…','Not saved','Autosave on',
     'Preview — progress is not recorded','Your progress is saved','Your progress saves as you learn',
     'Assignments','Refunds','Net chargeable','Non completions','Removed','Closing credits','Value EUR','Assigned','Employee','Email','Country','Store','Course','Category','Status','Completed','Expires','Score','Completion in selected period','Close'])keys.add(value);
   // Password and registration validation must not fall back to English after an API failure.
-  for(const file of ['lib/course-renewals.ts','app/api/courses/renew/route.ts','lib/organisation-administration.ts','lib/user-access.ts','app/api/reporting/route.ts','app/api/users/route.ts','lib/user-administration.ts','app/api/admin/organisation/route.ts','app/api/password-recovery/route.ts','lib/password-recovery.ts','app/api/shot-list/route.ts','app/api/shot-list/photos/route.ts','app/api/prototype/route.ts','lib/course-admin.ts','app/api/store/route.ts','app/api/admin/reporting-access/route.ts']){
+  for(const file of ['lib/email-notifications.ts','app/api/admin/emails/route.ts','app/api/invitations/route.ts','lib/course-renewals.ts','app/api/courses/renew/route.ts','lib/organisation-administration.ts','lib/user-access.ts','app/api/reporting/route.ts','app/api/users/route.ts','lib/user-administration.ts','app/api/admin/organisation/route.ts','app/api/password-recovery/route.ts','lib/password-recovery.ts','app/api/shot-list/route.ts','app/api/shot-list/photos/route.ts','app/api/prototype/route.ts','lib/course-admin.ts','app/api/store/route.ts','app/api/admin/reporting-access/route.ts']){
     const sf=ts.createSourceFile(file,readFileSync(file,'utf8'),ts.ScriptTarget.Latest,true);
     const visit=n=>{if(ts.isCallExpression(n)&&['fail','shotFail','tr'].includes(n.expression.getText(sf)))add(n.arguments[n.expression.getText(sf)==='tr'?1:0]);if(ts.isNewExpression(n)&&['CourseError','RecoveryError'].includes(n.expression.getText(sf)))add(n.arguments?.[0]);if(ts.isPropertyAssignment(n)&&n.name.getText(sf)==='error')add(n.initializer);ts.forEachChild(n,visit);};visit(sf);
   }

@@ -100,11 +100,11 @@ export async function platformAdminChecks({m,check,query,invoke,loginAdmin,cooki
 
   await check('Granted admin password recovery keeps the grant and learning records while invalidating old sessions',async()=>{
     const savedFetch = globalThis.fetch;
-    const keys = ['POSTMARK_SERVER_TOKEN','POSTMARK_FROM_EMAIL','PRIMARK_APP_URL'];
+    const keys = ['PRIMARK_EMAIL_DELIVERY','CONTEXT','POSTMARK_SERVER_TOKEN','POSTMARK_FROM_EMAIL','PRIMARK_APP_URL'];
     const savedEnv = keys.map(k=>process.env[k]); let mail;
     try {
       await query('DELETE FROM auth_limits').run();
-      process.env.POSTMARK_SERVER_TOKEN='fixture';process.env.POSTMARK_FROM_EMAIL='sender@example.test';process.env.PRIMARK_APP_URL='https://test.invalid';
+      process.env.PRIMARK_EMAIL_DELIVERY='enabled';process.env.CONTEXT='production';process.env.POSTMARK_SERVER_TOKEN='fixture';process.env.POSTMARK_FROM_EMAIL='sender@example.test';process.env.PRIMARK_APP_URL='https://test.invalid';
       globalThis.fetch=async(url,options)=>{assert.equal(url,'https://api.postmarkapp.com/email');mail=JSON.parse(options.body);return Response.json({ErrorCode:0});};
       const logged = await login(); cookie = 'primark_session='+cookieFrom(logged,'primark_session');
       const requested = await invoke(m.recovery,'POST','/api/password-recovery',{action:'request',email});
