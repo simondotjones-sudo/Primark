@@ -7,6 +7,7 @@ export type CoursePanelDetails = {
   availableCountries: string[];
   estimatedDurationMinutes: number | null;
   lessonCount: number | null;
+  validityMonths: number | null;
 };
 
 export function coursePanelDetails(course: Course): CoursePanelDetails {
@@ -17,6 +18,7 @@ export function coursePanelDetails(course: Course): CoursePanelDetails {
     availableCountries: JSON.parse(course.available_countries_json || '[]'),
     estimatedDurationMinutes: course.estimated_duration_minutes ?? null,
     lessonCount: course.lesson_count ?? null,
+    validityMonths: course.validity_months ?? null,
   };
 }
 

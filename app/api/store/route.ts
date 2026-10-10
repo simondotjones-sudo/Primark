@@ -31,7 +31,7 @@ export async function GET(request:NextRequest){try{
     readyCourses(),
     storeAssignments(store.id),
   ]);
-  return json({store,credits:await creditAccount(store.id),people:people.results,assignments,courses:courses.filter(c=>availableInCountry(c,store.country)).map(c=>({id:c.id,title:c.title,englishTitle:c.english_title,category:c.category,languageCode:c.language_code}))});
+  return json({store,credits:await creditAccount(store.id),people:people.results,assignments,courses:courses.filter(c=>availableInCountry(c,store.country)).map(c=>({id:c.id,title:c.title,englishTitle:c.english_title,category:c.category,languageCode:c.language_code,lessonCount:c.lesson_count??null,validityMonths:c.validity_months??null}))});
 }catch(error){return failed(creditError(error));}}
 export async function POST(request:NextRequest){try{
   const admin=await getAdminUser();

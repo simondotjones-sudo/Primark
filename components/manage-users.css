@@ -12,3 +12,5 @@
 .user-selection .assignment-state{color:#24704a;font-weight:600;background:#eaf6ee;border-radius:6px;padding:4px 7px;width:fit-content;max-width:100%;line-height:1.35}.user-selection:has([data-slot="checkbox"][disabled]){cursor:default}
 
 .employee-card .employee-dates{display:flex;flex-wrap:wrap;gap:.25rem 1rem;margin-top:.4rem}
+
+.user-selection .assignment-course-metadata{margin-top:8px;gap:6px 14px}
