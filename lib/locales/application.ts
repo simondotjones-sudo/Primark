@@ -1,3 +1,4 @@
+import {assessmentEvidenceCopy} from './application-assessment-evidence';
 import {emailCopy} from './application-email';
 import {learnerImportCopy} from './application-learner-import';
 import {pathwayRulesCopy} from './application-pathway-rules';
@@ -28,7 +29,7 @@ import {photos} from './application-photos';
 import {help} from './application-help';
 export const applicationLanguages=['es','fr','de','it','nl','pt','pl','ro','cs','sk','sl','hu','ar'] as const;
 export const applicationCopy=Object.fromEntries(applicationLanguages.map(lang=>[lang,{}])) as Record<typeof applicationLanguages[number],Record<string,string>>;
-export const applicationRows:Record<string,string>={...emailCopy,...learnerImportCopy,...pathwayRulesCopy,...lifecycleCopy,...pathwaysCopy,...assessorCopy,...learningControls,...login,...renewals,...registration,...navigation,...words,...photos,...help,...messages,...photo_help,...recovery,...extra,...errors,...save,...photo_errors,...platformAdmin,...accounts,...reporting,...userManagement,...credits,...periodReports,...storeDetails};
+export const applicationRows:Record<string,string>={...assessmentEvidenceCopy,...emailCopy,...learnerImportCopy,...pathwayRulesCopy,...lifecycleCopy,...pathwaysCopy,...assessorCopy,...learningControls,...login,...renewals,...registration,...navigation,...words,...photos,...help,...messages,...photo_help,...recovery,...extra,...errors,...save,...photo_errors,...platformAdmin,...accounts,...reporting,...userManagement,...credits,...periodReports,...storeDetails};
 for(const [key,row] of Object.entries(applicationRows)){
  const values=row.split('|');
  if(values.length!==applicationLanguages.length)throw new Error(`Translation column count for ${key}: ${values.length}`);

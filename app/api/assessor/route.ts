@@ -15,7 +15,9 @@ export async function GET(request:NextRequest){try{
  const permitted=admin?'true':scope,args=admin?[]:[actor!.id];
  const [pending,history]=await Promise.all([
  db().prepare(`SELECT h.id,h.course_title,l.name,l.email,l.workday_id,l.store_id,l.country,h.theory_completed_at FROM assignment_history h JOIN learners l ON l.id=h.learner_id JOIN course_assignments a ON a.history_id=h.id WHERE h.assessor_required AND h.theory_completed_at IS NOT NULL AND h.passed_assessment_id IS NULL AND h.cancelled_at IS NULL AND h.superseded_at IS NULL AND l.archived_at IS NULL AND ${permitted} ORDER BY h.theory_completed_at LIMIT 1000`).bind(...args).all(),
- db().prepare(`SELECT p.id,p.assessor_name,p.outcome,p.assessed_at,p.recorded_at,p.notes,p.declaration,p.revoked_at,p.revoke_reason,h.course_title,l.name,l.email,l.workday_id,l.store_id,l.country FROM practical_assessments p JOIN assignment_history h ON h.id=p.assignment_id JOIN learners l ON l.id=h.learner_id WHERE ${permitted} ORDER BY p.recorded_at DESC LIMIT 1000`).bind(...args).all()]);
+ db().prepare(`SELECT p.id,p.assessor_name,p.outcome,p.assessed_at,p.recorded_at,p.notes,p.declaration,p.revoked_at,p.revoke_reason,h.course_title,l.name,l.email,l.workday_id,l.store_id,l.country,
+ COALESCE((SELECT jsonb_agg(jsonb_build_object('id',e.id,'filename',e.filename,'mime_type',e.mime_type,'size',e.size,'uploaded_at',e.uploaded_at) ORDER BY e.uploaded_at) FROM assessment_evidence e WHERE e.assessment_id=p.id AND e.state='ready'),'[]'::jsonb) AS evidence
+ FROM practical_assessments p JOIN assignment_history h ON h.id=p.assignment_id JOIN learners l ON l.id=h.learner_id WHERE ${permitted} ORDER BY p.recorded_at DESC LIMIT 1000`).bind(...args).all()]);
  const stores=await storeDirectory();
  if(!admin)return json({admin:false,pending:pending.results,history:history.results,stores:stores.filter(s=>pending.results.some(p=>p.store_id===s.id)||history.results.some(p=>p.store_id===s.id))});
  const [courses,people,grants]=await Promise.all([
@@ -30,7 +32,9 @@ export async function POST(request:NextRequest){try{
  if(body.action==='assess'){
   const actor=await currentLearner(request);if(!actor)throw new CourseError('Sign in with your authorised assessor account.',403);
   if(typeof body.id!=='string'||!/^\d{4}-\d{2}-\d{2}$/.test(body.date)||!['pass','not_yet_competent'].includes(body.outcome)||typeof body.notes!=='string'||body.notes.length>5000)throw new CourseError('Check the assessment details.');
-  try{await db().batch([db().prepare("SELECT set_config('app.audit_actor',?,true)").bind(actor.email),db().prepare('SELECT record_practical_assessment(?,?,?,?,?,?)').bind(body.id,actor.id,body.outcome,body.date,body.declaration===true,body.notes)]);}catch(e){if((e as {code?:string}).code==='P0001')throw new CourseError((e as Error).message);throw e;}
+  const evidenceIds=body.evidenceIds??[];
+  if(!Array.isArray(evidenceIds)||evidenceIds.length>5||evidenceIds.some(id=>typeof id!=='string'||id.length>100)||new Set(evidenceIds).size!==evidenceIds.length)throw new CourseError('Choose up to five evidence files.');
+  try{await db().batch([db().prepare("SELECT set_config('app.audit_actor',?,true)").bind(actor.email),db().prepare('SELECT record_practical_assessment(?,?,?,?,?,?,?::text[])').bind(body.id,actor.id,body.outcome,body.date,body.declaration===true,body.notes,evidenceIds)]);}catch(e){if((e as {code?:string}).code==='P0001')throw new CourseError((e as Error).message);throw e;}
  }else{
   await requireAdmin(request);const admin=(await getAdminUser())!;
   await inTransaction(async tx=>{

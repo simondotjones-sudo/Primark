@@ -717,3 +717,17 @@ release migration workflow. No hosted database changes are made during developme
 Verification includes the complete regression suite, 17 additional migration/API/
 worker integration checks, TypeScript, translation coverage and the production
 build. A real Postmark delivery check remains part of activation.
+
+
+### Release 54 — practical assessment evidence
+
+Authorised assessors can attach photos or signed assessment sheets while recording a practical assessment. Up to five files are supported per attempt, each up to 3 MiB: PDF, JPEG, PNG, WebP and HEIC. File types are checked from their signatures, filenames are sanitised, and downloads use attachment disposition. Attachments remain optional; the existing outcome, date, declaration and assessor qualification rules still apply.
+
+- Uploads are saved as private drafts for the individual assessor and assignment. Reopening the same learner’s assessment restores those drafts. Incomplete uploads can be removed and retried.
+- Files are linked to the specific attempt in the same database transaction as the assessment and certificate. An upload in progress or an omitted draft blocks submission. Reassessment creates a separate evidence record and consumes no additional course credit.
+- Assessment history includes evidence downloads for currently authorised assessors in the appropriate course/site scope and platform administrators. Learners, unrelated assessors and public certificate/QR visitors do not receive evidence access. Unattached drafts remain private to their uploader.
+- Saved file metadata and attempt links cannot be changed or deleted through the application. Revoking a sign-off preserves its evidence. Draft removal deletes the uploaded bytes while retaining the audit record.
+- Each file has a SHA-256 fingerprint, verified on download. Uploads, attachment to an assessment, and draft removal are recorded in the existing audit trail with learner, store and actor details.
+- Evidence uses private Netlify Blobs stores, with separate writable production and preview namespaces. A preview may read immutable production files referenced by its database snapshot, but cannot overwrite or remove them.
+- The additive `20261010141000_assessment-evidence` migration creates the metadata table and atomic sign-off function. No manual production data changes or additional email configuration are needed.
+- All new interface and API validation messages are translated across the existing 14 interface languages. `tests/assessment-evidence-check.mjs` covers scoped access, file handling, storage failures, private downloads, atomic attachment, certificate/credit behaviour, immutability, revocation and preview isolation.
