@@ -30,6 +30,7 @@ export type CreditAccount={enabled:boolean;storeId:string;balance:number;target:
 
 export async function changeAssignment(actor:UserAdministrator,storeId:string,body:{action:string;assignmentId:string;reason?:string}){
  return inTransaction(async client=>{
+  await client.query("SELECT set_config('app.audit_actor',$1,true)",[actor.email]);
   await lockCreditActor(client,actor,storeId);
   const {rows:[row]}=await client.query('SELECT learner_id,course_id,store_id FROM assignment_history WHERE id=$1',[body.assignmentId]);
   if(!row||row.store_id!==storeId)throw new CourseError('Assignment not found.',404);

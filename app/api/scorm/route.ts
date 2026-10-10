@@ -8,7 +8,7 @@ import { sameOrigin } from '@/lib/shot-server';
 import { bodyJson, failed, getCourse, isPlatformAdmin, json, CourseError } from '@/lib/course-admin';
 import { type Course, type Sco } from '@/lib/course-types';
 import { initialData, timeCentiseconds, timeString } from '@/lib/scorm-runtime';
-import { canAccessCourse } from '@/lib/course-access';
+import { assignedCourses, canAccessCourse } from '@/lib/course-access';
 export const dynamic='force-dynamic';
 export async function POST(request:NextRequest) {try {
  if(!sameOrigin(request))throw new CourseError('Open the course from My Courses.',403);
@@ -16,23 +16,26 @@ export async function POST(request:NextRequest) {try {
  if(b.action==='launch') {
   const preview=b.preview===true;
   // Independent reads run together; fetch package details with the course.
-  const [learner,admin,course]=await Promise.all([
+  const [learner,admin,currentCourse]=await Promise.all([
    currentLearner(request),preview?isPlatformAdmin():Promise.resolve(false),
    db().prepare('SELECT c.*,p.scos_json,p.status AS package_status FROM courses c LEFT JOIN course_packages p ON p.id=c.package_id WHERE c.id=?').bind(b.courseId).first<Course&{scos_json:string;package_status:string}>(),
   ]);
   if(preview?!admin:!learner)throw new CourseError('Sign in to launch this course.',401);
-  if(!course?.package_id)throw new CourseError('Course not available.',404);
+  if(!currentCourse?.package_id)throw new CourseError('Course not available.',404);
+  const course=preview?currentCourse:(learner?(await assignedCourses(learner)).find(c=>c.id===b.courseId):null);
+  if(!course?.package_id)throw new CourseError(preview?'Course not available.':'This course is not assigned to you.',preview?404:403);
   if(!preview&&!await canAccessCourse(course,learner!))throw new CourseError('This course is not assigned to you.',403);
-  if(course.package_status!=='ready')throw new CourseError('This package is not ready.');
+  if(preview&&currentCourse?.package_status!=='ready')throw new CourseError('This package is not ready.');
   const pack={id:course.package_id};
   const scos=JSON.parse(course.scos_json) as Sco[];const sco=scos.find(s=>s.id===b.scoId)||scos[0];
   const token=randomToken(),expires=new Date(Date.now()+8*3600000).toISOString();
   await inTransaction(async client=>{
+  await client.query("SELECT set_config('app.audit_actor',$1,true)",[learner?.email||'platform preview']);
     let historyId:string|null=null;
     if(!preview){
       const {rows:[person]}=await client.query(`SELECT l.id FROM learners l WHERE l.id=$1 AND ${activeLearnerSql()} FOR UPDATE`,[learner!.id]);
-      const {rows:[assignment]}=await client.query(`SELECT a.history_id FROM course_assignments a JOIN courses c ON c.id=a.course_id
-        WHERE a.learner_id=$1 AND a.course_id=$2 AND c.package_id=$3 AND c.status='published' AND pathway_course_unlocked(a.learner_id,a.course_id)`,[learner!.id,course.id,pack.id]);
+      const {rows:[assignment]}=await client.query(`SELECT a.history_id FROM course_assignments a JOIN courses c ON c.id=a.course_id JOIN assignment_history h ON h.id=a.history_id
+        WHERE a.learner_id=$1 AND a.course_id=$2 AND h.package_id=$3 AND c.status='published' AND pathway_course_unlocked(a.learner_id,a.course_id)`,[learner!.id,course.id,pack.id]);
       if(!person||!assignment?.history_id)throw new CourseError('This course is not assigned to you.',403);
       historyId=String(assignment.history_id);
     }
@@ -54,7 +57,7 @@ export async function POST(request:NextRequest) {try {
  if(!launch)throw new CourseError('Your course session expired. Reopen the course to continue.',401);
  if(launch.preview){if(!await isPlatformAdmin())throw new CourseError('Admin sign-in required.',403);return json({saved:true,preview:true});}
  if(!learner||learner.id!==launch.learner_id)throw new CourseError('Sign in again to save your progress.',401);
- const course=await getCourse(launch.course_id);if(!course||course.package_id!==launch.package_id||!await canAccessCourse(course,learner))throw new CourseError('This course assignment has changed. Return to My Courses.',403);
+ const course=await getCourse(launch.course_id);if(!course||!await canAccessCourse(course,learner))throw new CourseError('This course assignment has changed. Return to My Courses.',403);
  if(!Number.isSafeInteger(b.sequence)||b.sequence<=0)throw new CourseError('Invalid save sequence.');
  if(b.sequence<=launch.sequence)return json({saved:true});
  const data=b.data as Record<string,string>;
@@ -63,6 +66,7 @@ export async function POST(request:NextRequest) {try {
  const raw=data['cmi.core.score.raw']||'';if(raw!==''&&!Number.isFinite(Number(raw)))throw new CourseError('The course sent an invalid score.');
  const duration=data['cmi.core.session_time']||'0000:00:00.00';if(!/^\d{2,4}:[0-5]\d:[0-5]\d(?:\.\d{1,2})?$/.test(duration))throw new CourseError('Invalid session duration.');
  await inTransaction(async client=>{
+  await client.query("SELECT set_config('app.audit_actor',$1,true)",[learner?.email||'platform preview']);
   const {rows:[person]}=await client.query(`SELECT l.id FROM learners l WHERE l.id=$1 AND ${activeLearnerSql()} FOR UPDATE`,[learner.id]);
   const {rows:[current]}=await client.query('SELECT s.* FROM scorm_launches s JOIN course_assignments a ON a.history_id=s.assignment_id WHERE s.token=$1 AND s.expires_at>$2 AND pathway_course_unlocked(s.learner_id,s.course_id) FOR UPDATE OF s',[b.token,now()]);
   if(!person||!current)throw new CourseError('This course assignment has changed. Return to My Courses.',403);

@@ -1,6 +1,6 @@
 import type {ReportingAccess} from '@/lib/reporting-types';
 import type {DirectoryStore} from '@/lib/store-directory';
-export type UserPerson={id:string;name:string;email:string;workday_id:string|null;legacy_access_code:string|null;country:string;store_id:string;archived_at:string|null;entered_at:string;last_login_at:string|null;admin_only:boolean;
+export type UserPerson={employment_started_on?:string|null;employment_ended_on?:string|null;lifecycle_reason?:string|null;id:string;name:string;email:string;workday_id:string|null;legacy_access_code:string|null;country:string;store_id:string;archived_at:string|null;entered_at:string;last_login_at:string|null;admin_only:boolean;
   scope:ReportingAccess['scope']|null;reporting_country:string|null;reporting_site_id:string|null;manager_store_id:string|null;platform_admin:boolean;
   revision:string;canEdit:boolean;canArchive:boolean;canEditDetails:boolean};
 export type UserOptions={roles:string[];stores:DirectoryStore[];access:ReportingAccess;platformAdmin:boolean;canAssign:boolean;canEdit:boolean};

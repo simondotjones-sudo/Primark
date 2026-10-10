@@ -13,19 +13,20 @@ try {
   await pg.exec(`
     CREATE TABLE learners(id text,name text,email text,workday_id text,archived_at text,country text,store_id text,induction_enrolled boolean,started_at text,completed_at text,best_score int);
     CREATE TABLE courses(id text,title text,package_id text,status text,audience_json text,induction_role text,validity_months int,category text,language_code text);
-    CREATE TABLE course_packages(id text,status text,scos_json text);
+    CREATE TABLE course_packages(id text,status text,scos_json text,course_id text);
     CREATE TABLE scorm_progress(learner_id text,package_id text,sco_id text,status text,completed_at text,score text,total_centiseconds bigint);
     CREATE TABLE course_assignments(learner_id text,course_id text,history_id text);
     CREATE TABLE learner_inductions(learner_id text,course_id text);
     CREATE TABLE assignment_exclusions(learner_id text,course_id text);
-    CREATE TABLE assignment_history(id text,previous_id text,due_at timestamptz,quiz_json text,assessor_required boolean);
+    CREATE TABLE assignment_history(id text,previous_id text,due_at timestamptz,quiz_json text,assessor_required boolean,package_id text,course_snapshot jsonb);
     CREATE TABLE certificates(token text,learner_id text,course_id text,package_id text,assignment_id text,completed_at text,expires_at text,archived_at text,cancelled_at text);
     CREATE TABLE course_refresher_assignments(certificate_token text,refresher_course_id text,assignment_id text);
     CREATE TABLE course_quiz_attempts(assignment_id text,passed boolean,correct_count int,question_count int,submitted_at text,id text);
     CREATE TABLE legacy_completions(email text,completed int,completed_at text,store_id text);
     INSERT INTO learners VALUES('person','Person','person@example.test',NULL,NULL,'Ireland','site',true,NULL,NULL,NULL),('other','Other','other@example.test',NULL,NULL,'Ireland','elsewhere',true,NULL,NULL,NULL),('original','Original','original@example.test',NULL,NULL,'Ireland','site',false,NULL,NULL,NULL);
     INSERT INTO courses VALUES('course','Course','pack','published','{"countries":[],"sites":[],"users":[]}','none',NULL,'Safety','en'),('missing','Missing','empty','published','{"countries":[],"sites":[],"users":[]}','none',NULL,'Safety','en');
-    INSERT INTO course_packages VALUES('pack','ready','[{"id":"one"},{"id":"two"}]'),('empty','ready','[{"id":"one"}]');
+    INSERT INTO course_packages(id,status,scos_json) VALUES('pack','ready','[{"id":"one"},{"id":"two"}]'),('empty','ready','[{"id":"one"}]');
+    UPDATE course_packages SET course_id=CASE WHEN id='pack' THEN 'course' ELSE 'missing' END;
     INSERT INTO course_assignments VALUES('person','course',NULL),('person','missing',NULL),('other','course',NULL);
     INSERT INTO scorm_progress VALUES('person','pack','one','completed','2026-01-01',NULL,90025),('person','pack','two','incomplete',NULL,NULL,180075),('person','pack','removed','completed','2026-01-01',NULL,99999999),('other','pack','one','incomplete',NULL,NULL,500000);
   `);

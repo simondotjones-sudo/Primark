@@ -55,6 +55,7 @@ export async function POST(request:NextRequest){try{
   if(userIds.length*courseIds.length>10000)throw new CourseError('Choose fewer courses or users for this assignment.');
   const administrator=await requireUserAdministrator(request);
   const added=await inTransaction(async client=>{
+  await client.query("SELECT set_config('app.audit_actor',$1,true)",[administrator.email]);
     await lockCreditActor(client,administrator,store.id);
     await client.query(`SELECT l.id FROM learners l WHERE l.id=ANY($1::text[]) AND l.store_id=$2 AND ${activeLearnerSql()} ORDER BY l.id FOR UPDATE`,[userIds,store.id]);
     let count=0;

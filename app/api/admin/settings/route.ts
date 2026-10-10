@@ -15,6 +15,7 @@ export async function POST(request:NextRequest){try{
  const keys=['pathways_enabled','credits_enabled','auto_archive_enabled','exclude_within_deadline'];
  if(!b||keys.some(k=>b[k]!==undefined&&typeof b[k]!=='boolean')||!Number.isSafeInteger(b.revision))throw new CourseError('Check the organisation settings.');
  await inTransaction(async client=>{
+  await client.query("SELECT set_config('app.audit_actor',$1,true)",[actor.email]);
   let platform=actor.platformAdmin;
   if(actor.id){
    const {rows:[current]}=await client.query(`SELECT l.archived_at,r.scope,EXISTS(SELECT 1 FROM platform_admins p WHERE p.learner_id=l.id) AS platform

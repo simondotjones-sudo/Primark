@@ -35,8 +35,9 @@ async function reportQuery(siteIds:string[]|null,selection=allCourses,search='')
       count(*) FILTER (WHERE s.status IN ('completed','passed')) AS done_count,
       count(s.completed_at) AS date_count,max(s.completed_at) AS completed_at,max(s.score) AS score,
       NULLIF(sum(GREATEST(s.total_centiseconds,0)),0)::double precision / 100 AS learning_seconds
-    FROM scorm_progress s JOIN people l ON l.id=s.learner_id JOIN ready c ON c.package_id=s.package_id
-    WHERE EXISTS (SELECT 1 FROM jsonb_array_elements(c.scos) item WHERE item->>'id'=s.sco_id)
+    FROM scorm_progress s JOIN people l ON l.id=s.learner_id JOIN course_packages pack ON pack.id=s.package_id JOIN ready c ON c.id=pack.course_id
+    LEFT JOIN course_assignments ca ON ca.learner_id=l.id AND ca.course_id=c.id LEFT JOIN assignment_history ah ON ah.id=ca.history_id
+    WHERE s.package_id=COALESCE(ah.package_id,c.package_id) AND EXISTS (SELECT 1 FROM jsonb_array_elements(pack.scos_json::jsonb) item WHERE item->>'id'=s.sco_id)
     GROUP BY s.learner_id,c.id
   ), candidates AS (
     SELECT l.id AS learner_id,c.id AS course_id FROM people l JOIN course_assignments a ON a.learner_id=l.id JOIN ready c ON c.id=a.course_id
@@ -48,7 +49,7 @@ async function reportQuery(siteIds:string[]|null,selection=allCourses,search='')
       AND NOT EXISTS(SELECT 1 FROM assignment_exclusions x WHERE x.learner_id=l.id AND x.course_id=c.id)
       AND (jsonb_exists(c.audience->'countries',l.country) OR jsonb_exists(c.audience->'sites',l.store_id) OR jsonb_exists(c.audience->'users',l.id))
     UNION SELECT learner_id,course_id FROM saved
-    UNION SELECT l.id,c.id FROM people l JOIN certificates cert ON cert.learner_id=l.id AND cert.archived_at IS NULL AND cert.cancelled_at IS NULL JOIN ready c ON c.package_id=cert.package_id
+    UNION SELECT l.id,c.id FROM people l JOIN certificates cert ON cert.learner_id=l.id AND cert.archived_at IS NULL AND cert.cancelled_at IS NULL JOIN ready c ON c.id=cert.course_id
   ), evidence AS (
     SELECT a.learner_id,a.course_id,c.validity_months,c.sco_count,s.saved_count,s.score,s.learning_seconds,
       attempt.score AS quiz_score,h.due_at,COALESCE(previous.expires_at,source.expires_at) AS previous_expiry,
@@ -59,9 +60,12 @@ async function reportQuery(siteIds:string[]|null,selection=allCourses,search='')
       (cert.package_id IS NOT NULL OR (NOT COALESCE(h.assessor_required,false) AND c.sco_count>0 AND s.done_count=c.sco_count AND (h.quiz_json IS NULL OR EXISTS(SELECT 1 FROM course_quiz_attempts q WHERE q.assignment_id=h.id AND q.passed)))) AS complete,
       COALESCE(cert.completed_at,CASE WHEN NOT COALESCE(h.assessor_required,false) AND s.done_count=c.sco_count AND s.date_count=c.sco_count AND c.sco_count>0 AND (h.quiz_json IS NULL OR EXISTS(SELECT 1 FROM course_quiz_attempts q WHERE q.assignment_id=h.id AND q.passed)) THEN s.completed_at END) AS completed_at,
       cert.package_id IS NOT NULL AS certified,cert.expires_at AS certificate_expiry
-    FROM candidates a JOIN ready c ON c.id=a.course_id
+    FROM candidates a JOIN ready catalogue ON catalogue.id=a.course_id
     LEFT JOIN course_assignments current_assignment ON current_assignment.learner_id=a.learner_id AND current_assignment.course_id=a.course_id
     LEFT JOIN assignment_history h ON h.id=current_assignment.history_id
+    JOIN course_packages assigned_package ON assigned_package.id=COALESCE(h.package_id,catalogue.package_id)
+    CROSS JOIN LATERAL (SELECT catalogue.id, (CASE WHEN h.course_snapshot IS NOT NULL THEN (h.course_snapshot->>'validity_months')::integer ELSE catalogue.validity_months END) AS validity_months,
+      jsonb_array_length(assigned_package.scos_json::jsonb) AS sco_count,assigned_package.id AS package_id) c
     LEFT JOIN LATERAL (SELECT cert.expires_at::timestamptz FROM certificates cert WHERE cert.assignment_id=h.previous_id AND cert.cancelled_at IS NULL ORDER BY cert.completed_at DESC LIMIT 1) previous ON true
     LEFT JOIN LATERAL (SELECT cert.expires_at::timestamptz FROM course_refresher_assignments link JOIN certificates cert ON cert.token=link.certificate_token
       WHERE link.assignment_id=h.id AND cert.cancelled_at IS NULL ORDER BY cert.expires_at LIMIT 1) source ON true

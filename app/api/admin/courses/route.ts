@@ -1,3 +1,5 @@
+import {getAdminUser} from '@/lib/admin-auth';
+import {publishCourseVersion} from '@/lib/course-versions';
 import {validateQuiz} from '@/lib/course-quiz';
 import {inTransaction} from '@/lib/database';
 import {creditError} from '@/lib/credits';
@@ -31,6 +33,7 @@ export async function POST(request: NextRequest) { try {
  const stores=await storeDirectory(false);const storeById=new Map(stores.map(s=>[s.id,s]));
   const b=await bodyJson(request,250000); const title=typeof b.title==='string'?b.title.trim():''; const description=typeof b.description==='string'?b.description.trim():'';
   if (!title || title.length>150 || description.length>2000) throw new CourseError('Add a course title (up to 150 characters) and a description of up to 2,000 characters.');
+  if(b.retrain!==undefined&&typeof b.retrain!=='boolean')throw new CourseError('Choose whether retraining is required.');
   if (!['draft','published'].includes(b.status)) throw new CourseError('Invalid course status.');
   const audience=await validateAudience(b.audience);
   const existing=b.id?await getCourse(b.id):null;
@@ -67,6 +70,9 @@ export async function POST(request: NextRequest) { try {
   }
   const id=existing?.id||crypto.randomUUID(); const date=now();
   await inTransaction(async client=>{
+  await client.query("SELECT set_config('app.audit_actor',$1,true)",[(await getAdminUser())!.email]);
+  // Match assignment/lifecycle lock order before changing the shared course.
+  if(b.status==='published')await client.query('SELECT id FROM learners ORDER BY id FOR UPDATE');
   if (existing) {
     const statement=db().prepare('UPDATE courses SET title=?,description=?,audience_json=?,status=?,english_title=?,category=?,language_code=?,catalogue_scope=?,available_countries_json=?,induction_role=?,estimated_duration_minutes=?,lesson_count=?,validity_months=?,revision=revision+1,updated_at=? WHERE id=? AND revision=?')
       .bind(title,description,JSON.stringify(audience),b.status,englishTitle,category,languageCode,catalogueScope,JSON.stringify(linkedCountries),inductionRole,duration,lessonCount,validityMonths,date,id,b.revision);
@@ -76,7 +82,7 @@ export async function POST(request: NextRequest) { try {
   await client.query('UPDATE courses SET deadline_days=$2,quiz_json=$3,assessor_required=$4 WHERE id=$1',[id,deadlineDays,quiz===null?null:JSON.stringify(quiz),assessorRequired]);
   await client.query('DELETE FROM course_refresher_rules WHERE source_course_id=$1',[id]);
   for(const rule of rules)await client.query('INSERT INTO course_refresher_rules(source_course_id,country,refresher_course_id) VALUES($1,$2,$3)',[id,rule.country,rule.courseId]);
-  if(b.status==='published')await client.query('SELECT sync_credit_assignments()');
+  if(b.status==='published'){await publishCourseVersion(client,id,b.versionReason,b.retrain===true);await client.query('SELECT sync_credit_assignments()');}
   });
   return json({course:await getCourse(id)});
 } catch(e) { return failed(creditError(e)); } }

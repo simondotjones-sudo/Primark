@@ -1,3 +1,4 @@
+import {publishCourseVersion} from '@/lib/course-versions';
 import type {NextRequest} from 'next/server';
 import {currentLearner,hash,randomToken,now} from '@/lib/server';
 import {getAdminUser} from '@/lib/admin-auth';
@@ -29,13 +30,15 @@ export async function POST(request:NextRequest){try{
  if(body.action==='assess'){
   const actor=await currentLearner(request);if(!actor)throw new CourseError('Sign in with your authorised assessor account.',403);
   if(typeof body.id!=='string'||!/^\d{4}-\d{2}-\d{2}$/.test(body.date)||!['pass','not_yet_competent'].includes(body.outcome)||typeof body.notes!=='string'||body.notes.length>5000)throw new CourseError('Check the assessment details.');
-  try{await db().prepare('SELECT record_practical_assessment(?,?,?,?,?,?)').bind(body.id,actor.id,body.outcome,body.date,body.declaration===true,body.notes).run();}catch(e){if((e as {code?:string}).code==='P0001')throw new CourseError((e as Error).message);throw e;}
+  try{await db().batch([db().prepare("SELECT set_config('app.audit_actor',?,true)").bind(actor.email),db().prepare('SELECT record_practical_assessment(?,?,?,?,?,?)').bind(body.id,actor.id,body.outcome,body.date,body.declaration===true,body.notes)]);}catch(e){if((e as {code?:string}).code==='P0001')throw new CourseError((e as Error).message);throw e;}
  }else{
   await requireAdmin(request);const admin=(await getAdminUser())!;
   await inTransaction(async tx=>{
+  await tx.query("SELECT set_config('app.audit_actor',$1,true)",[admin.email]);
    if(body.action==='requirement'){
     if(typeof body.required!=='boolean')throw new CourseError('Choose whether sign-off is required.');
     const updated=await tx.query('UPDATE courses SET assessor_required=$1,revision=revision+1,updated_at=$2 WHERE id=$3 RETURNING id',[body.required,now(),body.courseId]);if(!updated.rowCount)throw new CourseError('Course not found.',404);
+    const current=(await tx.query('SELECT status FROM courses WHERE id=$1',[body.courseId])).rows[0];if(current.status==='published')await publishCourseVersion(tx,body.courseId,'Assessor requirement changed',false);
    }else if(body.action==='grant'){
     if(typeof body.qualification!=='string'||!body.qualification.trim()||body.qualification.length>2000)throw new CourseError('Enter the assessor qualification.');
     if(body.expiresOn&&(!/^\d{4}-\d{2}-\d{2}$/.test(body.expiresOn)||body.expiresOn<new Date().toISOString().slice(0,10)))throw new CourseError('Choose a current qualification expiry date.');

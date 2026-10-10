@@ -10,7 +10,7 @@ import {isLanguage} from '@/lib/i18n';
 import {normalizeWorkdayId} from '@/lib/learner-auth';
 
 export async function changeUserAccess(originalActor:UserAdministrator,body:Record<string,unknown>){
-  if(!body||typeof body!=='object'||Array.isArray(body)||typeof body.id!=='string'||typeof body.revision!=='string'||!['details','password-reset','access','archive','restore'].includes(String(body.action)))throw new CourseError('Choose an existing learner account.');
+  if(!body||typeof body!=='object'||Array.isArray(body)||typeof body.id!=='string'||typeof body.revision!=='string'||!['details','password-reset','access','archive','restore','transfer','rejoin','leave'].includes(String(body.action)))throw new CourseError('Choose an existing learner account.');
   const stores=await storeDirectory(),activeStores=stores.filter(s=>s.active);
   await inTransaction(async client=>{
     // Serialize changes to the actor and target, including archive/restore races.
@@ -30,8 +30,44 @@ export async function changeUserAccess(originalActor:UserAdministrator,body:Reco
     const allowed=(await client.query(postgresSql(`SELECT l.id FROM learners l WHERE l.id=? AND ${scope.sql}`),[target.id,...scope.args])).rows[0];
     if(!allowed)throw new CourseError('You can manage accounts only within your assigned scope.',403);
     if(body.revision!==userRevision(target))throw new CourseError('This account changed. Refresh the list and try again.',409);
+    await client.query("SELECT set_config('app.audit_actor',$1,true)",[actor.email]);
+    const lifecycle=['transfer','rejoin','leave'].includes(String(body.action));
+    const reason=typeof body.reason==='string'?body.reason.trim():'';
+    if(lifecycle&&(reason.length<3||reason.length>500))throw new CourseError('Enter a reason between 3 and 500 characters.');
+    await client.query("SELECT set_config('app.audit_reason',$1,true)",[reason]);
     let invalidateSessions=true;
-    if(body.action==='details'){
+    if(lifecycle){
+      if(!canEditUsers(actor))throw new CourseError('Country or organisation admin access is required.',403);
+      const effective=typeof body.effectiveDate==='string'?body.effectiveDate:'';
+      if(!/^\d{4}-\d{2}-\d{2}$/.test(effective)||!Number.isFinite(Date.parse(effective))||new Date(effective).toISOString().slice(0,10)!==effective||effective>new Date().toISOString().slice(0,10))throw new CourseError('Choose an effective date no later than today. Changes apply immediately.');
+      await client.query("SELECT set_config('app.audit_reason',$1,true)",[reason+' (effective '+effective+')']);
+      if(body.action==='leave'){
+        if(target.archived_at)throw new CourseError('This account is already archived.',409);
+        if(target.employment_started_on&&effective<String(target.employment_started_on).slice(0,10))throw new CourseError('The leaving date cannot be before the employment start date.');
+        await client.query('UPDATE learners SET archived_at=now(),employment_ended_on=$2,lifecycle_reason=$3 WHERE id=$1',[target.id,effective,reason]);
+        await client.query('UPDATE assessor_grants SET active=false WHERE learner_id=$1',[target.id]);
+      }else{
+        if(body.action==='transfer'&&target.archived_at||body.action==='rejoin'&&!target.archived_at)throw new CourseError('This account changed. Refresh the list and try again.',409);
+        const destination=activeStores.find(s=>s.id===body.storeId);
+        if(!destination)throw new CourseError('Choose an active destination store.');
+        if(actor.access.scope==='country'&&destination.country!==actor.access.country)throw new CourseError('An organisation admin must handle transfers between countries.',403);
+        if(target.platform_admin||target.scope==='country'||target.scope==='organisation')throw new CourseError('Use Edit access to change this administrator’s scope before transferring or rejoining.');
+        if(body.action==='transfer'&&destination.id===target.store_id)throw new CourseError('Choose a different destination store.');
+        await client.query('UPDATE learners SET store_id=$2,country=$3,archived_at=NULL,employment_ended_on=NULL,lifecycle_reason=$4,employment_started_on=CASE WHEN $5 THEN $6::date ELSE employment_started_on END WHERE id=$1',[target.id,destination.id,destination.country,reason,body.action==='rejoin',effective]);
+        if(body.action==='rejoin'){
+          await client.query('DELETE FROM reporting_access WHERE learner_id=$1',[target.id]);
+          await client.query('DELETE FROM store_managers WHERE learner_id=$1',[target.id]);
+          await client.query('UPDATE assessor_grants SET active=false WHERE learner_id=$1',[target.id]);
+          await client.query('DELETE FROM assessor_accounts WHERE learner_id=$1',[target.id]);
+        }else{
+          await client.query("UPDATE reporting_access SET site_id=$2,country=$3,assigned_by=$4,updated_at=now() WHERE learner_id=$1 AND scope='site'",[target.id,destination.id,destination.country,actor.email]);
+          await client.query('UPDATE store_managers SET store_id=$2,assigned_by=$3,updated_at=now() WHERE learner_id=$1',[target.id,destination.id,actor.email]);
+          await client.query('UPDATE assessor_grants SET active=false WHERE learner_id=$1',[target.id]);
+        }
+        if(destination.country!==target.country)await client.query('DELETE FROM learner_inductions WHERE learner_id=$1',[target.id]);
+        await client.query('SELECT sync_credit_assignments($1)',[target.id]);
+      }
+    }else if(body.action==='details'){
       if(target.archived_at)throw new CourseError('Restore this account before editing details.');
       const name=typeof body.name==='string'?body.name.trim().replace(/\s+/g,' '):'';
       const email=typeof body.email==='string'?body.email.trim().toLowerCase():'';
@@ -70,17 +106,21 @@ export async function changeUserAccess(originalActor:UserAdministrator,body:Reco
       else if(role!=='learner')await client.query('INSERT INTO reporting_access(learner_id,scope,country,site_id,assigned_by,updated_at) VALUES($1,$2,$3,$4,$5,$6)',[target.id,role==='manager'?'site':role,country,needsStore?storeId:null,actor.email,date]);
       if(role==='manager')await client.query('INSERT INTO store_managers(learner_id,store_id,assigned_by,updated_at) VALUES($1,$2,$3,$4)',[target.id,storeId,actor.email,date]);
       await client.query('UPDATE learners SET store_id=$1,country=$2 WHERE id=$3',[storeId,country||'',target.id]);
+      if(country!==target.country)await client.query('DELETE FROM learner_inductions WHERE learner_id=$1',[target.id]);
+      if(role==='learner')await client.query('SELECT sync_credit_assignments($1)',[target.id]);
     }else{
       const archive=body.action==='archive';
       if(archive===!!target.archived_at)throw new CourseError('This account changed. Refresh the list and try again.',409);
       // Keep grants and all learning evidence. Restore never revives old sessions.
       await client.query('UPDATE learners SET archived_at=$1 WHERE id=$2',[archive?new Date().toISOString():null,target.id]);
+      if(archive)await client.query('UPDATE assessor_grants SET active=false WHERE learner_id=$1',[target.id]);
+      else await client.query('SELECT sync_credit_assignments($1)',[target.id]);
     }
     if(invalidateSessions){
       await client.query('DELETE FROM sessions WHERE learner_id=$1',[target.id]);
       await client.query('DELETE FROM scorm_launches WHERE learner_id=$1',[target.id]);
       await client.query("DELETE FROM password_resets WHERE account_type='learner' AND account_id=$1",[target.id]);
     }
-    await client.query('INSERT INTO user_access_audit(learner_id,actor_email,action,previous_state,next_state) VALUES($1,$2,$3,$4::jsonb,$5::jsonb)',[target.id,actor.email,body.action,JSON.stringify(target),JSON.stringify(await read(target.id))]);
+    await client.query('INSERT INTO user_access_audit(learner_id,actor_email,action,previous_state,next_state) VALUES($1,$2,$3,audit_safe_state($4::jsonb),audit_safe_state($5::jsonb))',[target.id,actor.email,body.action,JSON.stringify(target),JSON.stringify(await read(target.id))]);
   });
 }

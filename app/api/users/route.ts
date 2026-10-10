@@ -73,8 +73,11 @@ export async function POST(request:NextRequest) {try {
   if(email===credentials()?.email || await db().prepare('SELECT id FROM learners WHERE email=?').bind(email).first())throw new CourseError('This email is already registered.',409);
   if(workdayId&&await db().prepare('SELECT id FROM learners WHERE workday_id=?').bind(workdayId).first())throw new CourseError('This Workday ID is already linked to an account. Log in, or leave it blank to continue with email.',409);
   const id=crypto.randomUUID(),date=now();
-  const changes:PreparedStatement[]=[db().prepare(`INSERT INTO learners(id,name,email,code_hash,password_hash,store_id,country,entered_at,induction_enrolled,workday_id)
+  const start=body.startDate;
+  if(start!==undefined&&start!==''&&(typeof start!=='string'||!/^\d{4}-\d{2}-\d{2}$/.test(start)||!Number.isFinite(Date.parse(start))||new Date(start).toISOString().slice(0,10)!==start||start>date.slice(0,10)))throw new CourseError('Choose a start date no later than today.');
+  const changes:PreparedStatement[]=[db().prepare("SELECT set_config('app.audit_actor',?,true)").bind(actor.email),db().prepare(`INSERT INTO learners(id,name,email,code_hash,password_hash,store_id,country,entered_at,induction_enrolled,workday_id)
     VALUES(?,?,?,?,?,?,?,?,true,?)`).bind(id,name,email,await hash(randomToken()),await hashPassword(body.password),storeId,country||'',date,workdayId)];
+  changes.push(db().prepare('UPDATE learners SET employment_started_on=? WHERE id=?').bind(start||date.slice(0,10),id));
   if(role==='platform')changes.push(db().prepare('INSERT INTO platform_admins(learner_id,assigned_by,updated_at) VALUES(?,?,?)').bind(id,actor.email,date));
   else if(adminOnly){
     changes.push(db().prepare('INSERT INTO reporting_access(learner_id,scope,country,site_id,assigned_by,updated_at) VALUES(?,?,?,?,?,?)').bind(id,role,country,role==='site'?storeId:null,actor.email,date));

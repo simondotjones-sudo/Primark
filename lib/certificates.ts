@@ -1,7 +1,7 @@
 export type Certificate = {
   assessor_name?:string|null;assessed_at?:string|null; archived_at?:string|null;cancelled_at?:string|null;
   token:string; certificate_number:number; learner_id:string; course_id:string|null; package_id:string|null;
-  course_revision:number|null; course_title:string; language_code:string;
+  learning_version?:number|null;course_revision:number|null; course_title:string; language_code:string;
   learner_name:string; store_id:string; country:string; completed_at:string;
   validity_months:number|null; expires_at:string|null; issued_at:string;
 };

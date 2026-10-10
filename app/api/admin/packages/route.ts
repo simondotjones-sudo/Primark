@@ -1,3 +1,5 @@
+import {inTransaction} from '@/lib/database';
+import {getAdminUser} from '@/lib/admin-auth';
 import { NextRequest } from 'next/server';
 import { db } from '@/lib/server';
 import { photoBucket } from '@/lib/shot-server';
@@ -15,10 +17,12 @@ export async function POST(request: NextRequest) { try {
     const manifest=await photoBucket().get(`scorm/${pack.id}/imsmanifest.xml`);
     if(!manifest || manifest.size>1000000) throw new CourseError('A valid imsmanifest.xml is required at the root of the ZIP.');
     let scos; try { scos=parseManifest(await manifest.text(),new Set(files.results.map(f=>f.path))); } catch(e) { throw new CourseError((e as Error).message); }
-    await db().batch([
-      db().prepare("UPDATE course_packages SET status='ready',scos_json=? WHERE id=?").bind(JSON.stringify(scos),pack.id),
-      db().prepare("UPDATE courses SET package_id=?,revision=revision+1,updated_at=? WHERE id=? AND status='draft' AND revision=?").bind(pack.id,now(),course.id,course.revision),
-    ]);
+    await inTransaction(async tx=>{
+      await tx.query("SELECT set_config('app.audit_actor',$1,true)",[(await getAdminUser())!.email]);
+      const changed=await db().prepare("UPDATE courses SET package_id=?,revision=revision+1,updated_at=? WHERE id=? AND status='draft' AND revision=?").bind(pack.id,now(),course.id,course.revision).execute(tx);
+      if(!changed.rowCount)throw new CourseError('The course changed during upload. Reload before continuing.',409);
+      await db().prepare("UPDATE course_packages SET status='ready',scos_json=? WHERE id=?").bind(JSON.stringify(scos),pack.id).execute(tx);
+    });
     const current=await getCourse(course.id); if(current?.package_id!==pack.id) throw new CourseError('The course changed during upload. Reload before continuing.',409);
     return json({package:await getPackage(pack.id),course:current});
   }

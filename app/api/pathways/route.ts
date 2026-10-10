@@ -43,6 +43,7 @@ export async function GET(request:NextRequest){try{
 export async function POST(request:NextRequest){try{
  const actor=await manager(request),b=await bodyJson(request,50000);
  const result=await inTransaction(async tx=>{
+  await tx.query("SELECT set_config('app.audit_actor',$1,true)",[actor.email]);
   if(actor.id){const a=(await tx.query(`SELECT l.id FROM learners l WHERE l.id=$1 AND l.archived_at IS NULL AND (EXISTS(SELECT 1 FROM platform_admins p WHERE p.learner_id=l.id) OR EXISTS(SELECT 1 FROM reporting_access r WHERE r.learner_id=l.id AND r.scope='organisation')) FOR UPDATE`,[actor.id])).rows[0];if(!a)throw new CourseError('Organisation or platform admin access is required.',403);}
   const settings=(await tx.query('SELECT pathways_enabled FROM organisation_settings WHERE id=1 FOR SHARE')).rows[0];if(!settings?.pathways_enabled)throw new CourseError('Pathways are not enabled.',403);
   if(b.action==='save'){

@@ -7,12 +7,12 @@ import {activeLearnerSql} from '@/lib/account-type';
 import {markQuiz,type CourseQuiz} from '@/lib/course-quiz';
 import {issueCourseCertificate} from '@/lib/certificate-server';
 export const dynamic='force-dynamic';
-const quizQuery=`SELECT h.id AS assignment_id,h.assessor_required,h.quiz_json,c.title,c.package_id,
+const quizQuery=`SELECT h.id AS assignment_id,h.assessor_required,h.quiz_json,h.course_title AS title,h.package_id,
  EXISTS(SELECT 1 FROM course_quiz_attempts q WHERE q.assignment_id=h.id AND q.passed) AS passed,
  jsonb_array_length(p.scos_json::jsonb)>0 AND NOT EXISTS(SELECT 1 FROM jsonb_array_elements(p.scos_json::jsonb) item
-  WHERE NOT EXISTS(SELECT 1 FROM scorm_progress s WHERE s.learner_id=a.learner_id AND s.package_id=c.package_id AND s.sco_id=item->>'id' AND s.completed_at IS NOT NULL AND s.status IN ('completed','passed'))) AS lessons_complete
+  WHERE NOT EXISTS(SELECT 1 FROM scorm_progress s WHERE s.learner_id=a.learner_id AND s.package_id=h.package_id AND s.sco_id=item->>'id' AND s.completed_at IS NOT NULL AND s.status IN ('completed','passed'))) AS lessons_complete
  FROM course_assignments a JOIN assignment_history h ON h.id=a.history_id JOIN courses c ON c.id=a.course_id
- JOIN course_packages p ON p.id=c.package_id AND p.status='ready'
+ JOIN course_packages p ON p.id=h.package_id AND p.status='ready'
  WHERE a.learner_id=? AND a.course_id=? AND c.status='published' AND pathway_course_unlocked(a.learner_id,a.course_id)`;
 type QuizRow={assessor_required:boolean;assignment_id:string;quiz_json:CourseQuiz|null;title:string;package_id:string;passed:boolean;lessons_complete:boolean};
 export async function GET(request:NextRequest){try{
@@ -28,6 +28,7 @@ export async function POST(request:NextRequest){try{
  const b=await bodyJson(request,10000);
  if(typeof b.attemptId!=='string'||!/^[-a-zA-Z0-9]{16,80}$/.test(b.attemptId))throw new CourseError('Invalid quiz attempt.');
  const result=await inTransaction(async client=>{
+  await client.query("SELECT set_config('app.audit_actor',$1,true)",[learner.email]);
   const {rows:[person]}=await client.query(`SELECT id FROM learners l WHERE id=$1 AND ${activeLearnerSql()} FOR UPDATE`,[learner.id]);
   if(!person)throw new CourseError('Learner sign-in is required.',403);
   const {rows:[data]}=await db().prepare(quizQuery).bind(learner.id,b.courseId).execute(client);

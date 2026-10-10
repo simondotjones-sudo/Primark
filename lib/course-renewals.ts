@@ -14,6 +14,7 @@ export async function renewLearnerCourse(learnerId:string,courseId:string,certif
  return inTransaction(async client=>{
   const {rows:[learner]}=await client.query(`SELECT l.id,l.email FROM learners l WHERE l.id=$1 AND ${activeLearnerSql()} FOR UPDATE`,[learnerId]);
   if(!learner)throw new CourseError('Use your personal learner account for training.',403);
+  await client.query("SELECT set_config('app.audit_actor',$1,true)",[learner.email]);
   const {rows:[certificate]}=await client.query(`SELECT cert.token FROM certificates cert JOIN course_assignments a ON a.history_id=cert.assignment_id
    WHERE a.learner_id=$1 AND a.course_id=$2 AND cert.token=$3 AND cert.archived_at IS NULL AND cert.cancelled_at IS NULL`,[learnerId,courseId,certificateToken]);
   if(!certificate)throw new CourseError('This assignment has changed. Refresh and try again.',409);

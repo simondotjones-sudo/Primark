@@ -16,6 +16,7 @@ export default function UserDirectory({type,onAssign,onAssignAll,onPermissions}:
   const [country,setCountry]=useState(''),[storeId,setStoreId]=useState(''),[status,setStatus]=useState('active');
   const [loading,setLoading]=useState(true),[creating,setCreating]=useState(false),[editing,setEditing]=useState<UserPerson|null>(null),[archiving,setArchiving]=useState<UserPerson|null>(null);
   const [error,setError]=useState(''),[message,setMessage]=useState(''),[busy,setBusy]=useState(false);
+  const [lifecycle,setLifecycle]=useState<{person:UserPerson;action:'transfer'|'leave'|'rejoin'}|null>(null);
   const [details,setDetails]=useState<UserPerson|null>(null);
   useEffect(()=>{setPage(1);setCreating(false);setEditing(null);setDetails(null);setArchiving(null);},[type]);
   useEffect(()=>{
@@ -25,7 +26,7 @@ export default function UserDirectory({type,onAssign,onAssignAll,onPermissions}:
     }).then(result=>{if(controller.signal.aborted)return;const last=Math.max(1,Math.ceil(result.total/result.pageSize));if(page>last){setPage(last);return;}setData(result);onPermissions(result);setLoading(false);}).catch(e=>{if(e.name!=='AbortError'){setData(null);setError(e.message);setLoading(false);}});},200);
     return()=>{clearTimeout(timer);controller.abort();};
   },[search,page,type,status,country,storeId,refresh,onPermissions]);
-  function changed(message:string){setCreating(false);setEditing(null);setDetails(null);setArchiving(null);setMessage(message);setRefresh(v=>v+1);}
+  function changed(message:string){setLifecycle(null);setCreating(false);setEditing(null);setDetails(null);setArchiving(null);setMessage(message);setRefresh(v=>v+1);}
   async function archive(){
     if(!archiving)return;setBusy(true);setError('');
     try{const response=await fetch('/api/users',{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:archiving.id,revision:archiving.revision,action:archiving.archived_at?'restore':'archive'})});const result=await response.json();if(!response.ok)throw new Error(result.error);changed(archiving.archived_at?'Account restored.':'Account archived.');}
@@ -38,7 +39,7 @@ export default function UserDirectory({type,onAssign,onAssignAll,onPermissions}:
     <section className="paper user-panel">
     {error&&!archiving&&<p className="error" role="alert">{t(error)}</p>}
     {message&&<p className="admin-success" role="status">{t(message)}</p>}
-    {creating&&data?<AddUser initialType={type==='admin'?'admin':'learner'} options={data} onCancel={()=>setCreating(false)} onCreated={()=>{changed('Account created.');setStatus('active');setSearch('');setPage(1);}}/>:details?<EditDetails key={details.id} person={details} onCancel={()=>{setDetails(null);setRefresh(v=>v+1);}} onSaved={()=>changed('Details saved.')}/>:editing&&data?<EditAccess key={editing.id} person={editing} options={data} onCancel={()=>{setEditing(null);setRefresh(v=>v+1);}} onSaved={()=>changed('Access saved.')}/>:<>
+    {lifecycle&&data?<Lifecycle person={lifecycle.person} action={lifecycle.action} options={data} onCancel={()=>setLifecycle(null)} onSaved={()=>changed('Employment change saved.')}/>:creating&&data?<AddUser initialType={type==='admin'?'admin':'learner'} options={data} onCancel={()=>setCreating(false)} onCreated={()=>{changed('Account created.');setStatus('active');setSearch('');setPage(1);}}/>:details?<EditDetails key={details.id} person={details} onCancel={()=>{setDetails(null);setRefresh(v=>v+1);}} onSaved={()=>changed('Details saved.')}/>:editing&&data?<EditAccess key={editing.id} person={editing} options={data} onCancel={()=>{setEditing(null);setRefresh(v=>v+1);}} onSaved={()=>changed('Access saved.')}/>:<>
       <div className="directory-toolbar"><Input type="search" aria-label={t('Search users')} placeholder={t('Name, email or Workday ID')} value={search} onChange={e=>{setSearch(e.target.value);setPage(1);}}/>
         <div className="directory-actions">{data?.canAssign&&<Button variant="outline" onClick={onAssignAll}>{t('Assign courses')}</Button>}<Button className="blue-button" disabled={!data||loading} onClick={()=>{setMessage('');setCreating(true);}}>{t('Add user')}</Button></div></div>
       <div className="directory-filters">
@@ -50,9 +51,10 @@ export default function UserDirectory({type,onAssign,onAssignAll,onPermissions}:
         <div className="employee-cards">{data.people.map(person=><article className="employee-card" key={person.id}><div><strong>{person.name}</strong><small>{person.email}</small>
           <small>{t(userRoleLabels[userRole(person)])}{person.archived_at?' · '+t('Archived'):''}</small>
           <small>{data.stores.find(s=>s.id===(person.manager_store_id||person.reporting_site_id||person.store_id))?.name||countryLabel(person.reporting_country||person.country)||t('All Primark')}</small>
-          <small className="employee-dates"><span>{t('Created')}: <time dateTime={person.entered_at}>{date(person.entered_at)}</time></span><span>{t('Last login')}: {person.last_login_at?<time dateTime={person.last_login_at}>{date(person.last_login_at)}</time>:t('No login recorded')}</span></small></div>
+          <small>{person.employment_started_on&&<span>{t('Employment start date')}: {date(person.employment_started_on)} </span>}{person.employment_ended_on&&<span>{t('Leaving date')}: {date(person.employment_ended_on)}</span>}</small><small className="employee-dates"><span>{t('Created')}: <time dateTime={person.entered_at}>{date(person.entered_at)}</time></span><span>{t('Last login')}: {person.last_login_at?<time dateTime={person.last_login_at}>{date(person.last_login_at)}</time>:t('No login recorded')}</span></small></div>
           <div className="employee-actions">
             {data.canAssign&&!person.admin_only&&!person.archived_at&&<Button variant="outline" onClick={()=>onAssign(person)}>{t('Assign courses')}</Button>}
+            {data.canEdit&&person.canArchive&&<><Button variant="outline" onClick={()=>setLifecycle({person,action:person.archived_at?'rejoin':'transfer'})}>{t(person.archived_at?'Rejoin':'Transfer')}</Button>{!person.archived_at&&<Button variant="outline" onClick={()=>setLifecycle({person,action:'leave'})}>{t("Mark as leaver")}</Button>}</>}
             {person.canEditDetails&&<Button variant="outline" onClick={()=>{setDetails(person);setMessage('');setError('');}}>{t('Edit details')}</Button>}
             {person.canEdit&&<Button variant="outline" aria-label={t('Edit access for {name}',{name:person.name})} onClick={()=>{setEditing(person);setMessage('');setError('');}}>{t('Edit access')}</Button>}
             {person.canArchive&&<Button variant="outline" aria-label={t(person.archived_at?'Restore {name}':'Archive {name}',{name:person.name})} onClick={()=>{setArchiving(person);setError('');setMessage('');}}>{t(person.archived_at?'Restore':'Archive')}</Button>}
@@ -116,7 +118,7 @@ function AddUser({options,initialType,onCancel,onCreated}:{options:UserOptions;i
   const needsCountry=needsStore||role==='country';
   async function submit(event:React.FormEvent<HTMLFormElement>){
     event.preventDefault();const form=new FormData(event.currentTarget);setBusy(true);setError('');
-    try{const response=await fetch('/api/users',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:form.get('name'),email:form.get('email'),password:form.get('password'),workdayId:form.get('workdayId'),accountType:type,role,country,storeId})});const result=await response.json();if(!response.ok)throw new Error(result.error);onCreated();}
+    try{const response=await fetch('/api/users',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:form.get('name'),email:form.get('email'),password:form.get('password'),workdayId:form.get('workdayId'),startDate:form.get('startDate'),accountType:type,role,country,storeId})});const result=await response.json();if(!response.ok)throw new Error(result.error);onCreated();}
     catch(e){setError(e instanceof Error?e.message:'Please try again.');}finally{setBusy(false);}
   }
   return <form className="add-user-form" onSubmit={submit}>
@@ -128,11 +130,18 @@ function AddUser({options,initialType,onCancel,onCreated}:{options:UserOptions;i
       {type==='admin'&&<label>{t('Access')}<NativeSelect value={role} onChange={e=>setRole(e.target.value)}>{options.roles.map(value=><option value={value} key={value}>{t(value==='site'?'Store Manager':value==='country'?'Country reporting admin':value==='organisation'?'Primark reporting admin':'Platform admin')}</option>)}</NativeSelect></label>}
       {needsCountry&&<label>{t('Country')}<NativeSelect required value={country} disabled={!!options.access.country} onChange={e=>{setCountry(e.target.value);setStoreId('');}}><option value="">{t('Choose a country')}</option>{countries.map(c=><option key={c} value={c}>{countryLabel(c)}</option>)}</NativeSelect></label>}
       {needsStore&&<label>{t('Store')}<NativeSelect required value={storeId} disabled={!!options.access.siteId||!country} onChange={e=>setStoreId(e.target.value)}><option value="">{t('Choose a store')}</option>{options.stores.filter(s=>s.active&&s.country===country).map(s=><option key={s.id} value={s.id}>{storeLabel(s)}</option>)}</NativeSelect></label>}
-      {type==='learner'&&<label>{t('Workday ID')}<Input name="workdayId" maxLength={50} placeholder={t('Optional')}/></label>}
+      <label>{t("Employment start date")}<Input type="date" name="startDate" max={new Date().toISOString().slice(0,10)} defaultValue={new Date().toISOString().slice(0,10)}/></label>{type==='learner'&&<label>{t('Workday ID')}<Input name="workdayId" maxLength={50} placeholder={t('Optional')}/></label>}
       <label>{t('Password')}<Input name="password" type="password" autoComplete="new-password" required minLength={type==='admin'?16:8} maxLength={128}/></label>
     </fieldset>
     <p className="access-note">{t(type==='admin'?'Admin passwords need 16–128 characters.':'Create a password with 8–128 characters.')}</p>
     {type==='admin'&&<p className="access-explanation">{t('Admin-only accounts use Reporting. Sign in with a personal learner account for training.')}</p>}
     <div className="editor-actions"><Button type="button" variant="outline" disabled={busy} onClick={onCancel}>{t('Cancel')}</Button><Button className="blue-button" disabled={busy}>{t(busy?'Saving…':'Create account')}</Button></div>
   </form>;
+}
+
+function Lifecycle({person,action,options,onCancel,onSaved}:{person:UserPerson;action:'transfer'|'leave'|'rejoin';options:UserOptions;onCancel:()=>void;onSaved:()=>void}){
+ const {t}=useLanguage();
+ const [storeId,setStoreId]=useState(action==='rejoin'?person.store_id:''),[reason,setReason]=useState(''),[effectiveDate,setDate]=useState(new Date().toISOString().slice(0,10)),[busy,setBusy]=useState(false),[error,setError]=useState('');
+ async function save(e:React.FormEvent){e.preventDefault();setBusy(true);setError('');try{const r=await fetch('/api/users',{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:person.id,revision:person.revision,action,storeId,reason,effectiveDate})});const d=await r.json();if(!r.ok)throw new Error(d.error);onSaved();}catch(e){setError(e instanceof Error?e.message:'Please try again.');}finally{setBusy(false);}}
+ return <form className="add-user-form" onSubmit={save}><h2>{t(action==='leave'?'Mark as leaver':action==='rejoin'?'Rejoin':'Transfer')} · {person.name}</h2><p>{t("Training history and certificates are preserved. Changes apply immediately and the user must sign in again.")}</p>{action==='rejoin'&&<p>{t("Rejoining restores learner access. Administrative and assessor permissions must be granted again.")}</p>}{action==='transfer'&&<p>{t("Existing training stays assigned. Destination induction and audience rules add any required training; new assignments use credits where enabled. Assessor authorisations must be reviewed and granted again.")}</p>}{error&&<p role="alert" className="error">{error}</p>}<fieldset disabled={busy}>{action!=='leave'&&<label>{t("Destination store")}<NativeSelect required value={storeId} onChange={e=>setStoreId(e.target.value)}><option value="">{t("Choose a store")}</option>{options.stores.filter(s=>s.active&&(action==='rejoin'||s.id!==person.store_id)).map(s=><option key={s.id} value={s.id}>{storeLabel(s)} · {s.country}</option>)}</NativeSelect></label>}<label>{t(action==='leave'?'Leaving date':action==='rejoin'?'Rejoining date':'Transfer date')}<Input required type="date" value={effectiveDate} max={new Date().toISOString().slice(0,10)} onChange={e=>setDate(e.target.value)}/></label><label>{t("Reason")}<Input required minLength={3} maxLength={500} value={reason} onChange={e=>setReason(e.target.value)}/></label></fieldset><div className="editor-actions"><Button type="button" variant="outline" disabled={busy} onClick={onCancel}>{t("Cancel")}</Button><Button disabled={busy} className="blue-button">{t(busy?'Saving…':'Confirm change')}</Button></div></form>;
 }
