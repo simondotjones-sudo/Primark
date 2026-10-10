@@ -14,3 +14,5 @@
  .assigned-course-details>.course-metadata{margin-bottom:14px}
  .assigned-courses .assigned-course-actions{margin-top:14px}
 }
+
+.course-renewal-notice{display:flex;flex-direction:column;align-items:flex-start;gap:10px;padding:14px 16px;margin-top:14px;border:1px solid #dfb559;border-radius:8px;background:#fff8e7;color:#60410b;overflow-wrap:anywhere}.assigned-course-details .course-renewal-notice p{margin:0;color:inherit;font-size:14px;line-height:1.5}.course-renewal-notice a{font-weight:600;text-decoration:underline;text-underline-offset:3px}.course-renewal-notice.is-completed{border-color:#bce2ce;background:#f0faf4;color:#18613f}.previous-completion{font-size:13px}.previous-completion a{text-decoration:underline;text-underline-offset:3px}

@@ -421,7 +421,7 @@ assignments. Store Managers and platform admins can remove a current assignment
 within 336 hours, with a required reason. Only unstarted, billed assignments return
 a credit and reverse their original charge. Any SCORM launch counts as a start,
 even at zero seconds. Removal retains audit details and training evidence. Renewing
-an expired certificate creates a separate assignment; cancelling that renewal
+a certificate from 30 days before expiry creates a separate assignment; cancelling that renewal
 restores the previous progress and certificate, including its original expiry.
 Old launch tokens cannot write into a restored or replacement assignment.
 
@@ -479,3 +479,37 @@ inactive first” sorts across countries, omits intervening country subtotals an
 places unknown history after measured inactivity. Excel respects these filters and
 ordering, includes last-assignment dates/day counts, and preserves platform-only
 pricing and editable value formulas. No database migration is needed.
+
+### Course expiry warnings, resets and refreshers (v1.10.10.26.40)
+
+A learner's course tile shows the days remaining during the final 30 days of a
+certificate's validity, then an expired warning. **Restart course** confirms the
+one-credit charge, creates a new assignment and clears current SCORM progress.
+The old completion date, certificate, score, saved answers and learning time stay
+in the assignment history. Previous certificates remain available on the tile and
+in My Certificates. Requests check the current learner and certificate under the
+same lock as assignments and SCORM; retries cannot renew the same attempt twice.
+
+Platform admins configure **Manage courses → Course details → Refresher courses**
+with one linked course per country. Countries without a rule use learner-initiated
+renewal. The migration seeds original course ID **154 → 209** for **United Kingdom**
+and **Ireland**, and makes the refresher available in those country libraries if
+its library availability was previously unconfigured. It does not publish content.
+
+A published, validated refresher is assigned automatically at 30 days before expiry
+(or on catch-up after expiry), consuming one credit. Existing unfinished or valid
+refresher assignments are reused without another charge; an expiring refresher gets
+a new attempt with its own preserved history. The original induction remains in the
+record, and its tile links to the refresher. Completing the refresher clears the
+original course from the learner's to-do view without changing its old certificate.
+
+The `course-refreshers` scheduled function runs every 15 minutes in UTC on the
+published deployment. Opening My Courses also checks that learner. Processing is
+bounded to 100 certificates / 20 seconds per invocation, with a separate transaction
+per certificate and a durable link preventing duplicate assignments. Missing credits
+or unpublished content remain pending and retry after 15 minutes. A manager's removal
+is respected; an automatically assigned refresher is never resurrected by a retry.
+No assignment emails are sent. Pending tiles direct the learner to their Store Manager.
+
+`node tests/renewals-check.mjs` covers expiry boundaries, access checks, history,
+charging, country rules, retries, removals and the learner/configuration APIs.

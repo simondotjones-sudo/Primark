@@ -24,7 +24,8 @@ export async function GET(request:NextRequest){try{
   AND h.started_at IS NULL AND h.completed_at IS NULL
   AND NOT EXISTS(SELECT 1 FROM scorm_launches s WHERE s.learner_id=h.learner_id AND s.course_id=h.course_id)
   AND NOT EXISTS(SELECT 1 FROM scorm_progress s JOIN course_packages p ON p.id=s.package_id WHERE s.learner_id=h.learner_id AND p.course_id=h.course_id)) AS "canRemove",
- EXISTS(SELECT 1 FROM certificates cert WHERE cert.assignment_id=h.id AND cert.archived_at IS NULL AND cert.expires_at::timestamptz<=now()) AS "canRenew"
+ EXISTS(SELECT 1 FROM certificates cert WHERE cert.assignment_id=h.id AND cert.archived_at IS NULL AND cert.cancelled_at IS NULL AND cert.expires_at::timestamptz<=now()+interval '720 hours'
+  AND NOT EXISTS(SELECT 1 FROM course_refresher_rules r JOIN learners l ON l.country=r.country WHERE l.id=h.learner_id AND r.source_course_id=h.course_id)) AS "canRenew"
  ${actor.platformAdmin?',h.unit_cents AS "unitCents"':''}
  FROM assignment_history h LEFT JOIN course_assignments a ON a.history_id=h.id
  WHERE h.store_id=? AND (?='' OR h.learner_id=?) AND (?='' OR strpos(lower(h.learner_name||' '||h.course_title),lower(?))>0)

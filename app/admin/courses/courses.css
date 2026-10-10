@@ -12,3 +12,6 @@
 /* Leave clearance between renewal controls, focus outlines and supporting text. */
 .course-certification-fields{display:grid;gap:16px}
 .course-editor .course-certification-fields .course-field-help{margin:0}
+
+.refresher-rule{display:grid;grid-template-columns:minmax(140px,1fr) minmax(180px,2fr) auto;align-items:end;gap:12px;margin:16px 0}.refresher-rule label{min-width:0}.refresher-rule select{width:100%}
+@media(max-width:700px){.refresher-rule{grid-template-columns:1fr}.refresher-rule>button{justify-self:start}}

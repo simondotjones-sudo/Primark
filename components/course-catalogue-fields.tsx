@@ -1,6 +1,7 @@
 'use client';
 import {useLanguage} from '@/components/language-provider';
 import { useState } from 'react';
+import {Button} from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { NativeSelect } from '@/components/ui/native-select';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -8,9 +9,9 @@ import { courseCategories,courseLanguages } from '@/lib/course-catalogue';
 import {useStores} from '@/components/store-directory';
 import type { Course } from '@/lib/course-types';
 
-export type CatalogueFields={englishTitle:string;category:string;languageCode:string;catalogueScope:Course['catalogue_scope'];availableCountries:string[];inductionRole:Course['induction_role'];validityMonths:number|null;estimatedDurationMinutes:number|null;lessonCount:number|null};
-export const fieldsFor=(course:Course|null):CatalogueFields=>({englishTitle:course?.english_title||'',category:course?.category||'',languageCode:course?.language_code||'en',catalogueScope:course?.catalogue_scope||'unconfigured',availableCountries:JSON.parse(course?.available_countries_json||'[]'),inductionRole:course?.induction_role||'none',validityMonths:course?.validity_months??null,estimatedDurationMinutes:course?.estimated_duration_minutes??null,lessonCount:course?.lesson_count??null});
-export default function CourseCatalogueFields({value,onChange}:{value:CatalogueFields;onChange:(next:CatalogueFields)=>void}){
+export type CatalogueFields={refresherRules:NonNullable<Course['refresher_rules']>;englishTitle:string;category:string;languageCode:string;catalogueScope:Course['catalogue_scope'];availableCountries:string[];inductionRole:Course['induction_role'];validityMonths:number|null;estimatedDurationMinutes:number|null;lessonCount:number|null};
+export const fieldsFor=(course:Course|null):CatalogueFields=>({refresherRules:course?.refresher_rules??[],englishTitle:course?.english_title||'',category:course?.category||'',languageCode:course?.language_code||'en',catalogueScope:course?.catalogue_scope||'unconfigured',availableCountries:JSON.parse(course?.available_countries_json||'[]'),inductionRole:course?.induction_role||'none',validityMonths:course?.validity_months??null,estimatedDurationMinutes:course?.estimated_duration_minutes??null,lessonCount:course?.lesson_count??null});
+export default function CourseCatalogueFields({value,onChange,courses=[],courseId}:{value:CatalogueFields;onChange:(next:CatalogueFields)=>void;courses?:Course[];courseId?:string}){
  const stores=useStores();
 const countries=[...new Set(stores.map(s=>s.country))].sort();
   const {t,country:countryLabel,languageName}=useLanguage();
@@ -33,6 +34,19 @@ const countries=[...new Set(stores.map(s=>s.country))].sort();
       </NativeSelect></label>
       {custom&&<label>{t("Renew every (months)")}<Input required type="number" min={1} max={120} step={1} value={value.validityMonths??''} onChange={e=>change({validityMonths:e.target.value===''?null:e.target.valueAsNumber})}/></label>}
       <p id="course-validity-help" className="course-field-help">{t("A certificate is issued when all course lessons are passed or completed. Renewal runs from the completion date. Changes apply to future certificates; issued certificates keep their original expiry.")}</p>
+    </fieldset>
+    <fieldset className="course-certification-fields"><legend>{t('Refresher courses')}</legend>
+      <p className="course-field-help">{t('Assign a linked course 30 days before expiry in the selected countries. Each new assignment uses one credit. Publish the refresher before it is due.')}</p>
+      {value.refresherRules.map((rule,index)=><div className="refresher-rule" key={index}>
+        <label>{t('Country')}<NativeSelect required value={rule.country} onChange={e=>change({refresherRules:value.refresherRules.map((r,i)=>i===index?{...r,country:e.target.value}:r)})}>
+          <option value="">{t('Select a country')}</option>{countries.map(c=><option key={c} value={c} disabled={value.refresherRules.some((r,i)=>i!==index&&r.country===c)}>{countryLabel(c)}</option>)}
+        </NativeSelect></label>
+        <label>{t('Refresher course')}<NativeSelect required value={rule.courseId} onChange={e=>change({refresherRules:value.refresherRules.map((r,i)=>i===index?{...r,courseId:e.target.value}:r)})}>
+          <option value="">{t('Choose a course')}</option>{courses.filter(c=>c.id!==courseId).map(c=><option key={c.id} value={c.id}>{c.title} · {c.source_course_id||c.id} · {t(c.status)}</option>)}
+        </NativeSelect></label>
+        <Button type="button" variant="outline" onClick={()=>change({refresherRules:value.refresherRules.filter((_,i)=>i!==index)})}>{t('Remove')}</Button>
+      </div>)}
+      <Button type="button" variant="outline" disabled={value.refresherRules.length>=countries.length} onClick={()=>change({refresherRules:[...value.refresherRules,{country:'',courseId:''}]})}>{t('Add refresher rule')}</Button>
     </fieldset>
     <label>{t("Country library availability")}<NativeSelect value={value.catalogueScope} onChange={e=>change({catalogueScope:e.target.value as CatalogueFields['catalogueScope']})}><option value="unconfigured">{t("Not set")}</option><option value="countries">{t("Selected countries")}</option><option value="global">{t("All countries")}</option></NativeSelect></label>
     {value.catalogueScope==='countries'&&<fieldset><legend>{t("Available in")}</legend><div className="catalogue-country-list">{countries.map(c=><label key={c}><Checkbox checked={value.availableCountries.includes(c)} onCheckedChange={()=>change({availableCountries:value.availableCountries.includes(c)?value.availableCountries.filter(v=>v!==c):[...value.availableCountries,c]})}/>{countryLabel(c)}</label>)}</div></fieldset>}

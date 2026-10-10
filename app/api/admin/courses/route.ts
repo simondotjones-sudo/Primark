@@ -18,7 +18,7 @@ function optionalPositiveInteger(value: unknown, existing: number | null | undef
 export async function GET() { try {
   await requireAdmin();
   const [courses,people,packages,progress] = await Promise.all([
-    db().prepare('SELECT * FROM courses ORDER BY updated_at DESC').all<Course>(),
+    db().prepare(`SELECT c.*,COALESCE((SELECT jsonb_agg(jsonb_build_object('country',r.country,'courseId',r.refresher_course_id) ORDER BY r.country) FROM course_refresher_rules r WHERE r.source_course_id=c.id),'[]'::jsonb) AS refresher_rules FROM courses c ORDER BY updated_at DESC`).all<Course>(),
     db().prepare(`SELECT l.id,l.name,l.email,l.country,l.store_id FROM learners l WHERE ${activeLearnerSql()} ORDER BY name`).all<Person>(),
     db().prepare("SELECT * FROM course_packages WHERE status='ready'").all<any>(),
     db().prepare('SELECT learner_id,package_id,sco_id,status,score,updated_at FROM scorm_progress').all<any>(),
@@ -34,6 +34,10 @@ export async function POST(request: NextRequest) { try {
   const audience=await validateAudience(b.audience);
   const existing=b.id?await getCourse(b.id):null;
   if (b.id && !existing) throw new CourseError('Course not found.',404);
+  const rules=b.refresherRules===undefined?(existing?.refresher_rules??[]):b.refresherRules;
+  if(!Array.isArray(rules)||rules.length>30||rules.some(r=>!r||typeof r.country!=='string'||!stores.some(s=>s.country===r.country)||typeof r.courseId!=='string'||r.courseId===b.id)||new Set(rules.map(r=>r.country)).size!==rules.length)throw new CourseError('Choose valid refresher rules.');
+  const targets=await db().prepare('SELECT id FROM courses').all<{id:string}>();
+  if(rules.some(r=>!targets.results.some(c=>c.id===r.courseId)))throw new CourseError('Choose valid refresher rules.');
   const validityMonths=optionalPositiveInteger(b.validityMonths,existing?.validity_months,'Validity',120);
   const duration=optionalPositiveInteger(b.estimatedDurationMinutes,existing?.estimated_duration_minutes,'Estimated duration',10080);
   const lessonCount=optionalPositiveInteger(b.lessonCount,existing?.lesson_count,'Lesson count',1000);
@@ -64,6 +68,8 @@ export async function POST(request: NextRequest) { try {
     const result=await statement.execute(client);
     if (!result.rowCount) throw new CourseError('This course changed in another session. Reload it before saving.',409);
   } else await db().prepare('INSERT INTO courses(id,title,description,status,audience_json,created_at,updated_at,english_title,category,language_code,catalogue_scope,available_countries_json,induction_role,estimated_duration_minutes,lesson_count,validity_months) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)').bind(id,title,description,b.status,JSON.stringify(audience),date,date,englishTitle,category,languageCode,catalogueScope,JSON.stringify(linkedCountries),inductionRole,duration,lessonCount,validityMonths).execute(client);
+  await client.query('DELETE FROM course_refresher_rules WHERE source_course_id=$1',[id]);
+  for(const rule of rules)await client.query('INSERT INTO course_refresher_rules(source_course_id,country,refresher_course_id) VALUES($1,$2,$3)',[id,rule.country,rule.courseId]);
   if(b.status==='published')await client.query('SELECT sync_credit_assignments()');
   });
   return json({course:await getCourse(id)});
