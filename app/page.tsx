@@ -16,6 +16,7 @@ import type { ReportingAccess } from "@/lib/reporting-types";
 import AuthForm from "@/components/auth-form";
 import ProfileMenu from "@/components/profile-menu";
 import { profileHref, profileScope, type ProfileAccount, type ReportFilter } from "@/lib/profile";
+import MyPathways from '@/components/my-pathways';
 import TrainingReporting from "@/components/training-report";
 import CertificatePaper from "@/components/certificate-paper";
 import type { Certificate } from "@/lib/certificates";
@@ -59,11 +60,14 @@ export default function Home() {
   const accessKey=useRef("");
   const [area,setArea]=useState<"learn"|"report">("learn");
   const [screen,setScreen]=useState<Screen>("home");
-  const [courseView,setCourseView]=useState<CourseView>("all");
+  const [courseView,setCourseView]=useState<CourseView|"pathways">("all");
+  const [pathwaysEnabled,setPathwaysEnabled]=useState(false);
+
   const [learner,setLearner]=useState<Learner|null>(null);
   const [viewed,setViewed]=useState<string[]>([]);
   const [legacyCompleted,setLegacyCompleted]=useState(false);
   const [account,setAccount]=useState<ProfileAccount|null>(null);
+  useEffect(()=>{if(!account){setPathwaysEnabled(false);return;}const c=new AbortController();fetch("/api/pathways?mode=availability",{signal:c.signal,cache:"no-store"}).then(r=>r.json()).then(d=>setPathwaysEnabled(!!d.enabled)).catch(()=>{});return()=>c.abort();},[account?.email]);
   const [busy,setBusy]=useState(false);
   const [error,setError]=useState("");
   const [loading,setLoading]=useState(true);
@@ -98,7 +102,7 @@ export default function Home() {
     return !!access;
   },[]);
   useEffect(()=>{const refresh=()=>{refreshMe().catch(()=>{setPlatformAdmin(false);setReportingAccess(null);setAccount(null);setArea("learn");});};window.addEventListener("focus",refresh);return()=>window.removeEventListener("focus",refresh);},[refreshMe]);
-  useEffect(()=>{if(new URLSearchParams(location.search).get("courses")==="1")setScreen("courses");},[]);
+  useEffect(()=>{if(new URLSearchParams(location.search).get("courses")==="1")setScreen("courses");if(new URLSearchParams(location.search).get("pathways")==="1")setCourseView("pathways");},[]);
   useEffect(()=>{if(learner?.induction_enrolled&&screen!=="courses")setScreen("courses");},[learner?.induction_enrolled,screen]);
 
   useEffect(()=>{refreshMe().catch(e=>setError(e.message)).finally(()=>setLoading(false));},[refreshMe]);
@@ -118,7 +122,7 @@ export default function Home() {
   },[learner]);
   async function run(fn:()=>Promise<void>){setBusy(true);setError("");try{await fn();}catch(e){setError(e instanceof Error?e.message:"Please try again.");}finally{setBusy(false);}}
   const complete=!!learner?.completed_at;
-  const showLegacyCourse=!!learner&&!learner.induction_enrolled&&courseView!=="certs"&&(courseView!=="todo"||!complete)&&(courseView!=="completed"||complete);
+  const showLegacyCourse=!!learner&&!learner.induction_enrolled&&courseView!=="certs"&&courseView!=="pathways"&&(courseView!=="todo"||!complete)&&(courseView!=="completed"||complete);
   const nextChapter=shownModules.findIndex(m=>!viewed.includes(m.key));
 
   return <div className={"shell"+(!account&&!loading?" login-screen":"")} lang={lang} dir={languageDirection(lang)}>
@@ -145,12 +149,13 @@ export default function Home() {
           {screen==="courses"&&<section className="courses-page">
             <div className="course-view-scroll"><div className="course-view-switch pill-switch" role="group" aria-label={t("My Courses")}>
               {(["induction","all","todo","completed","certs"] as const).map(view=><button key={view} type="button" aria-pressed={courseView===view} onClick={event=>{setCourseView(view);event.currentTarget.scrollIntoView({block:"nearest",inline:"nearest"});}}>{t(view==="induction"?"Safety Induction":view==="all"?"All My Courses":view==="todo"?"Courses To Do":view==="completed"?"Courses Completed":"Certifications")}</button>)}
+            {pathwaysEnabled&&<button type="button" aria-pressed={courseView==="pathways"} onClick={()=>setCourseView("pathways")}>{t("My Pathways")}</button>}
             </div></div>
             {showLegacyCourse&&<button className="course-feature" onClick={()=>setScreen(complete?"pass":"home")}>
               <Image src={safetyPassCover} alt="" placeholder="blur" loading="eager" fetchPriority="high" sizes="(max-width: 760px) calc(100vw - 36px), (max-width: 1340px) calc(43vw - 24px), 552px" />
               <span className="course-feature-copy"><small>{complete?t("Completed"):t("Available now")}</small><strong>{t("Primark Safety Passport")}</strong><span>{complete?t("View my pass"):t("Continue learning")}</span></span>
             </button>}
-            <AssignedCourses view={courseView} hasLegacyCourse={showLegacyCourse}/>{courseView==="all"&&!learner.induction_enrolled&&<><div className="section-title"><h2>{t("More courses")}</h2><span>{t("Coming soon")}</span></div>
+            {courseView==="pathways"?<MyPathways/>:<AssignedCourses view={courseView} hasLegacyCourse={showLegacyCourse}/>}{courseView==="all"&&!learner.induction_enrolled&&<><div className="section-title"><h2>{t("More courses")}</h2><span>{t("Coming soon")}</span></div>
             <div className="course-catalog-grid">{sampleCourses.map((course,index)=><article className="course-tile" key={course.image}>
               <Image src={course.cover} alt="" placeholder="blur" loading={index<2?"eager":"lazy"} sizes="(max-width: 760px) calc(100vw - 36px), (max-width: 1340px) calc(50vw - 37px), 634px"/>
               <div><small>{t("Coming soon")}</small><h3>{t(course.title)}</h3>{course.image==="manual-handling"&&<p>{t("Includes a practical element")}</p>}</div>

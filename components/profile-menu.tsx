@@ -18,7 +18,7 @@ type ContentProps = {
 export function ProfileContent({ account, view, filter, onView, onFilter, onSignOut, busy }: ContentProps) {
   const {t,country:countryLabel}=useLanguage();
   const views = profileViews(account);
-  const icons = {assessor:Users,learn:BookOpen,report:BarChart3,store:Users,access:Users,courses:Library,organisation:Building2,shots:Camera};
+  const icons = {pathways:Library,assessor:Users,learn:BookOpen,report:BarChart3,store:Users,access:Users,courses:Library,organisation:Building2,shots:Camera};
   const group = (options: typeof views, heading: string) => options.length > 0 && <nav className="profile-group" aria-label={t(heading)}><h2>{t(heading)}</h2>{options.map(option => {const Icon=icons[option.value];return <button key={option.value} type="button" className="profile-link" aria-current={view===option.value?'page':undefined} onClick={()=>onView(option.value)}><Icon size={19}/><span>{t(option.label)}</span></button>;})}</nav>;
   return <>
     <div className="profile-identity"><strong>{account.name}</strong>{account.name !== account.email && <small>{account.email}</small>}

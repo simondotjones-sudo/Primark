@@ -1,3 +1,4 @@
+import {pathwayUnlocked} from '@/lib/pathways';
 import {syncAssignments} from '@/lib/credits';
 import { canLearn } from '@/lib/account-type';
 import { db } from '@/lib/database';
@@ -25,5 +26,5 @@ export async function assignedCourses(learner: EnrolledPerson) {
 export async function canAccessCourse(course: Course, learner: EnrolledPerson) {
   if (course.status !== 'published' || !await canLearn(learner.id)) return false;
   await syncAssignments(learner.id).run();
-  return !!await db().prepare('SELECT course_id FROM course_assignments WHERE learner_id=? AND course_id=?').bind(learner.id,course.id).first();
+  return await pathwayUnlocked(learner.id,course.id) && !!await db().prepare('SELECT course_id FROM course_assignments WHERE learner_id=? AND course_id=?').bind(learner.id,course.id).first();
 }

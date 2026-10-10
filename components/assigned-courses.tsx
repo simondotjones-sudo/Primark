@@ -19,7 +19,7 @@ import type { CourseCoverKey } from '@/lib/course-covers';
 type AssignedCourse = CoursePanelDetails & {
   id: string; title: string; description: string; coverKey: CourseCoverKey;
   status: 'Not started' | 'In progress' | 'Completed';
-  awaitingAssessment:boolean;assessorRequired:boolean;progressPercent: number | null;dueAt:string|null;quizRequired:boolean;quizPassed:boolean;lessonsComplete:boolean;
+  pathwayLocked:boolean;awaitingAssessment:boolean;assessorRequired:boolean;progressPercent: number | null;dueAt:string|null;quizRequired:boolean;quizPassed:boolean;lessonsComplete:boolean;
   renewal?:CourseRenewal;
   passport?: SafetyPassportRecord | null;
   certificate:{token:string;expiresAt:string|null;completedAt:string}|null;
@@ -109,7 +109,7 @@ export default function AssignedCourses({view = 'all', hasLegacyCourse = false}:
           <CourseProgress status={c.status} percent={c.progressPercent} title={c.title}/>
           {c.certificate&&<><span className={'certificate-status is-'+certificateStatus(c.certificate.expiresAt).toLowerCase().replaceAll(' ','-')}>{t(certificateStatus(c.certificate.expiresAt))}</span><p className="course-expiry">{c.certificate.expiresAt?t('Expires {date}',{date:date(c.certificate.expiresAt)}):t('No expiry')}</p></>}
           <CourseRenewalNotice certificate={c.certificate} renewal={c.renewal} onRenew={()=>{setRenewalError('');setSelected(c);}}/>
-          <div className="assigned-course-actions">{c.quizRequired&&!c.quizPassed&&c.lessonsComplete&&<a href={`/learn/${c.id}/quiz/`}>{t('Take quiz')}</a>}<a href={`/learn/${c.id}/`}>{t(c.status === 'Completed' ? 'Review course' : c.status === 'In progress' ? 'Continue course' : 'Start course')}</a>{c.certificate&&<a href={'/certificates/'+c.certificate.token+'/'}>{t("View certificate")}</a>}</div>
+          <div className="assigned-course-actions">{c.pathwayLocked?<a href="/?courses=1&pathways=1">{t("Complete the earlier pathway stage first")}</a>:<>{c.quizRequired&&!c.quizPassed&&c.lessonsComplete&&<a href={`/learn/${c.id}/quiz/`}>{t('Take quiz')}</a>}<a href={`/learn/${c.id}/`}>{t(c.status === 'Completed' ? 'Review course' : c.status === 'In progress' ? 'Continue course' : 'Start course')}</a></>}{c.certificate&&<a href={'/certificates/'+c.certificate.token+'/'}>{t("View certificate")}</a>}</div>
           </div>
         </article>;
         return c.status==='Completed'&&c.category.trim().toLowerCase()==='induction'&&c.passport

@@ -13,7 +13,7 @@ const quizQuery=`SELECT h.id AS assignment_id,h.assessor_required,h.quiz_json,c.
   WHERE NOT EXISTS(SELECT 1 FROM scorm_progress s WHERE s.learner_id=a.learner_id AND s.package_id=c.package_id AND s.sco_id=item->>'id' AND s.completed_at IS NOT NULL AND s.status IN ('completed','passed'))) AS lessons_complete
  FROM course_assignments a JOIN assignment_history h ON h.id=a.history_id JOIN courses c ON c.id=a.course_id
  JOIN course_packages p ON p.id=c.package_id AND p.status='ready'
- WHERE a.learner_id=? AND a.course_id=? AND c.status='published'`;
+ WHERE a.learner_id=? AND a.course_id=? AND c.status='published' AND pathway_course_unlocked(a.learner_id,a.course_id)`;
 type QuizRow={assessor_required:boolean;assignment_id:string;quiz_json:CourseQuiz|null;title:string;package_id:string;passed:boolean;lessons_complete:boolean};
 export async function GET(request:NextRequest){try{
  const learner=await currentLearner(request);if(!learner||learner.admin_only)throw new CourseError('Learner sign-in is required.',403);

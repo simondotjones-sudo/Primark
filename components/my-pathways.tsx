@@ -1,0 +1,11 @@
+'use client';
+import {useEffect,useState} from 'react';
+import {useLanguage} from '@/components/language-provider';
+import {pathwayOverdue,pathwayStatus,type PathwayEnrolment} from '@/lib/pathway-types';
+import './pathways.css';
+export default function MyPathways(){
+ const {t,date}=useLanguage(),[rows,setRows]=useState<PathwayEnrolment[]|null>(null),[error,setError]=useState('');
+ useEffect(()=>{const controller=new AbortController();fetch('/api/pathways',{cache:'no-store',signal:controller.signal}).then(async r=>{const d=await r.json();if(!r.ok)throw Error(d.error);setRows(d.rows);}).catch(e=>{if(e.name!=='AbortError')setError(e.message);});return()=>controller.abort();},[]);
+ if(error)return <p role="alert">{t(error)}</p>;if(!rows)return <p>{t('Loading…')}</p>;if(!rows.length)return <div className="certificates-empty">{t('No pathways have been assigned to you yet.')}</div>;
+ return <div className="pathway-grid">{rows.map(e=>{const count=e.courses.filter(c=>c.completedAt).length;return <article className="paper pathway-panel" key={e.id}><div className="pathway-summary"><h2>{e.name}</h2><span className={'pathway-status'+(e.completed_at?' complete':'')}>{t(pathwayStatus(e))}</span></div>{e.description&&<p>{e.description}</p>}<p>{t('{done} of {total} courses complete',{done:count,total:e.courses.length})}</p><progress className="pathway-progress" value={count} max={e.courses.length} aria-label={t('Pathway progress')}/><p>{e.due_at?t('Deadline: {date}',{date:date(e.due_at)}):t('No deadline')} {pathwayOverdue(e)&&<span className="pathway-status overdue">{t('Overdue')}</span>}</p><ol className="pathway-course-list">{e.courses.map(c=><li key={c.courseId}><span><small>{t('Stage')} {c.stage}</small><strong>{c.title}</strong><small>{t(c.completedAt?'Complete':c.awaitingAssessment?'Awaiting assessment':c.locked?'Complete the earlier pathway stage first':c.startedAt?'In progress':'Available now')}{c.expired?' · '+t('Course certificate expired'):''}</small></span>{!c.locked&&c.available&&<a href={'/learn/'+encodeURIComponent(c.courseId)}>{t(c.completedAt?'Review course':c.startedAt?'Continue course':'Start course')} →</a>}{!c.available&&<small>{t('Course currently unavailable')}</small>}</li>)}</ol>{e.certificate_token&&<a href={'/pathway-certificates/'+e.certificate_token}>{t('View pathway certificate')} →</a>}</article>;})}</div>;
+}

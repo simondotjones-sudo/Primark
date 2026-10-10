@@ -32,7 +32,7 @@ export async function POST(request:NextRequest) {try {
     if(!preview){
       const {rows:[person]}=await client.query(`SELECT l.id FROM learners l WHERE l.id=$1 AND ${activeLearnerSql()} FOR UPDATE`,[learner!.id]);
       const {rows:[assignment]}=await client.query(`SELECT a.history_id FROM course_assignments a JOIN courses c ON c.id=a.course_id
-        WHERE a.learner_id=$1 AND a.course_id=$2 AND c.package_id=$3 AND c.status='published'`,[learner!.id,course.id,pack.id]);
+        WHERE a.learner_id=$1 AND a.course_id=$2 AND c.package_id=$3 AND c.status='published' AND pathway_course_unlocked(a.learner_id,a.course_id)`,[learner!.id,course.id,pack.id]);
       if(!person||!assignment?.history_id)throw new CourseError('This course is not assigned to you.',403);
       historyId=String(assignment.history_id);
     }
@@ -64,7 +64,7 @@ export async function POST(request:NextRequest) {try {
  const duration=data['cmi.core.session_time']||'0000:00:00.00';if(!/^\d{2,4}:[0-5]\d:[0-5]\d(?:\.\d{1,2})?$/.test(duration))throw new CourseError('Invalid session duration.');
  await inTransaction(async client=>{
   const {rows:[person]}=await client.query(`SELECT l.id FROM learners l WHERE l.id=$1 AND ${activeLearnerSql()} FOR UPDATE`,[learner.id]);
-  const {rows:[current]}=await client.query('SELECT s.* FROM scorm_launches s JOIN course_assignments a ON a.history_id=s.assignment_id WHERE s.token=$1 AND s.expires_at>$2 FOR UPDATE OF s',[b.token,now()]);
+  const {rows:[current]}=await client.query('SELECT s.* FROM scorm_launches s JOIN course_assignments a ON a.history_id=s.assignment_id WHERE s.token=$1 AND s.expires_at>$2 AND pathway_course_unlocked(s.learner_id,s.course_id) FOR UPDATE OF s',[b.token,now()]);
   if(!person||!current)throw new CourseError('This course assignment has changed. Return to My Courses.',403);
   if(b.sequence<=Number(current.sequence))return;
   const result=await db().prepare(`UPDATE scorm_progress SET data_json=?,status=?,score=?,total_centiseconds=?,updated_at=?,completed_at=CASE WHEN ? IN ('passed','completed') THEN COALESCE(completed_at,?) ELSE completed_at END WHERE learner_id=? AND package_id=? AND sco_id=? AND active_launch=?`)

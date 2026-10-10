@@ -17,6 +17,7 @@ import { countryName, formatDate } from '@/lib/ui-copy';
 import { languageLocale, type Language } from '@/lib/i18n';
 import './training-report.css';
 import {useLanguage} from '@/components/language-provider';
+import PathwayReport from '@/components/pathway-report';
 import PeriodReporting from '@/components/period-report';
 import UserActivity from '@/components/user-activity';
 import ExpiringCertificatesCard from '@/components/expiring-certificates';
@@ -40,7 +41,7 @@ export default function TrainingReporting({access,platformAdmin,filter,onFilterC
   const [refresh,setRefresh]=useState(0);
   const [category,setCategory]=useState('all');
   const [courseId,setCourseId]=useState('all');
-  const [view,setView]=useState<'overview'|'matrix'|'activity'|'period'>('overview');
+  const [view,setView]=useState<'overview'|'matrix'|'activity'|'period'|'pathways'>('overview');
   const [search,setSearch]=useState('');
   const [year,setYear]=useState(String(new Date().getUTCFullYear()));
   const [month,setMonth]=useState('all');
@@ -51,12 +52,15 @@ export default function TrainingReporting({access,platformAdmin,filter,onFilterC
   const isMatrix=view==='matrix'&&filter.role==='site';
   const isActivity=view==='activity';
   const isPeriod=view==='period';
+  const isPathways=view==='pathways';
+  const [pathwaysEnabled,setPathwaysEnabled]=useState(false);
+  useEffect(()=>{const c=new AbortController();fetch('/api/pathways?mode=availability',{signal:c.signal,cache:'no-store'}).then(r=>r.json()).then(d=>setPathwaysEnabled(!!d.enabled)).catch(()=>{});return()=>c.abort();},[]);
   useEffect(()=>{
-    if(isPeriod)return;
+    if(isPeriod||isPathways)return;
     const controller=new AbortController();setLoading(true);setError('');setCell(null);
     fetch('/api/reporting?'+new URLSearchParams({...filter,category,course:courseId}),{cache:'no-store',signal:controller.signal}).then(async r=>{const result=await r.json();if(!r.ok)throw new Error(result.error||'Could not load reporting.');return result;}).then(result=>{if(!controller.signal.aborted){setOverview(result);setLoading(false);}}).catch(e=>{if(e.name!=='AbortError'){setOverview(null);setError(e.message);setLoading(false);}});
     return()=>controller.abort();
-  },[filter.role,filter.country,filter.site,access.scope,access.country,access.siteId,category,courseId,refresh,isPeriod]);
+  },[filter.role,filter.country,filter.site,access.scope,access.country,access.siteId,category,courseId,refresh,isPeriod,isPathways]);
   useEffect(()=>{
     if(!isMatrix){setData(null);return;}
     const controller=new AbortController();setMatrixLoading(true);setData(null);setError('');
@@ -121,14 +125,14 @@ export default function TrainingReporting({access,platformAdmin,filter,onFilterC
   const statusText=(r?:TrainingRecord)=>r?t(statusLabels[r.status]):t('Not assigned');
   return <section className="report training-report">
     <div className="scope report-scope">
-      <div className="report-view-tabs pill-switch" role="group" aria-label={t('Report format')}><button aria-pressed={view==='overview'} className={view==='overview'?'selected':''} onClick={()=>setView('overview')}><span>{t('Overview')}</span></button>{filter.role==='site'&&<button aria-pressed={isMatrix} className={isMatrix?'selected':''} onClick={()=>setView('matrix')}><span>{t('Site matrix')}</span></button>}<button aria-pressed={isActivity} className={isActivity?'selected':''} onClick={()=>setView('activity')}><span>{t('User activity')}</span></button><button aria-pressed={isPeriod} className={isPeriod?'selected':''} onClick={()=>setView('period')}><span>{t('Period report')}</span></button></div>
+      <div className="report-view-tabs pill-switch" role="group" aria-label={t('Report format')}><button aria-pressed={view==='overview'} className={view==='overview'?'selected':''} onClick={()=>setView('overview')}><span>{t('Overview')}</span></button>{filter.role==='site'&&<button aria-pressed={isMatrix} className={isMatrix?'selected':''} onClick={()=>setView('matrix')}><span>{t('Site matrix')}</span></button>}<button aria-pressed={isActivity} className={isActivity?'selected':''} onClick={()=>setView('activity')}><span>{t('User activity')}</span></button><button aria-pressed={isPeriod} className={isPeriod?'selected':''} onClick={()=>setView('period')}><span>{t('Period report')}</span></button>{pathwaysEnabled&&<button aria-pressed={view==='pathways'} className={view==='pathways'?'selected':''} onClick={()=>setView('pathways')}><span>{t('Pathway completion')}</span></button>}</div>
       <div className="report-location">
         <label><span className="sr-only">{t('Country')}</span><NativeSelect aria-label={t('Reporting country')} value={filter.role==='global'?'all':filter.country} disabled={filter.role==='global'||scope.countries.length<2} onChange={e=>changeScope({country:e.target.value})}>{filter.role==='global'?<option value="all">{t('All countries')}</option>:scope.countries.map(c=><option key={c} value={c}>{countryName(c,lang)}</option>)}</NativeSelect></label>
         <label className="store-picker"><span className="sr-only">{t('Store')}</span><NativeSelect aria-label={t('Reporting store')} value={filter.role==='site'?filter.site:'all'} disabled={filter.role!=='site'||scope.sites.length<2} onChange={e=>changeScope({site:e.target.value})}>{filter.role!=='site'?<option value="all">{t('All stores')}</option>:scope.sites.map(s=><option key={s.id} value={s.id}>{storeLabel(s)}</option>)}</NativeSelect></label>
       </div>
       <div className="scope-buttons pill-switch" role="group" aria-label={t('Reporting view')}>{scope.roles.map(role=><button key={role} aria-pressed={filter.role===role} className={filter.role===role?'selected':''} onClick={()=>changeScope({role})}>{t(role==='global'?'Global':role==='country'?'Country':'Store')}</button>)}</div>
     </div>
-    {isPeriod?<PeriodReporting filter={filter} platformAdmin={platformAdmin}/>:<>
+    {view==='pathways'?<PathwayReport filter={filter}/>:isPeriod?<PeriodReporting filter={filter} platformAdmin={platformAdmin}/>:<>
     <div className={"report-filters"+(isActivity?" activity-filters":"")}>
       <label>{t('Category')}<NativeSelect aria-label={t('Course category')} disabled={loading} value={activeCategory} onChange={e=>{setCategory(e.target.value);setCourseId('all');setCell(null);}}><option value="all">{t('All categories')}</option>{categories.map(c=><option key={c} value={c}>{t(c)}</option>)}</NativeSelect></label>
       <label className="course-filter">{t('Course')}<NativeSelect aria-label={t('Reporting course')} disabled={loading} value={activeCourse} onChange={e=>{setCourseId(e.target.value);setCell(null);}}><option value="all">{t('All courses')}</option>{options.map(c=><option key={c.id} value={c.id}>{c.title}{c.paused?' · '+t('Paused'):''}</option>)}</NativeSelect></label>
