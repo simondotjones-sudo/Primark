@@ -125,3 +125,5 @@
 
 .player-actions .language-picker select{max-width:118px;font-size:12px;padding-block:7px}.player-actions .language-picker svg{display:none}
 @media(max-width:700px){.player-toolbar{height:auto;min-height:56px;flex-wrap:wrap;padding-block:8px;gap:8px}.player-actions{margin-inline-start:auto}.player-heading:has(select){order:3;flex-basis:100%}.player-heading select{max-width:none}.player-heading:not(:has(select)){display:none}.player-save-state.is-preview .player-status-text{display:none}.player-actions .language-picker select{max-width:95px}.player-exit{max-width:160px;white-space:normal;line-height:1.2}.player-wordmark{font-size:14px}}
+
+.quiz-page{max-width:850px;margin:auto}.quiz-page .paper{padding:clamp(20px,4vw,40px)}.quiz-page h1{font-size:26px;margin-bottom:16px}.quiz-page h2{font-size:22px;margin:20px 0}.quiz-page p{margin:16px 0}.quiz-question{border:1px solid #dce7ed;border-radius:12px;padding:20px;margin:24px 0}.quiz-question legend{font-weight:600;padding:0 8px}.quiz-answer{display:flex;align-items:center;gap:12px;padding:14px 8px;cursor:pointer}.quiz-answer input{width:18px;height:18px;flex-shrink:0}

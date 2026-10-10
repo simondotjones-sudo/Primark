@@ -1,4 +1,6 @@
 'use client';
+import CourseQuizEditor from '@/components/course-quiz-editor';
+import type {CourseQuiz} from '@/lib/course-quiz';
 import {useLanguage} from '@/components/language-provider';
 import { useState } from 'react';
 import {Button} from '@/components/ui/button';
@@ -9,8 +11,8 @@ import { courseCategories,courseLanguages } from '@/lib/course-catalogue';
 import {useStores} from '@/components/store-directory';
 import type { Course } from '@/lib/course-types';
 
-export type CatalogueFields={refresherRules:NonNullable<Course['refresher_rules']>;englishTitle:string;category:string;languageCode:string;catalogueScope:Course['catalogue_scope'];availableCountries:string[];inductionRole:Course['induction_role'];validityMonths:number|null;estimatedDurationMinutes:number|null;lessonCount:number|null};
-export const fieldsFor=(course:Course|null):CatalogueFields=>({refresherRules:course?.refresher_rules??[],englishTitle:course?.english_title||'',category:course?.category||'',languageCode:course?.language_code||'en',catalogueScope:course?.catalogue_scope||'unconfigured',availableCountries:JSON.parse(course?.available_countries_json||'[]'),inductionRole:course?.induction_role||'none',validityMonths:course?.validity_months??null,estimatedDurationMinutes:course?.estimated_duration_minutes??null,lessonCount:course?.lesson_count??null});
+export type CatalogueFields={deadlineDays:number|null;quiz:CourseQuiz|null;refresherRules:NonNullable<Course['refresher_rules']>;englishTitle:string;category:string;languageCode:string;catalogueScope:Course['catalogue_scope'];availableCountries:string[];inductionRole:Course['induction_role'];validityMonths:number|null;estimatedDurationMinutes:number|null;lessonCount:number|null};
+export const fieldsFor=(course:Course|null):CatalogueFields=>({deadlineDays:course?.deadline_days??null,quiz:course?.quiz_json??null,refresherRules:course?.refresher_rules??[],englishTitle:course?.english_title||'',category:course?.category||'',languageCode:course?.language_code||'en',catalogueScope:course?.catalogue_scope||'unconfigured',availableCountries:JSON.parse(course?.available_countries_json||'[]'),inductionRole:course?.induction_role||'none',validityMonths:course?.validity_months??null,estimatedDurationMinutes:course?.estimated_duration_minutes??null,lessonCount:course?.lesson_count??null});
 export default function CourseCatalogueFields({value,onChange,courses=[],courseId}:{value:CatalogueFields;onChange:(next:CatalogueFields)=>void;courses?:Course[];courseId?:string}){
  const stores=useStores();
 const countries=[...new Set(stores.map(s=>s.country))].sort();
@@ -28,6 +30,9 @@ const countries=[...new Set(stores.map(s=>s.country))].sort();
       <label>{t("Number of lessons")}<Input type="number" min={1} max={1000} step={1} placeholder={t("Optional")} value={value.lessonCount ?? ''} aria-describedby="course-size-help" onChange={e=>change({lessonCount:e.target.value===''?null:e.target.valueAsNumber})}/></label>
     </div>
     <p id="course-size-help" className="course-field-help">{t("Use the duration and actual lesson count from the course. Leave unknown values blank; they will stay hidden on course panels.")}</p>
+    <label>{t('Deadline (days from assignment)')}<Input type="number" min={1} max={3650} step={1} value={value.deadlineDays??''} placeholder={t('No deadline')} onChange={e=>change({deadlineDays:e.target.value===''?null:e.target.valueAsNumber})}/></label>
+    <p className="course-field-help">{t('Applies to new assignments only. Existing deadlines stay unchanged.')}</p>
+    <CourseQuizEditor value={value.quiz} onChange={quiz=>change({quiz})}/>
     <fieldset className="course-certification-fields"><legend>{t("Certification")}</legend>
       <label>{t("Renewal frequency")}<NativeSelect value={custom?'custom':value.validityMonths??''} aria-describedby="course-validity-help" onChange={e=>{const selected=e.target.value;setCustom(selected==='custom');if(selected!=='custom')change({validityMonths:selected===''?null:Number(selected)});else if(value.validityMonths===null)change({validityMonths:12});}}>
         <option value="">{t("No expiry")}</option><option value="3">{t("Every 3 months")}</option><option value="6">{t("Every 6 months")}</option><option value="12">{t("Every year")}</option><option value="24">{t("Every 2 years")}</option><option value="36">{t("Every 3 years")}</option><option value="custom">{t("Custom")}</option>
@@ -36,7 +41,7 @@ const countries=[...new Set(stores.map(s=>s.country))].sort();
       <p id="course-validity-help" className="course-field-help">{t("A certificate is issued when all course lessons are passed or completed. Renewal runs from the completion date. Changes apply to future certificates; issued certificates keep their original expiry.")}</p>
     </fieldset>
     <fieldset className="course-certification-fields"><legend>{t('Refresher courses')}</legend>
-      <p className="course-field-help">{t('Assign a linked course 30 days before expiry in the selected countries. Each new assignment uses one credit. Publish the refresher before it is due.')}</p>
+      <p className="course-field-help">{t('Assign a linked course 30 days before expiry in the selected countries. Each new assignment uses one credit. Publish the refresher before it is due.')} {t('Credits apply only when enabled.')}</p>
       {value.refresherRules.map((rule,index)=><div className="refresher-rule" key={index}>
         <label>{t('Country')}<NativeSelect required value={rule.country} onChange={e=>change({refresherRules:value.refresherRules.map((r,i)=>i===index?{...r,country:e.target.value}:r)})}>
           <option value="">{t('Select a country')}</option>{countries.map(c=><option key={c} value={c} disabled={value.refresherRules.some((r,i)=>i!==index&&r.country===c)}>{countryLabel(c)}</option>)}

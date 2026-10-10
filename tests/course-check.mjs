@@ -1,4 +1,5 @@
 // The named sample-account data migration is covered separately by sample-completion-check.mjs.
+import {learningControlsChecks} from './learning-controls-checks.mjs';
 import { certificateChecks } from './certificate-checks.mjs';
 import assert from 'node:assert/strict';
 import { readFileSync, readdirSync, mkdtempSync, writeFileSync, rmSync } from 'node:fs';
@@ -26,6 +27,9 @@ writeFileSync(entry,`export {default as certificatePage} from '${process.cwd()}/
 export * as certificates from '${process.cwd()}/app/api/certificates/route.ts';
 export * as certificateServer from '${process.cwd()}/lib/certificate-server.ts';
 export * as certificateTypes from '${process.cwd()}/lib/certificates.ts';
+export * as quiz from '${process.cwd()}/app/api/courses/quiz/route.ts';
+export * as settings from '${process.cwd()}/app/api/admin/settings/route.ts';
+export * as compliance from '${process.cwd()}/lib/compliance.ts';
 export * as training from '${process.cwd()}/lib/training-report.ts';
 export * as reportTypes from '${process.cwd()}/lib/training-report-types.ts';
 export * as admin from '${process.cwd()}/app/api/admin/courses/route.ts';
@@ -53,7 +57,7 @@ await build({entryPoints:[entry],outfile:join(dir,'bundle.mjs'),bundle:true,plat
 const m=await import(join(dir,'bundle.mjs'));
 let tests=0;
 async function check(name,fn){await fn();console.log('PASS '+name);tests++;}
-async function call(mod,method,body,{admin=false,user='',url='https://local.test/api',params,origin='https://local.test'}={}){return context.run({admin},async()=>{const req=new Request(url,{method,headers:{...(body instanceof Uint8Array?{'Content-Length':String(body.length)}:{'Content-Type':'application/json'}),...(user?{cookie:'primark_session='+user}:{}),origin},...(body===undefined?{}:{body:body instanceof Uint8Array?body:JSON.stringify(body)})});req.nextUrl=new URL(req.url);req.cookies={get:name=>name==='primark_session'&&user?{value:user}:undefined};const res=await mod[method](req,{params:Promise.resolve(params||{})});return {status:res.status,data:res.headers.get('content-type')?.includes('json')?await res.json():await res.text(),headers:res.headers};});}
+async function call(mod,method,body,{admin=false,user='',url='https://local.test/api',params,origin='https://local.test'}={}){return context.run({admin,user},async()=>{const req=new Request(url,{method,headers:{...(body instanceof Uint8Array?{'Content-Length':String(body.length)}:{'Content-Type':'application/json'}),...(user?{cookie:'primark_session='+user}:{}),origin},...(body===undefined?{}:{body:body instanceof Uint8Array?body:JSON.stringify(body)})});req.nextUrl=new URL(req.url);req.cookies={get:name=>name==='primark_session'&&user?{value:user}:undefined};const res=await mod[method](req,{params:Promise.resolve(params||{})});return {status:res.status,data:res.headers.get('content-type')?.includes('json')?await res.json():await res.text(),headers:res.headers};});}
 const ireland=m.stores.find(s=>s.country==='Ireland'),uk=m.stores.find(s=>s.country==='United Kingdom'),france=m.stores.find(s=>s.country==='France');
 async function learner(id,site){await query('INSERT INTO learners(id,name,email,code_hash,store_id,country,entered_at) VALUES(?,?,?,?,?,?,?)',id,id,id+'@example.test','test-code',site.id,site.country,new Date().toISOString());await query('INSERT INTO sessions(token_hash,learner_id,expires_at) VALUES(?,?,?)',await m.hash(id),id,'2099-01-01T00:00:00.000Z');}
 await learner('irish-user',ireland);await learner('uk-user',uk);await learner('fr-user',france);
@@ -125,6 +129,7 @@ await check('saved Rise percentage is returned on the tile and survives launch w
 await check('admin preview never records learner progress',async()=>{const before=Number((await first('SELECT COUNT(*) n FROM scorm_progress')).n);const r=await call(m.runtime,'POST',{action:'launch',courseId:course.id,preview:true},{admin:true});assert.equal(r.status,200);assert.equal((await call(m.runtime,'POST',{action:'save',token:r.data.token,sequence:1,data},{admin:true})).status,200);assert.equal(Number((await first('SELECT COUNT(*) n FROM scorm_progress')).n),before);});
 await check('concurrent edits rejected and pausing removes course without deleting records',async()=>{assert.equal((await call(m.admin,'POST',{...course,revision:0,audience:JSON.parse(course.audience_json),status:'draft'},{admin:true})).status,409);const r=await call(m.admin,'POST',{...course,audience:JSON.parse(course.audience_json),status:'draft'},{admin:true});assert.equal(r.status,200);assert.equal((await call(m.courses,'GET',undefined,{user:'irish-user'})).data.courses.length,0);assert.equal(Number((await first('SELECT COUNT(*) n FROM scorm_progress')).n),1);});
 await certificateChecks({m,check,query,first,call,learner,ireland,course,pack,context});
+await learningControlsChecks({m,check,query,first,call,learner,ireland});
 console.log(`${tests} course checks passed. All test data stayed in an in-memory PostgreSQL database.`);
 rmSync(dir,{recursive:true,force:true});
 

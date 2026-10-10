@@ -2,7 +2,7 @@ export const ORIGINAL_INDUCTION = 'original-safety-passport';
 export type TrainingStatus = 'completed' | 'expired' | 'in-progress' | 'not-started';
 export type ReportCourse = { id:string; title:string; category:string; language:string; paused:boolean; validityMonths:number|null };
 export type ReportEmployee = { id:string; name:string; email:string; workdayId:string|null; archivedAt:string|null; country:string; storeId:string; storeName:string };
-export type TrainingRecord = { learnerId:string; courseId:string; status:TrainingStatus; completedAt:string|null; expiresAt:string|null; score:string|null };
+export type TrainingRecord = { dueAt?:string|null;replacedByRefresher?:boolean; learnerId:string; courseId:string; status:TrainingStatus; completedAt:string|null; expiresAt:string|null; score:string|null };
 export type TrainingReport = {
   courses:ReportCourse[]; employees:ReportEmployee[]; records:TrainingRecord[];
   generatedAt:string; legacy:{email:string;completedAt:string|null;storeName:string}[];
@@ -10,9 +10,9 @@ export type TrainingReport = {
 export type ReportSelection = {category:string;courseId:string};
 export type TrainingOverview = {
   courses:ReportCourse[]; generatedAt:string;
-  metrics:{employees:number;records:number;inProgress:number;expired:number;assigned:number;completed:number;compliance:number|null;expiringPeople:number};
+  metrics:{assessed:number;compliant:number;withinDeadline:number;excludeWithinDeadline:boolean;employees:number;records:number;inProgress:number;expired:number;assigned:number;completed:number;compliance:number|null;expiringPeople:number};
   completions:{month:string;count:number}[];
-  groups:{country:string;storeId:string;total:number;completed:number;expired:number}[];
+  groups:{assessed:number;withinDeadline:number;country:string;storeId:string;total:number;completed:number;expired:number}[];
   legacy:{month:string|null;count:number}[];
 };
 export type TrainingActivity = Pick<TrainingReport,'courses'|'employees'|'records'|'generatedAt'> & {page:number;pageSize:number;hasMore:boolean};

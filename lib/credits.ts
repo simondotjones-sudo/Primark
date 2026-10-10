@@ -19,14 +19,14 @@ export async function lockCreditActor(client:{query:(sql:string,args?:unknown[])
 }
 
 export async function creditAccount(storeId:string){
- const {results:[account]}=await db().prepare(`SELECT a.store_id AS "storeId",a.balance,a.target,
+ const {results:[account]}=await db().prepare(`SELECT a.store_id AS "storeId",a.balance,a.target,(SELECT credits_enabled FROM organisation_settings WHERE id=1) AS enabled,
   (SELECT min(starts_on)::text FROM accounting_periods WHERE starts_on>(now() AT TIME ZONE 'Europe/London')::date) AS "nextTopup",
   (SELECT count(*)::int FROM credit_ledger e JOIN accounting_periods p ON p.starts_on<=(now() AT TIME ZONE 'Europe/London')::date AND p.ends_on>=(now() AT TIME ZONE 'Europe/London')::date
    WHERE e.store_id=a.store_id AND e.kind='assignment' AND e.recorded_at>=p.starts_on::timestamp AT TIME ZONE 'Europe/London' AND e.recorded_at<(p.ends_on+1)::timestamp AT TIME ZONE 'Europe/London') AS "usedThisPeriod"
   FROM store_credit_accounts a WHERE a.store_id=?`).bind(storeId).all<CreditAccount>();
  return account||null;
 }
-export type CreditAccount={storeId:string;balance:number;target:number;nextTopup:string|null;usedThisPeriod:number};
+export type CreditAccount={enabled:boolean;storeId:string;balance:number;target:number;nextTopup:string|null;usedThisPeriod:number};
 
 export async function changeAssignment(actor:UserAdministrator,storeId:string,body:{action:string;assignmentId:string;reason?:string}){
  return inTransaction(async client=>{

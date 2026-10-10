@@ -45,7 +45,8 @@ export async function POST(request:NextRequest) {try {
     }
   });
   const split=sco.href.search(/[?#]/);const path=split<0?sco.href:sco.href.slice(0,split),suffix=split<0?'':sco.href.slice(split);
-  return json({token,title:course.title,scos,scoId:sco.id,preview,url:`/scorm-content/${token}/${path.split('/').map(encodeURIComponent).join('/')}${suffix}`});
+  const quiz=preview?null:await db().prepare('SELECT h.quiz_json IS NOT NULL AS required FROM course_assignments a JOIN assignment_history h ON h.id=a.history_id WHERE a.learner_id=? AND a.course_id=?').bind(learner!.id,course.id).first<{required:boolean}>();
+  return json({quizRequired:!!quiz?.required,token,title:course.title,scos,scoId:sco.id,preview,url:`/scorm-content/${token}/${path.split('/').map(encodeURIComponent).join('/')}${suffix}`});
  }
  if(b.action!=='save')throw new CourseError('Unknown action.');
  const learner=await currentLearner(request);
