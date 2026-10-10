@@ -80,7 +80,7 @@ async function reportQuery(siteIds:string[]|null,selection=allCourses,search='')
     SELECT learner_id AS "learnerId",course_id AS "courseId",
       CASE WHEN complete THEN CASE WHEN expires_at<=? THEN 'expired' ELSE 'completed' END WHEN saved_count>0 THEN 'in-progress' ELSE 'not-started' END AS status,
       completed_at AS "completedAt",expires_at AS "expiresAt",COALESCE(quiz_score,CASE WHEN sco_count=1 THEN score END) AS score,
-      to_char(LEAST(due_at,previous_expiry) AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') AS "dueAt",to_char(previous_expiry AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') AS "coveredUntil",replaced_by_refresher AS "replacedByRefresher",learning_seconds AS "learningSeconds" FROM dated
+      to_char(LEAST(due_at,previous_expiry) AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') AS "dueAt",to_char(previous_expiry AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') AS "coveredUntil",replaced_by_refresher AS "replacedByRefresher",CASE WHEN feature_enabled('learning_time') THEN learning_seconds END AS "learningSeconds" FROM dated
     UNION ALL
     SELECT id,?::text,CASE WHEN completed_at IS NOT NULL THEN 'completed' WHEN started_at IS NOT NULL THEN 'in-progress' ELSE 'not-started' END,
       completed_at,NULL,CASE WHEN best_score IS NOT NULL THEN best_score::text||'/20' END,NULL::text,NULL::text,false,NULL::double precision FROM people

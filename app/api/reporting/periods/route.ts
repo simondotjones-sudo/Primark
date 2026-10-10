@@ -1,3 +1,4 @@
+import {requireFeature} from '@/lib/features';
 import type {NextRequest} from 'next/server';
 import {getReportingAccess,reportingFilter} from '@/lib/reporting-access';
 import {getAdminUser} from '@/lib/admin-auth';
@@ -9,6 +10,7 @@ import {periodReportView} from '@/lib/period-report-view';
 export const dynamic='force-dynamic';
 export async function GET(request:NextRequest){try{
  const access=await getReportingAccess(request);if(!access)throw new CourseError('Reporting access is required.',403);
+ await requireFeature('credit_reporting');
  const params=request.nextUrl.searchParams,scope=reportingFilter(access,params,await storeDirectory()),sort=params.get('sort');
  const report=periodReportView(await periodReport(scope.siteIds,params.get('period'),!!await getAdminUser()),{search:params.get('search')||'',zeroOnly:params.get('zeroOnly')==='1',sort:sort==='inactive'||sort==='assignments'?sort:'store'});
  if(params.get('export')==='xlsx')return new Response(new Uint8Array(await periodWorkbook(report)),{headers:{'Content-Type':'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet','Content-Disposition':`attachment; filename="primark-${report.period.id}.xlsx"`,'Cache-Control':'private, no-store'}});

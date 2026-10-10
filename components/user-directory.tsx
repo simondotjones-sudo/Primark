@@ -1,4 +1,5 @@
 'use client';
+import {useFeatures} from '@/hooks/use-features';
 import LearnerImport from '@/components/learner-import';
 import {storeLabel} from '@/lib/store-label';
 import {useEffect,useState} from 'react';
@@ -13,6 +14,7 @@ import {userRole,userRoleLabels,type UserPerson,type UserOptions,type UserDirect
 type Props={type:'all'|'learner'|'admin';onAssign:(person:UserPerson)=>void;onAssignAll:()=>void;onPermissions:(options:UserOptions)=>void};
 export default function UserDirectory({type,onAssign,onAssignAll,onPermissions}:Props) {
   const {t,date,country:countryLabel}=useLanguage();
+  const features=useFeatures();
   const [data,setData]=useState<UserDirectoryData|null>(null),[search,setSearch]=useState(''),[page,setPage]=useState(1),[refresh,setRefresh]=useState(0);
   const [country,setCountry]=useState(''),[storeId,setStoreId]=useState(''),[status,setStatus]=useState('active');
   const [loading,setLoading]=useState(true),[creating,setCreating]=useState(false),[editing,setEditing]=useState<UserPerson|null>(null),[archiving,setArchiving]=useState<UserPerson|null>(null);
@@ -44,7 +46,7 @@ export default function UserDirectory({type,onAssign,onAssignAll,onPermissions}:
     {message&&<p className="admin-success" role="status">{t(message)}</p>}
     {lifecycle&&data?<Lifecycle person={lifecycle.person} action={lifecycle.action} options={data} onCancel={()=>setLifecycle(null)} onSaved={()=>changed('Employment change saved.')}/>:creating&&data?<AddUser initialType={type==='admin'?'admin':'learner'} options={data} onCancel={()=>setCreating(false)} onCreated={()=>{changed('Account created.');setStatus('active');setSearch('');setPage(1);}}/>:details?<EditDetails key={details.id} person={details} onCancel={()=>{setDetails(null);setRefresh(v=>v+1);}} onSaved={()=>changed('Details saved.')}/>:editing&&data?<EditAccess key={editing.id} person={editing} options={data} onCancel={()=>{setEditing(null);setRefresh(v=>v+1);}} onSaved={()=>changed('Access saved.')}/>:<>
       <div className="directory-toolbar"><Input type="search" aria-label={t('Search users')} placeholder={t('Name, email or Workday ID')} value={search} onChange={e=>{setSearch(e.target.value);setPage(1);}}/>
-        <div className="directory-actions">{data?.access.scope==='organisation'&&<Button variant="outline" onClick={()=>setImporting(true)}>{t('Bulk learner import')}</Button>}{data?.canAssign&&<Button variant="outline" onClick={onAssignAll}>{t('Assign courses')}</Button>}<Button className="blue-button" disabled={!data||loading} onClick={()=>{setMessage('');setCreating(true);}}>{t('Add user')}</Button></div></div>
+        <div className="directory-actions">{features.bulk_import&&data?.access.scope==='organisation'&&<Button variant="outline" onClick={()=>setImporting(true)}>{t('Bulk learner import')}</Button>}{data?.canAssign&&<Button variant="outline" onClick={onAssignAll}>{t('Assign courses')}</Button>}<Button className="blue-button" disabled={!data||loading} onClick={()=>{setMessage('');setCreating(true);}}>{t('Add user')}</Button></div></div>
       <div className="directory-filters">
         {data?.access.scope==='organisation'&&<label>{t('Country')}<NativeSelect value={country} aria-label={t('Filter users by country')} onChange={e=>{setCountry(e.target.value);setStoreId('');setPage(1);}}><option value="">{t('All countries')}</option>{countries.map(c=><option key={c} value={c}>{countryLabel(c)}</option>)}</NativeSelect></label>}
         {data?.access.scope!=='site'&&<label>{t('Store')}<NativeSelect value={storeId} aria-label={t('Filter users by store')} onChange={e=>{setStoreId(e.target.value);setPage(1);}}><option value="">{t('All stores')}</option>{data?.stores.filter(s=>!country||s.country===country).map(s=><option key={s.id} value={s.id}>{storeLabel(s)}{!s.active?' · '+t('Archived'):''}</option>)}</NativeSelect></label>}
@@ -57,7 +59,7 @@ export default function UserDirectory({type,onAssign,onAssignAll,onPermissions}:
           <small>{person.employment_started_on&&<span>{t('Employment start date')}: {date(person.employment_started_on)} </span>}{person.employment_ended_on&&<span>{t('Leaving date')}: {date(person.employment_ended_on)}</span>}</small><small className="employee-dates"><span>{t('Created')}: <time dateTime={person.entered_at}>{date(person.entered_at)}</time></span><span>{t('Last login')}: {person.last_login_at?<time dateTime={person.last_login_at}>{date(person.last_login_at)}</time>:t('No login recorded')}</span></small></div>
           <div className="employee-actions">
             {data.canAssign&&!person.admin_only&&!person.archived_at&&<Button variant="outline" onClick={()=>onAssign(person)}>{t('Assign courses')}</Button>}
-            {data.canEdit&&person.canArchive&&<><Button variant="outline" onClick={()=>setLifecycle({person,action:person.archived_at?'rejoin':'transfer'})}>{t(person.archived_at?'Rejoin':'Transfer')}</Button>{!person.archived_at&&<Button variant="outline" onClick={()=>setLifecycle({person,action:'leave'})}>{t("Mark as leaver")}</Button>}</>}
+            {features.lifecycle&&data.canEdit&&person.canArchive&&<><Button variant="outline" onClick={()=>setLifecycle({person,action:person.archived_at?'rejoin':'transfer'})}>{t(person.archived_at?'Rejoin':'Transfer')}</Button>{!person.archived_at&&<Button variant="outline" onClick={()=>setLifecycle({person,action:'leave'})}>{t("Mark as leaver")}</Button>}</>}
             {person.canEditDetails&&<Button variant="outline" onClick={()=>{setDetails(person);setMessage('');setError('');}}>{t('Edit details')}</Button>}
             {person.canEdit&&<Button variant="outline" aria-label={t('Edit access for {name}',{name:person.name})} onClick={()=>{setEditing(person);setMessage('');setError('');}}>{t('Edit access')}</Button>}
             {person.canArchive&&<Button variant="outline" aria-label={t(person.archived_at?'Restore {name}':'Archive {name}',{name:person.name})} onClick={()=>{setArchiving(person);setError('');setMessage('');}}>{t(person.archived_at?'Restore':'Archive')}</Button>}

@@ -11,7 +11,7 @@
     "build": "node scripts/restore-assets.mjs && node scripts/build-context.mjs && node scripts/build-edge.mjs && next build --webpack",
     "start": "next start",
     "typecheck": "tsc --noEmit",
-    "test": "node tests/course-check.mjs && node tests/netlify-check.mjs && node tests/certificate-migration-check.mjs && node tests/official-store-import-check.mjs && node tests/credits-check.mjs && node tests/translation-check.mjs && node tests/sample-completion-check.mjs && node tests/course-expiry-import-check.mjs && node tests/renewals-check.mjs && node tests/learning-time-check.mjs && node tests/assessor-check.mjs && node tests/pathways-check.mjs && node tests/versions-lifecycle-audit-check.mjs && node tests/learner-import-check.mjs && node tests/email-notifications-check.mjs && node tests/assessment-evidence-check.mjs"
+    "test": "node tests/course-check.mjs && node tests/netlify-check.mjs && node tests/certificate-migration-check.mjs && node tests/official-store-import-check.mjs && node tests/credits-check.mjs && node tests/translation-check.mjs && node tests/sample-completion-check.mjs && node tests/course-expiry-import-check.mjs && node tests/renewals-check.mjs && node tests/learning-time-check.mjs && node tests/assessor-check.mjs && node tests/pathways-check.mjs && node tests/versions-lifecycle-audit-check.mjs && node tests/learner-import-check.mjs && node tests/email-notifications-check.mjs && node tests/assessment-evidence-check.mjs && node tests/feature-settings-check.mjs"
   },
   "dependencies": {
     "@base-ui/react": "^1.7.0",

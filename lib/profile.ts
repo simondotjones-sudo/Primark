@@ -2,7 +2,7 @@ import stores from '@/lib/stores.json';
 import type {StoreOption} from '@/lib/store-label';
 import type { ReportingAccess } from '@/lib/reporting-types';
 
-export type ProfileView = 'learn' | 'report' | 'courses' | 'access' | 'shots' | 'store' | 'organisation' | 'assessor' | 'pathways' | 'audit' | 'emails';
+export type ProfileView = 'learn' | 'report' | 'courses' | 'access' | 'shots' | 'store' | 'organisation' | 'assessor' | 'pathways' | 'audit' | 'emails' | 'settings';
 export type ProfileAccount = {
   name: string; email: string; role: string; site: string;
   platformAdmin: boolean; reportingAccess: ReportingAccess | null;
@@ -13,6 +13,7 @@ export type ReportFilter = { role: 'global' | 'country' | 'site'; country: strin
 
 export function profileViews(account: ProfileAccount): { value: ProfileView; label: string }[] {
   return [
+    ...(account.platformAdmin || account.reportingAccess?.scope==='organisation' ? [{value:"settings" as const,label:"Settings"}] : []),
     ...(account.platformAdmin || account.reportingAccess?.scope==='organisation' ? [{value:"emails" as const,label:"Email notifications"}] : []),
     ...(account.platformAdmin || account.reportingAccess?.scope==='organisation' ? [{value:"audit" as const,label:"Audit trail"}] : []),
     ...(account.platformAdmin || account.reportingAccess?.scope==='organisation' ? [{value:"pathways" as const,label:"Learning Pathways"}] : []),
@@ -42,6 +43,7 @@ export function profileScope(access: ReportingAccess, desired: Partial<ReportFil
 }
 
 export function profileHref(view: ProfileView, filter?: ReportFilter) {
+  if (view === 'settings') return '/admin/settings';
   if (view === 'emails') return '/admin/emails';
   if (view === 'audit') return '/audit';
   if (view === 'pathways') return '/pathways';

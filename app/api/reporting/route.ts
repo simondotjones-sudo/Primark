@@ -1,3 +1,4 @@
+import {requireFeature} from '@/lib/features';
 import {storeDirectory} from '@/lib/store-directory';
 import { NextRequest } from 'next/server';
 import { getReportingAccess, reportingFilter } from '@/lib/reporting-access';
@@ -17,6 +18,7 @@ export async function GET(request:NextRequest) {try {
   if(view==='overview')return json(await trainingOverview(scope.siteIds,selection));
   if(view==='activity')return json(await trainingActivity(scope.siteIds,selection,search,page));
   if(view==='expiring')return json(await expiringCertificates(scope.siteIds,selection,search,page));
+  if(view==='matrix'||view==='export')await requireFeature('site_matrix');
   if(view==='matrix'&&scope.role!=='site')throw new CourseError('Choose a store.',400);
   if(view==='matrix'||view==='export')return json(await trainingReport(scope.siteIds,selection,search));
   throw new CourseError('Choose a reporting view.');

@@ -731,3 +731,21 @@ Authorised assessors can attach photos or signed assessment sheets while recordi
 - Evidence uses private Netlify Blobs stores, with separate writable production and preview namespaces. A preview may read immutable production files referenced by its database snapshot, but cannot overwrite or remove them.
 - The additive `20261010141000_assessment-evidence` migration creates the metadata table and atomic sign-off function. No manual production data changes or additional email configuration are needed.
 - All new interface and API validation messages are translated across the existing 14 interface languages. `tests/assessment-evidence-check.mjs` covers scoped access, file handling, storage failures, private downloads, atomic attachment, certificate/credit behaviour, immutability, revocation and preview isolation.
+
+### Release 55 — organisation feature settings
+
+Settings is now a dedicated administration page with 20 searchable features in five categories. Platform administrators choose Disabled, Optional or Required. Organisation administrators can change only Optional features. Other account roles cannot read or change administrative settings. A required dependent feature requires a required parent. Save uses the existing revision check and records both settings history and the main audit trail.
+
+This deployment represents Primark only, as in the existing data model; no cross-client selector or shared multi-tenant database is introduced. Existing settings and email delivery mode are preserved. New capabilities default to Optional and retain their previous behaviour; pathways and automatic archiving retain their existing on/off values.
+
+- Learning: pathways, automatic assignment rules, self-renewals and automatic refreshers.
+- Assessments: adding/changing quiz and assessor requirements, new evidence uploads and certificates for new pathway enrolments.
+- Learner management: bulk imports, transfers/leavers/rejoiners and automatic archiving.
+- Communications: learning emails, assignment emails, registration reminders and expiry emails. Live sending still requires the email provider and live mode; enabling a feature alone never starts sending email.
+- Reporting/compliance: recorded learning time, site matrix and training exports, period credit reports, credit charging and deadline exclusions.
+
+Feature switches are enforced in the API and, for database-driven automation, SQL functions. Disabled email categories are checked again when dispatching; queued messages in those categories are cancelled when settings are saved. Messages already handed to the provider cannot be recalled. Required/disabled controls are locked for organisation administrators, including older settings forms.
+
+Disabling quiz/assessor configuration never removes requirements from existing course assignments or silently issues certificates. Existing courses continue to impose their published requirements; the switch prevents adding new requirements. Existing assessments, evidence, SCORM tracking, certificates, enrolments and audit records remain available. New pathway enrolments respect the certificate feature; previously promised certificates still issue. Evidence uploads can be stopped while outstanding assessments and access to saved evidence continue.
+
+Apply additive migration `20261010150000_feature-settings` through the normal Netlify release process. Development verification uses isolated PostgreSQL and mocked storage only. `tests/feature-settings-check.mjs` exercises administrator boundaries, disabled/optional/required policies, stale revisions, CSRF, parent dependencies, legacy settings, automation gates, queued mail cancellation and retained assessment holds.

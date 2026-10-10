@@ -1,3 +1,5 @@
+import {isDeepStrictEqual} from 'node:util';
+import {requireFeature,featureEnabled} from '@/lib/features';
 import type {NextRequest} from 'next/server';
 import {db,inTransaction} from '@/lib/database';
 import {bodyJson,CourseError,failed,json} from '@/lib/course-admin';
@@ -48,6 +50,7 @@ export async function POST(request:NextRequest){try{
   if(actor.id){const a=(await tx.query(`SELECT l.id FROM learners l WHERE l.id=$1 AND l.archived_at IS NULL AND (EXISTS(SELECT 1 FROM platform_admins p WHERE p.learner_id=l.id) OR EXISTS(SELECT 1 FROM reporting_access r WHERE r.learner_id=l.id AND r.scope='organisation')) FOR UPDATE`,[actor.id])).rows[0];if(!a)throw new CourseError('Organisation or platform admin access is required.',403);}
   const settings=(await tx.query('SELECT pathways_enabled FROM organisation_settings WHERE id=1 FOR SHARE')).rows[0];if(!settings?.pathways_enabled)throw new CourseError('Pathways are not enabled.',403);
   if(b.action==='retry-rules'){
+   await requireFeature('pathway_rules');
    const row=(await tx.query('SELECT sync_pathway_assignments() AS assigned')).rows[0];return {assigned:row.assigned};
   }
   if(b.action==='save'){
@@ -62,6 +65,10 @@ export async function POST(request:NextRequest){try{
    }else await tx.query('INSERT INTO learning_pathways(id,name,description,items,deadline_days,award_certificate,archived,updated_by) VALUES($1,$2,$3,$4,$5,$6,$7,$8)',[id,value.name,b.description,JSON.stringify(value.items),b.deadline_days,b.award_certificate,b.archived,actor.email]);
    if(b.assignment_rule!==undefined){
     const rule=await validatePathwayRule(b.assignment_rule);
+    if(rule.enabled&&!await featureEnabled('pathway_rules')){
+     const prior=(await tx.query('SELECT assignment_rule FROM learning_pathways WHERE id=$1',[id])).rows[0];
+     if(!isDeepStrictEqual(prior?.assignment_rule,rule))throw new CourseError('This feature is switched off in Settings.',403);
+    }
     await tx.query('UPDATE learning_pathways SET assignment_rule=$1 WHERE id=$2',[JSON.stringify(rule),id]);
     await tx.query('DELETE FROM pathway_assignment_failures WHERE pathway_id=$1',[id]);
     await tx.query('SELECT sync_pathway_assignments(NULL,$1)',[id]);

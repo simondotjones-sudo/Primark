@@ -1,4 +1,5 @@
 'use client';
+import {useFeatures} from '@/hooks/use-features';
 import {useEffect,useState} from 'react';
 import {useLanguage} from '@/components/language-provider';
 
@@ -12,6 +13,7 @@ export function EvidenceDownloads({files}:{files:EvidenceFile[]}){
 }
 
 export function EvidenceUploader({assignmentId,onChange,onBusy,onReady,disabled}:{assignmentId:string;onChange:(files:EvidenceFile[])=>void;onBusy:(busy:boolean)=>void;onReady:(ready:boolean)=>void;disabled:boolean}){
+ const features=useFeatures();
  const {t}=useLanguage();
  const [files,setFiles]=useState<EvidenceFile[]>([]),[busy,setBusy]=useState(true),[error,setError]=useState('');
  const endpoint='/api/assessor/evidence?assignment='+encodeURIComponent(assignmentId);
@@ -34,7 +36,7 @@ export function EvidenceUploader({assignmentId,onChange,onBusy,onReady,disabled}
  async function remove(id:string){setBusy(true);onBusy(true);setError('');try{const r=await fetch('/api/assessor/evidence/'+id,{method:'DELETE'});const data=await r.json();if(!r.ok)throw Error(data.error);await load();}catch(e){setError((e as Error).message);}finally{setBusy(false);onBusy(false);}}
  return <div className="assessment-evidence-upload"><h3>{t('Practical assessment evidence')}</h3>
  <p>{t('Attach photos or signed assessment sheets. Up to five files, 3 MB each.')}</p>
- <label>{t('Add evidence (optional)')}<input type="file" accept=".pdf,.jpg,.jpeg,.png,.webp,.heic,application/pdf,image/jpeg,image/png,image/webp,image/heic" multiple disabled={disabled||busy||files.length>=5} onChange={e=>{const chosen=Array.from(e.target.files||[]);e.target.value='';if(chosen.length)void upload(chosen);}}/></label>
+ <label>{t('Add evidence (optional)')}<input type="file" accept=".pdf,.jpg,.jpeg,.png,.webp,.heic,application/pdf,image/jpeg,image/png,image/webp,image/heic" multiple disabled={disabled||busy||files.length>=5||!features.assessment_evidence} onChange={e=>{const chosen=Array.from(e.target.files||[]);e.target.value='';if(chosen.length)void upload(chosen);}}/></label>
  <p className="evidence-help">{t('Uploads are saved as drafts. Saving the assessment locks the attached files.')}</p>
  {error&&<><p role="alert" className="error">{t(error)}</p><button type="button" disabled={disabled||busy} onClick={()=>{setError('');setBusy(true);onBusy(true);load().catch(e=>setError(e.message)).finally(()=>{setBusy(false);onBusy(false);});}}>{t('Retry')}</button></>}{busy&&<p role="status">{t('Saving evidence…')}</p>}
  <ul className="assessment-evidence-list">{files.map(file=><li key={file.id}><div>{file.state==='ready'?<a href={'/api/assessor/evidence/'+file.id} download>{file.filename}</a>:<span>{file.filename}</span>}<small>{size(file.size)}{file.state!=='ready'&&' · '+t('Upload incomplete. Remove and retry.')}</small></div><button type="button" disabled={disabled||busy} onClick={()=>void remove(file.id)} aria-label={t('Remove {filename}',{filename:file.filename})}>{t('Remove')}</button></li>)}</ul>
