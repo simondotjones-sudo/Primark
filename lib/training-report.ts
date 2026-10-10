@@ -33,7 +33,8 @@ async function reportQuery(siteIds:string[]|null,selection=allCourses,search='')
   ), saved AS MATERIALIZED (
     SELECT s.learner_id,c.id AS course_id,count(*) AS saved_count,
       count(*) FILTER (WHERE s.status IN ('completed','passed')) AS done_count,
-      count(s.completed_at) AS date_count,max(s.completed_at) AS completed_at,max(s.score) AS score
+      count(s.completed_at) AS date_count,max(s.completed_at) AS completed_at,max(s.score) AS score,
+      NULLIF(sum(GREATEST(s.total_centiseconds,0)),0)::double precision / 100 AS learning_seconds
     FROM scorm_progress s JOIN people l ON l.id=s.learner_id JOIN ready c ON c.package_id=s.package_id
     WHERE EXISTS (SELECT 1 FROM jsonb_array_elements(c.scos) item WHERE item->>'id'=s.sco_id)
     GROUP BY s.learner_id,c.id
@@ -49,7 +50,7 @@ async function reportQuery(siteIds:string[]|null,selection=allCourses,search='')
     UNION SELECT learner_id,course_id FROM saved
     UNION SELECT l.id,c.id FROM people l JOIN certificates cert ON cert.learner_id=l.id AND cert.archived_at IS NULL AND cert.cancelled_at IS NULL JOIN ready c ON c.package_id=cert.package_id
   ), evidence AS (
-    SELECT a.learner_id,a.course_id,c.validity_months,c.sco_count,s.saved_count,s.score,
+    SELECT a.learner_id,a.course_id,c.validity_months,c.sco_count,s.saved_count,s.score,s.learning_seconds,
       attempt.score AS quiz_score,h.due_at,COALESCE(previous.expires_at,source.expires_at) AS previous_expiry,
       EXISTS(SELECT 1 FROM course_refresher_assignments replacement
         JOIN certificates source_cert ON source_cert.token=replacement.certificate_token
@@ -75,10 +76,10 @@ async function reportQuery(siteIds:string[]|null,selection=allCourses,search='')
     SELECT learner_id AS "learnerId",course_id AS "courseId",
       CASE WHEN complete THEN CASE WHEN expires_at<=? THEN 'expired' ELSE 'completed' END WHEN saved_count>0 THEN 'in-progress' ELSE 'not-started' END AS status,
       completed_at AS "completedAt",expires_at AS "expiresAt",COALESCE(quiz_score,CASE WHEN sco_count=1 THEN score END) AS score,
-      to_char(LEAST(due_at,previous_expiry) AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') AS "dueAt",to_char(previous_expiry AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') AS "coveredUntil",replaced_by_refresher AS "replacedByRefresher" FROM dated
+      to_char(LEAST(due_at,previous_expiry) AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') AS "dueAt",to_char(previous_expiry AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') AS "coveredUntil",replaced_by_refresher AS "replacedByRefresher",learning_seconds AS "learningSeconds" FROM dated
     UNION ALL
     SELECT id,?::text,CASE WHEN completed_at IS NOT NULL THEN 'completed' WHEN started_at IS NOT NULL THEN 'in-progress' ELSE 'not-started' END,
-      completed_at,NULL,CASE WHEN best_score IS NOT NULL THEN best_score::text||'/20' END,NULL::text,NULL::text,false FROM people
+      completed_at,NULL,CASE WHEN best_score IS NOT NULL THEN best_score::text||'/20' END,NULL::text,NULL::text,false,NULL::double precision FROM people
       WHERE NOT induction_enrolled OR started_at IS NOT NULL OR completed_at IS NOT NULL
   ), records AS (
     SELECT r.* FROM all_records r LEFT JOIN ready c ON c.id=r."courseId"
@@ -140,7 +141,7 @@ export async function trainingActivity(siteIds:string[]|null,selection:ReportSel
   const q=await reportQuery(siteIds,selection,search);
   const {results}=await q.run<TrainingRecord&PersonRow>(`SELECT r.*,l.* FROM records r JOIN people l ON l.id=r."learnerId" ORDER BY lower(l.name),l.id,r."courseId" LIMIT ? OFFSET ?`,[PAGE_SIZE+1,(page-1)*PAGE_SIZE]);
   const rows=results.slice(0,PAGE_SIZE),ids=new Set(rows.map(r=>r.courseId));
-  return {courses:q.visibleCourses([...ids]).filter(c=>ids.has(c.id)),employees:[...new Map(rows.map(r=>[r.id,person(r,q.stores)])).values()],records:rows.map(r=>({learnerId:r.learnerId,courseId:r.courseId,status:r.status,completedAt:r.completedAt,expiresAt:r.expiresAt,score:r.score,dueAt:r.dueAt,replacedByRefresher:r.replacedByRefresher})),generatedAt:q.generatedAt,page,pageSize:PAGE_SIZE,hasMore:results.length>PAGE_SIZE};
+  return {courses:q.visibleCourses([...ids]).filter(c=>ids.has(c.id)),employees:[...new Map(rows.map(r=>[r.id,person(r,q.stores)])).values()],records:rows.map(r=>({learnerId:r.learnerId,courseId:r.courseId,status:r.status,completedAt:r.completedAt,expiresAt:r.expiresAt,score:r.score,learningSeconds:r.learningSeconds,dueAt:r.dueAt,replacedByRefresher:r.replacedByRefresher})),generatedAt:q.generatedAt,page,pageSize:PAGE_SIZE,hasMore:results.length>PAGE_SIZE};
 }
 
 // Paginate people, keeping all their matching certificates together. The overview
@@ -172,3 +173,4 @@ export async function trainingReport(siteIds:string[]|null,selection=allCourses,
   ]);
   return {courses:q.visibleCourses(data.courseIds),employees:data.employees.map(p=>person(p,q.stores)),records:data.records,generatedAt:q.generatedAt,legacy:historical.map(l=>({email:l.email,completedAt:l.completed_at,storeName:q.stores.find(s=>s.id===l.store_id)?.name||''}))};
 }
+
