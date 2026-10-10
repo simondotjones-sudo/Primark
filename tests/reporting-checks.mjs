@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import {dashboardReportingChecks} from './dashboard-reporting-checks.mjs';
 export async function reportingChecks({m,check,query,invoke,loginAdmin,store,uk}){
  const admin=await loginAdmin();
  const ie2=m.stores.find(s=>s.country==='Ireland'&&s.id!==store.id);
@@ -142,7 +143,8 @@ export async function reportingChecks({m,check,query,invoke,loginAdmin,store,uk}
    console.log('INFO 1,000 matched training records: '+JSON.stringify(summary).length+' byte overview; 25 records per activity page.');
    await query("DELETE FROM learners WHERE id LIKE 'page-%'").run();
  });
+ await dashboardReportingChecks({m,check,query,invoke,read,cookies,loginAdmin,store,uk,course,audience,progress});
  await check('Removing report access immediately blocks the new reporting endpoint',async()=>{
-  await query('DELETE FROM reporting_access WHERE learner_id=?','report-site-admin').run();for(const view of ['overview','activity','matrix','export'])assert.equal((await invoke(m.reporting,'GET','/api/reporting?view='+view+'&search=report',undefined,cookies['report-site'])).status,403);
+  await query('DELETE FROM reporting_access WHERE learner_id=?','report-site-admin').run();for(const view of ['overview','activity','matrix','export','expiring'])assert.equal((await invoke(m.reporting,'GET','/api/reporting?view='+view+'&search=report',undefined,cookies['report-site'])).status,403);
  });
 }

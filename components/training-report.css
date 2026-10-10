@@ -33,3 +33,34 @@
 @media(min-width:1001px){.report-filters.activity-filters{grid-template-columns:minmax(150px,.8fr) minmax(180px,1.6fr) auto}}
 @media(max-width:700px){.activity-filters .report-reset{grid-row:2}}
 @media(min-width:701px) and (max-width:760px){.training-report .report-scope{grid-template-columns:1fr}.report-scope .scope-buttons{grid-column:1;grid-row:2;width:100%}.training-report .report-location{grid-column:1;grid-row:3}.training-report .report-view-tabs{width:100%;max-width:none}.training-report .report-view-tabs button{min-width:0}}
+
+/* Six summary cards retain a compact row on wide screens. */
+.training-report .metrics{grid-template-columns:repeat(3,minmax(0,1fr))}
+.training-report .metric{min-width:0;align-content:start}
+.training-report .metric strong{font-variant-numeric:tabular-nums}
+.training-report .metric-expiring{text-align:start;cursor:pointer;transition:border-color .15s,background .15s}
+.training-report .metric-expiring:hover{border-color:#ca951e;background:#fffcf3}
+.training-report .metric-expiring strong{color:#946600}
+.metric-link{display:flex;align-items:center;gap:4px;margin-top:3px;color:#0086b9;font-weight:600}
+.expiry-dialog{font-family:Gellix,Arial,sans-serif;max-width:min(760px,calc(100vw - 32px));max-height:90dvh;overflow-y:auto;border-radius:20px;gap:18px}
+.expiry-dialog [data-slot=dialog-title]{line-height:1.3;padding-inline-end:18px}
+.expiry-dialog .expiry-search{position:relative;display:flex;align-items:center;width:100%;max-width:none}
+.expiry-search>svg{position:absolute;inset-inline-start:13px;color:#758b98;pointer-events:none}
+.expiry-search input{padding-inline-start:40px;height:44px}
+.expiry-count{font-size:.85rem;color:#637d8b;margin:0 0 12px}
+.expiry-people{display:grid;gap:14px}
+.expiry-person{border:1px solid #e0e9ee;border-radius:14px;padding:18px}
+.expiry-person-heading{display:flex;justify-content:space-between;gap:16px;padding-bottom:12px}
+.expiry-person-heading h3{font-size:1rem;font-weight:600;color:#254658;margin:0 0 3px}
+.expiry-person-heading p{font-size:.8rem;line-height:1.45;color:#708593;overflow-wrap:anywhere}
+.expiry-person-heading>p{text-align:end;flex-shrink:0;max-width:45%}
+.expiry-person-heading>p span{display:block}
+.expiry-person ul{list-style:none;margin:0;padding:0;border-top:1px solid #edf2f5}
+.expiry-person li{display:flex;justify-content:space-between;gap:16px;padding-top:12px;font-size:.85rem}
+.expiry-person li strong{font-weight:500;min-width:0;overflow-wrap:anywhere;color:#254658}
+.expiry-person li>span{flex-shrink:0;text-align:end;color:#637d8b}
+.expiry-person li small{display:block;color:#946600;margin-top:3px}
+.expiry-dialog .empty{padding:35px 12px;text-align:center;color:#637d8b}
+@media(min-width:1200px){.training-report .metrics{grid-template-columns:repeat(6,minmax(0,1fr))}.training-report .metric{padding:20px 18px}}
+@media(max-width:700px){.training-report .metrics{grid-template-columns:repeat(2,minmax(0,1fr))}.expiry-dialog{padding:22px 16px}.expiry-person{padding:14px}.expiry-person-heading{display:block}.expiry-person-heading>p{text-align:start;max-width:none;margin-top:7px}.expiry-person-heading>p span{display:inline;margin-inline-start:8px}.expiry-person li{flex-direction:column;gap:4px}.expiry-person li>span{text-align:start}.expiry-dialog .activity-pagination{gap:8px}}
+@media(prefers-reduced-motion:reduce){.training-report .metric-expiring{transition:none}}
