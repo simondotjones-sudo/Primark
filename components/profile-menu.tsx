@@ -1,7 +1,8 @@
 'use client';
+import {useFeatures} from '@/hooks/use-features';
 import {LanguagePicker,useLanguage} from '@/components/language-provider';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { LogOut, MapPin, UserRound, BookOpen, BarChart3, Users, Library, Building2, Camera } from 'lucide-react';
+import { Settings2, LogOut, MapPin, UserRound, BookOpen, BarChart3, Users, Library, Building2, Camera } from 'lucide-react';
 import { APP_VERSION } from '@/lib/app-version';
 import { profileHref, profileViews, type ProfileAccount, type ProfileView, type ReportFilter } from '@/lib/profile';
 
@@ -16,9 +17,10 @@ type ContentProps = {
 };
 
 export function ProfileContent({ account, view, filter, onView, onFilter, onSignOut, busy }: ContentProps) {
+ const features=useFeatures();
   const {t,country:countryLabel}=useLanguage();
-  const views = profileViews(account);
-  const icons = {emails:Library,audit:Library,pathways:Library,assessor:Users,learn:BookOpen,report:BarChart3,store:Users,access:Users,courses:Library,organisation:Building2,shots:Camera};
+  const views = profileViews(account).filter(v=>v.value!=='pathways'||features.pathways);
+  const icons = {settings:Settings2,emails:Library,audit:Library,pathways:Library,assessor:Users,learn:BookOpen,report:BarChart3,store:Users,access:Users,courses:Library,organisation:Building2,shots:Camera};
   const group = (options: typeof views, heading: string) => options.length > 0 && <nav className="profile-group" aria-label={t(heading)}><h2>{t(heading)}</h2>{options.map(option => {const Icon=icons[option.value];return <button key={option.value} type="button" className="profile-link" aria-current={view===option.value?'page':undefined} onClick={()=>onView(option.value)}><Icon size={19}/><span>{t(option.label)}</span></button>;})}</nav>;
   return <>
     <div className="profile-identity"><strong>{account.name}</strong>{account.name !== account.email && <small>{account.email}</small>}

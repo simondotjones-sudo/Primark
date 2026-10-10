@@ -1,3 +1,5 @@
+import {isDeepStrictEqual} from 'node:util';
+import {requireFeature} from '@/lib/features';
 import {getAdminUser} from '@/lib/admin-auth';
 import {publishCourseVersion} from '@/lib/course-versions';
 import {validateQuiz} from '@/lib/course-quiz';
@@ -46,6 +48,8 @@ export async function POST(request: NextRequest) { try {
   if(typeof assessorRequired!=='boolean')throw new CourseError('Choose whether assessor sign-off is required.');
   const deadlineDays=optionalPositiveInteger(b.deadlineDays,existing?.deadline_days,'Deadline',3650);
   let quiz;try{quiz=validateQuiz(b.quiz===undefined?existing?.quiz_json??null:b.quiz);}catch(e){throw new CourseError((e as Error).message);}
+  if(assessorRequired&&!existing?.assessor_required)await requireFeature('assessor');
+  if(quiz&&!isDeepStrictEqual(quiz,existing?.quiz_json))await requireFeature('quizzes');
   const validityMonths=optionalPositiveInteger(b.validityMonths,existing?.validity_months,'Validity',120);
   const duration=optionalPositiveInteger(b.estimatedDurationMinutes,existing?.estimated_duration_minutes,'Estimated duration',10080);
   const lessonCount=optionalPositiveInteger(b.lessonCount,existing?.lesson_count,'Lesson count',1000);

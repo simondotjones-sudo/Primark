@@ -1,4 +1,5 @@
 'use client';
+import {useFeatures} from '@/hooks/use-features';
 import {complianceBand} from '@/lib/compliance';
 import {storeLabel} from '@/lib/store-label';
 import type {LocalizedText} from '@/lib/ui-copy';
@@ -32,6 +33,7 @@ export default function TrainingReporting({access,platformAdmin,filter,onFilterC
   const {t,languageName}=useLanguage();
   const stores=useStores(true);
   const scope=profileScope(access,filter,stores);
+  const features=useFeatures();
   const [overview,setOverview]=useState<TrainingOverview|null>(null);
   const [data,setData]=useState<TrainingReport|null>(null);
   const [matrixLoading,setMatrixLoading]=useState(false);
@@ -125,7 +127,7 @@ export default function TrainingReporting({access,platformAdmin,filter,onFilterC
   const statusText=(r?:TrainingRecord)=>r?t(statusLabels[r.status]):t('Not assigned');
   return <section className="report training-report">
     <div className="scope report-scope">
-      <div className="report-view-tabs pill-switch" role="group" aria-label={t('Report format')}><button aria-pressed={view==='overview'} className={view==='overview'?'selected':''} onClick={()=>setView('overview')}><span>{t('Overview')}</span></button>{filter.role==='site'&&<button aria-pressed={isMatrix} className={isMatrix?'selected':''} onClick={()=>setView('matrix')}><span>{t('Site matrix')}</span></button>}<button aria-pressed={isActivity} className={isActivity?'selected':''} onClick={()=>setView('activity')}><span>{t('User activity')}</span></button><button aria-pressed={isPeriod} className={isPeriod?'selected':''} onClick={()=>setView('period')}><span>{t('Period report')}</span></button>{pathwaysEnabled&&<button aria-pressed={view==='pathways'} className={view==='pathways'?'selected':''} onClick={()=>setView('pathways')}><span>{t('Pathway completion')}</span></button>}</div>
+      <div className="report-view-tabs pill-switch" role="group" aria-label={t('Report format')}><button aria-pressed={view==='overview'} className={view==='overview'?'selected':''} onClick={()=>setView('overview')}><span>{t('Overview')}</span></button>{features.site_matrix&&filter.role==='site'&&<button aria-pressed={isMatrix} className={isMatrix?'selected':''} onClick={()=>setView('matrix')}><span>{t('Site matrix')}</span></button>}<button aria-pressed={isActivity} className={isActivity?'selected':''} onClick={()=>setView('activity')}><span>{t('User activity')}</span></button>{features.credit_reporting&&<button aria-pressed={isPeriod} className={isPeriod?'selected':''} onClick={()=>setView('period')}><span>{t('Period report')}</span></button>}{pathwaysEnabled&&<button aria-pressed={view==='pathways'} className={view==='pathways'?'selected':''} onClick={()=>setView('pathways')}><span>{t('Pathway completion')}</span></button>}</div>
       <div className="report-location">
         <label><span className="sr-only">{t('Country')}</span><NativeSelect aria-label={t('Reporting country')} value={filter.role==='global'?'all':filter.country} disabled={filter.role==='global'||scope.countries.length<2} onChange={e=>changeScope({country:e.target.value})}>{filter.role==='global'?<option value="all">{t('All countries')}</option>:scope.countries.map(c=><option key={c} value={c}>{countryName(c,lang)}</option>)}</NativeSelect></label>
         <label className="store-picker"><span className="sr-only">{t('Store')}</span><NativeSelect aria-label={t('Reporting store')} value={filter.role==='site'?filter.site:'all'} disabled={filter.role!=='site'||scope.sites.length<2} onChange={e=>changeScope({site:e.target.value})}>{filter.role!=='site'?<option value="all">{t('All stores')}</option>:scope.sites.map(s=><option key={s.id} value={s.id}>{storeLabel(s)}</option>)}</NativeSelect></label>

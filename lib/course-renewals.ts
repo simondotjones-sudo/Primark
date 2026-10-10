@@ -1,3 +1,4 @@
+import {requireFeature} from '@/lib/features';
 import {db,inTransaction} from '@/lib/database';
 import {CourseError} from '@/lib/course-admin';
 import {activeLearnerSql} from '@/lib/account-type';
@@ -11,6 +12,7 @@ export type CourseRenewal={
 // The same learner lock protects renewals, assignments, role changes and SCORM.
 // An expected certificate prevents retries or two tabs from charging twice.
 export async function renewLearnerCourse(learnerId:string,courseId:string,certificateToken:string){
+ await requireFeature('renewals');
  return inTransaction(async client=>{
   const {rows:[learner]}=await client.query(`SELECT l.id,l.email FROM learners l WHERE l.id=$1 AND ${activeLearnerSql()} FOR UPDATE`,[learnerId]);
   if(!learner)throw new CourseError('Use your personal learner account for training.',403);
@@ -28,7 +30,7 @@ export {syncCourseRefreshers} from '@/lib/course-refreshers';
 
 export async function courseRenewalsFor(learnerId:string){
  const {results}=await db().prepare(`SELECT a.course_id AS id,
-  (cert.expires_at::timestamptz<=now()+interval '720 hours' AND r.refresher_course_id IS NULL AND e.assignment_id IS NULL) IS TRUE AS "canRenew",
+  (feature_enabled('renewals') AND cert.expires_at::timestamptz<=now()+interval '720 hours' AND r.refresher_course_id IS NULL AND e.assignment_id IS NULL) IS TRUE AS "canRenew",
   CASE WHEN previous.token IS NOT NULL THEN jsonb_build_object('token',previous.token,'completedAt',previous.completed_at) END AS "previousCertificate",
   CASE WHEN target.id IS NOT NULL AND cert.expires_at::timestamptz<=now()+interval '720 hours' THEN
    jsonb_build_object('courseId',target.id,'title',target.title,

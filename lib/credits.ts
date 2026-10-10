@@ -3,7 +3,7 @@ import {CourseError} from '@/lib/course-admin';
 import type {UserAdministrator} from '@/lib/user-administration';
 
 export const syncAssignments=(learnerId:string|null=null)=>db().prepare('SELECT sync_credit_assignments(?)').bind(learnerId);
-const messages=new Set(['This course is required by an assigned pathway and cannot be removed.','Renewal is available from 30 days before certificate expiry.','A refresher course is configured for this country.','Only an expired assignment can be renewed.','No credit price is configured for this date.',
+const messages=new Set(['This feature is switched off in Settings.','This course is required by an assigned pathway and cannot be removed.','Renewal is available from 30 days before certificate expiry.','A refresher course is configured for this country.','Only an expired assignment can be renewed.','No credit price is configured for this date.',
  'This store has no credits available. Contact a platform admin for a top-up.','Assignment not found.',
  'This assignment has changed. Refresh and try again.','Assignments can be removed only within 14 days of assignment.',
  'Started or completed assignments cannot be removed.',

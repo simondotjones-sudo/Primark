@@ -1,3 +1,4 @@
+import {requireFeature} from '@/lib/features';
 import {createHash} from 'node:crypto';
 import {db,inTransaction} from '@/lib/database';
 import {emailKinds,type EmailSettings} from '@/lib/email-types';
@@ -21,6 +22,7 @@ async function recheckActor(client:Client,actor:UserAdministrator){
  if(!row)throw new CourseError('Organisation admin access is required.',403);
 }
 export async function saveEmailSettings(actor:UserAdministrator,b:Record<string,unknown>){
+ await requireFeature('email_notifications');
  requireEmailAdmin(actor);
  const list=(value:unknown,min:number,max:number,limit:number)=>Array.isArray(value)&&value.length<=limit&&value.every(x=>Number.isSafeInteger(x)&&x>=min&&x<=max)&&new Set(value).size===value.length;
  if(!['off','preview','live'].includes(String(b.mode))||!Number.isSafeInteger(b.revision)||!list(b.expiry_days,1,90,5)||!list(b.deadline_days,1,90,5)||!Number.isSafeInteger(b.invitation_hours)||Number(b.invitation_hours)<1||Number(b.invitation_hours)>168||!Array.isArray(b.enabled)||!b.enabled.every(k=>emailKinds.includes(k))||new Set(b.enabled).size!==b.enabled.length)throw new CourseError('Check the email settings.');
@@ -29,6 +31,11 @@ export async function saveEmailSettings(actor:UserAdministrator,b:Record<string,
   await recheckActor(client,actor);
   const {rows:[old]}=await client.query('SELECT * FROM email_settings WHERE id=1 FOR UPDATE');
   if(old.revision!==b.revision)throw new CourseError('These settings changed. Reload before saving.',409);
+  const features=(await client.query('SELECT features FROM organisation_settings WHERE id=1')).rows[0].features as Record<string,{policy:string}>;
+  const groups:Record<string,string[]>= {assignment_emails:['course_assigned','pathway_assigned'],registration_reminders:['invitation_reminder','account_reminder'],expiry_reminders:['expiry_reminder','expired']};
+  for(const [key,kinds] of Object.entries(groups))if(features[key]?.policy==='required'&&kinds.some(k=>!(b.enabled as string[]).includes(k)))throw new CourseError('This feature is managed by Platform Admin.',403);
+  if(features.email_notifications?.policy==='required'&&old.mode==='live'&&b.mode!=='live')throw new CourseError('This feature is managed by Platform Admin.',403);
+
   const enabled=old.enabled as string[],since={...(old.enabled_since as Record<string,string>)};
   for(const kind of b.enabled as string[])if(!enabled.includes(kind))since[kind]=new Date().toISOString();
   await client.query(`UPDATE email_settings SET mode=$1,enabled=$2,expiry_days=$3,deadline_days=$4,invitation_hours=$5,revision=revision+1,updated_by=$6,updated_at=now(),enabled_since=$7,
@@ -40,6 +47,7 @@ export async function saveEmailSettings(actor:UserAdministrator,b:Record<string,
  return emailSettings();
 }
 export async function createInvitation(actor:UserAdministrator,b:Record<string,unknown>){
+ await requireFeature('email_notifications');
  requireEmailAdmin(actor);
  const name=typeof b.name==='string'?b.name.trim().replace(/\s+/g,' '):'',email=typeof b.email==='string'?b.email.trim().toLowerCase():'';
  if(name.length<2||name.length>101||email.length>254||!/^[^\s@<>,;:"\\]+@[^\s@<>,;:"\\]+\.[^\s@<>,;:"\\]+$/.test(email))throw new CourseError('Enter your name and a valid email.');
@@ -55,6 +63,7 @@ export async function createInvitation(actor:UserAdministrator,b:Record<string,u
  return id;
 }
 export async function changeInvitation(actor:UserAdministrator,id:string,action:'queue'|'cancel'){
+ if(action==='queue')await requireFeature('email_notifications');
  requireEmailAdmin(actor);
  await inTransaction(async client=>{
   await recheckActor(client,actor);

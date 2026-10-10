@@ -1,3 +1,4 @@
+import {requireFeature} from '@/lib/features';
 import type {NextRequest} from 'next/server';
 import {currentLearner} from '@/lib/server';
 import {db,inTransaction} from '@/lib/database';
@@ -15,6 +16,7 @@ export async function GET(request:NextRequest){try{
 }catch(e){return failed(e);}}
 
 export async function POST(request:NextRequest){try{
+ await requireFeature('assessment_evidence');
  if(!sameOrigin(request))throw new CourseError('Please use the Assessor page.',403);
  const actor=await currentLearner(request);if(!actor)throw new CourseError('Assessor access is required.',403);
  const assignment=request.nextUrl.searchParams.get('assignment')||'';

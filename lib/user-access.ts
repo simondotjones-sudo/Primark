@@ -1,3 +1,4 @@
+import {requireFeature} from '@/lib/features';
 import {credentials} from '@/lib/admin-auth';
 import {CourseError} from '@/lib/course-admin';
 import {inTransaction,postgresSql} from '@/lib/database';
@@ -11,6 +12,7 @@ import {normalizeWorkdayId} from '@/lib/learner-auth';
 
 export async function changeUserAccess(originalActor:UserAdministrator,body:Record<string,unknown>){
   if(!body||typeof body!=='object'||Array.isArray(body)||typeof body.id!=='string'||typeof body.revision!=='string'||!['details','password-reset','access','archive','restore','transfer','rejoin','leave'].includes(String(body.action)))throw new CourseError('Choose an existing learner account.');
+  if(['transfer','rejoin','leave'].includes(String(body.action)))await requireFeature('lifecycle');
   const stores=await storeDirectory(),activeStores=stores.filter(s=>s.active);
   await inTransaction(async client=>{
     // Serialize changes to the actor and target, including archive/restore races.

@@ -11,6 +11,8 @@ const pg=new PGlite(),dir=mkdtempSync(join(tmpdir(),'learning-time-'));
 globalThis.__learningTimeDb={prepare(sql){const run=(args=[])=>({async all(){let n=0;const result=await pg.query(sql.replace(/\?/g,()=>'$'+(++n)),args);return {results:result.rows};}});return {...run(),bind:(...args)=>run(args)};}};
 try {
   await pg.exec(`
+    CREATE TABLE feature_fixture(enabled boolean); INSERT INTO feature_fixture VALUES(true);
+    CREATE FUNCTION feature_enabled(key text) RETURNS boolean LANGUAGE sql STABLE AS $$ SELECT enabled FROM feature_fixture $$;
     CREATE TABLE learners(id text,name text,email text,workday_id text,archived_at text,country text,store_id text,induction_enrolled boolean,started_at text,completed_at text,best_score int);
     CREATE TABLE courses(id text,title text,package_id text,status text,audience_json text,induction_role text,validity_months int,category text,language_code text);
     CREATE TABLE course_packages(id text,status text,scos_json text,course_id text);
@@ -46,6 +48,9 @@ try {
   const selection={category:'all',courseId:'all'};
   const full=await report.trainingReport(['site']);
   assert.equal(full.records.find(r=>r.courseId==='course').learningSeconds,2701);
+  await pg.exec('UPDATE feature_fixture SET enabled=false');
+  const hidden=await report.trainingReport(['site']);assert(hidden.records.every(r=>r.learningSeconds==null));
+  await pg.exec('UPDATE feature_fixture SET enabled=true');
   assert.equal(full.records.find(r=>r.courseId==='missing').learningSeconds,null);
   assert.equal(full.records.find(r=>r.courseId===ORIGINAL_INDUCTION).learningSeconds,null);
   assert(!full.records.some(r=>r.learnerId==='other'));

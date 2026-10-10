@@ -1,3 +1,4 @@
+import {requireFeature} from '@/lib/features';
 import {createHash} from 'node:crypto';
 import {credentials} from '@/lib/admin-auth';
 import {CourseError} from '@/lib/course-admin';
@@ -13,6 +14,7 @@ type Person={id:string;name:string;email:string|null;workday_id:string;store_id:
 const dateValue=(value:unknown)=>value instanceof Date?value.toISOString().slice(0,10):String(value||'').slice(0,10);
 export async function importLearners(actor:UserAdministrator,csv:string,mode:string,revision?:string){
  if(!actor.platformAdmin&&actor.access.scope!=='organisation')throw new CourseError('Organisation admin access is required.',403);
+ await requireFeature('bulk_import');
  if(!['create','update','upsert'].includes(mode))throw new CourseError('Choose an import mode.');
  let rows;try{rows=parseLearnerCsv(csv);}catch(e){throw new CourseError((e as Error).message);}
  // Passwords never enter previews, audit events or error reports. Hash before taking locks.
@@ -22,6 +24,7 @@ export async function importLearners(actor:UserAdministrator,csv:string,mode:str
   // Short, bounded transaction: protect identity uniqueness, permissions and store changes.
   await client.query('LOCK TABLE learners,platform_admins,reporting_access,store_managers,assessor_accounts,organisation_stores IN SHARE ROW EXCLUSIVE MODE');
   if(actor.id){const current=(await client.query(`SELECT l.archived_at,EXISTS(SELECT 1 FROM platform_admins WHERE learner_id=l.id) AS platform,EXISTS(SELECT 1 FROM reporting_access WHERE learner_id=l.id AND scope='organisation') AS organisation FROM learners l WHERE id=$1`,[actor.id])).rows[0];if(!current||current.archived_at||(!current.platform&&!current.organisation))throw new CourseError('Organisation admin access is required.',403);}
+  const lifecycleEnabled=!!(await client.query("SELECT feature_enabled('lifecycle') enabled")).rows[0].enabled;
   const stores=await storeDirectory();
   const ids=rows.map(r=>normalizeWorkdayId(r.record.workday_id)).filter(Boolean);
   const emails=rows.map(r=>r.record.email.toLowerCase()).filter(Boolean);
@@ -55,6 +58,7 @@ export async function importLearners(actor:UserAdministrator,csv:string,mode:str
    const transfer=!!target&&!!store&&store.id!==target.store_id;
    if(status==='leaver'&&transfer)error('Do not combine a transfer with leaving.');
    const lifecycle=transfer||status==='leaver'||status==='rejoin';
+   if(lifecycle&&!lifecycleEnabled)error('This feature is switched off in Settings.');
    const effective=r.effective_date;
    if(lifecycle&&(!dateOk(effective)||r.reason.length<3||r.reason.length>500))error('Transfers, leavers and rejoiners need an effective date and a reason (3–500 characters).');
    if(!lifecycle&&effective)error('Effective date is only for transfers, leavers and rejoiners.');
