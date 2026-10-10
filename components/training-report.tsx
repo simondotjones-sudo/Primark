@@ -79,7 +79,8 @@ export default function TrainingReporting({access,platformAdmin,filter,onFilterC
   const records=useMemo(()=>data?.records.filter(r=>courseMap.has(r.courseId))||[],[data,courseMap]);
   const recordMap=useMemo(()=>new Map(records.map(r=>[key(r.learnerId,r.courseId),r])),[records]);
   const matchesSearch=(p:ReportEmployee)=>`${p.name} ${p.email} ${p.workdayId||''} ${p.storeName}`.toLocaleLowerCase().includes(search.trim().toLocaleLowerCase());
-  const people=employees.filter(matchesSearch);
+  const matchesMatrixEmployee=(p:ReportEmployee)=>!p.archivedAt&&matchesSearch(p);
+  const people=employees.filter(matchesMatrixEmployee);
   const inPeriod=(date:string|null)=>!!date&&(year==='all'||(date.slice(0,4)===year&&(month==='all'||Number(date.slice(5,7))===Number(month))));
   const years=[...new Set([new Date().getUTCFullYear(),...(overview?.completions||[]).map(r=>Number(r.month.slice(0,4)))])].sort((a,b)=>b-a);
   const completed=(overview?.completions||[]).filter(r=>inPeriod(r.month)).reduce((sum,r)=>sum+r.count,0);
@@ -106,7 +107,7 @@ export default function TrainingReporting({access,platformAdmin,filter,onFilterC
       const byCourse=new Map(report.courses.map(c=>[c.id,c]));
       if(isMatrix){const byRecord=new Map(report.records.map(r=>[key(r.learnerId,r.courseId),r]));saveCsv('primark-site-matrix.csv',[
         [t('Employee'),t('Email'),...courses.map(c=>c.title)],
-        ...report.employees.filter(matchesSearch).map(p=>[p.name,p.email,...courses.map(c=>{const r=byRecord.get(key(p.id,c.id));return r?t(statusLabels[r.status]):t('Not assigned');})]),
+        ...report.employees.filter(matchesMatrixEmployee).map(p=>[p.name,p.email,...courses.map(c=>{const r=byRecord.get(key(p.id,c.id));return r?t(statusLabels[r.status]):t('Not assigned');})]),
       ]);return;}
       saveCsv('primark-training-report.csv',[
         ['Employee','Email','Country','Store','Course','Category','Status','Completed','Expires','Deadline','Replaced by refresher','Score','Completion in selected period'].map(key=>t(key)),
