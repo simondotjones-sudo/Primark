@@ -1,0 +1,423 @@
+{
+  "source": "course_entitlements-primark.xlsx",
+  "sheet": "Sheet1",
+  "reviewed_at": "2026-10-10",
+  "courses": [
+    {
+      "source_row": 2,
+      "title": "Manual Handling",
+      "cert_lifecycle": 1,
+      "cert_lifecycle_unit": "YEAR",
+      "source_course_id": null,
+      "validity_months": 12
+    },
+    {
+      "source_row": 3,
+      "title": "Workstation Self Assessment",
+      "cert_lifecycle": 1,
+      "cert_lifecycle_unit": "YEAR",
+      "source_course_id": null,
+      "validity_months": 12
+    },
+    {
+      "source_row": 4,
+      "title": "Manual Handling (Classic)",
+      "cert_lifecycle": 1,
+      "cert_lifecycle_unit": "YEAR",
+      "source_course_id": null,
+      "validity_months": 12
+    },
+    {
+      "source_row": 5,
+      "title": "Primark Employee Induction",
+      "cert_lifecycle": 2,
+      "cert_lifecycle_unit": "YEAR",
+      "source_course_id": "154",
+      "validity_months": 24
+    },
+    {
+      "source_row": 6,
+      "title": "Primark Werknemer Inductie (NL)",
+      "cert_lifecycle": 2,
+      "cert_lifecycle_unit": "YEAR",
+      "source_course_id": "168",
+      "validity_months": 24
+    },
+    {
+      "source_row": 7,
+      "title": "Primark Fire Warden Training (IE)",
+      "cert_lifecycle": 1,
+      "cert_lifecycle_unit": "YEAR",
+      "source_course_id": "169",
+      "validity_months": 12
+    },
+    {
+      "source_row": 8,
+      "title": "Primark Contractor Induction",
+      "cert_lifecycle": 1,
+      "cert_lifecycle_unit": "YEAR",
+      "source_course_id": null,
+      "validity_months": 12
+    },
+    {
+      "source_row": 9,
+      "title": "Iniciación para empleados de Primark (ES)",
+      "cert_lifecycle": 2,
+      "cert_lifecycle_unit": "YEAR",
+      "source_course_id": "191",
+      "validity_months": 24
+    },
+    {
+      "source_row": 10,
+      "title": "Introdução de funcionário da Primark (PT)",
+      "cert_lifecycle": 2,
+      "cert_lifecycle_unit": "YEAR",
+      "source_course_id": "192",
+      "validity_months": 24
+    },
+    {
+      "source_row": 11,
+      "title": "Primark Fire Warden Training (UK)",
+      "cert_lifecycle": 1,
+      "cert_lifecycle_unit": "YEAR",
+      "source_course_id": "208",
+      "validity_months": 12
+    },
+    {
+      "source_row": 12,
+      "title": "Primark Employee Induction Refresher",
+      "cert_lifecycle": 2,
+      "cert_lifecycle_unit": "YEAR",
+      "source_course_id": "209",
+      "validity_months": 24
+    },
+    {
+      "source_row": 13,
+      "title": "Primark Formação para responsáveis pela evacuação (PT)",
+      "cert_lifecycle": 1,
+      "cert_lifecycle_unit": "YEAR",
+      "source_course_id": "235",
+      "validity_months": 12
+    },
+    {
+      "source_row": 14,
+      "title": "Primark Formación Brigadas de Emergencia",
+      "cert_lifecycle": 1,
+      "cert_lifecycle_unit": "YEAR",
+      "source_course_id": "236",
+      "validity_months": 12
+    },
+    {
+      "source_row": 15,
+      "title": "Primark Mitarbeiterinduktion (DE)",
+      "cert_lifecycle": 2,
+      "cert_lifecycle_unit": "YEAR",
+      "source_course_id": "264",
+      "validity_months": 24
+    },
+    {
+      "source_row": 16,
+      "title": "Primark Night Shift Worker Training (UK)",
+      "cert_lifecycle": 1,
+      "cert_lifecycle_unit": "YEAR",
+      "source_course_id": "329",
+      "validity_months": 12
+    },
+    {
+      "source_row": 17,
+      "title": "Primark Delivery Area Training",
+      "cert_lifecycle": 1,
+      "cert_lifecycle_unit": "YEAR",
+      "source_course_id": null,
+      "validity_months": 12
+    },
+    {
+      "source_row": 18,
+      "title": "Primark Brandschutzhelfer-Kurs (DE)",
+      "cert_lifecycle": 1,
+      "cert_lifecycle_unit": "YEAR",
+      "source_course_id": null,
+      "validity_months": 12
+    },
+    {
+      "source_row": 19,
+      "title": "Primark Opleiding brandopzichter (NL)",
+      "cert_lifecycle": 1,
+      "cert_lifecycle_unit": "YEAR",
+      "source_course_id": "462",
+      "validity_months": 12
+    },
+    {
+      "source_row": 20,
+      "title": "Initiation des employés de Primark (FR)",
+      "cert_lifecycle": 2,
+      "cert_lifecycle_unit": "YEAR",
+      "source_course_id": "473",
+      "validity_months": 24
+    },
+    {
+      "source_row": 21,
+      "title": "Formation d’agent de sécurité incendie de Primark (Belgique) (FR)",
+      "cert_lifecycle": 1,
+      "cert_lifecycle_unit": "YEAR",
+      "source_course_id": "474",
+      "validity_months": 12
+    },
+    {
+      "source_row": 22,
+      "title": "Primark Brandschutzhelfer-Kurs (Österreich) (DE)",
+      "cert_lifecycle": 1,
+      "cert_lifecycle_unit": "YEAR",
+      "source_course_id": null,
+      "validity_months": 12
+    },
+    {
+      "source_row": 23,
+      "title": "Formation d'agent de sécurité incendie (France) (FR)",
+      "cert_lifecycle": 1,
+      "cert_lifecycle_unit": "YEAR",
+      "source_course_id": "587",
+      "validity_months": 12
+    },
+    {
+      "source_row": 24,
+      "title": "Équipement de protection individuelle",
+      "cert_lifecycle": 1,
+      "cert_lifecycle_unit": "YEAR",
+      "source_course_id": null,
+      "validity_months": 12
+    },
+    {
+      "source_row": 25,
+      "title": "Primark Employee Induction (US)",
+      "cert_lifecycle": 2,
+      "cert_lifecycle_unit": "YEAR",
+      "source_course_id": "673",
+      "validity_months": 24
+    },
+    {
+      "source_row": 26,
+      "title": "Emergency Procedures",
+      "cert_lifecycle": 2,
+      "cert_lifecycle_unit": "YEAR",
+      "source_course_id": "819",
+      "validity_months": 24
+    },
+    {
+      "source_row": 27,
+      "title": "Procedimientos de emergencia",
+      "cert_lifecycle": 2,
+      "cert_lifecycle_unit": "YEAR",
+      "source_course_id": "1743",
+      "validity_months": 24
+    },
+    {
+      "source_row": 28,
+      "title": "Procédures d'urgence",
+      "cert_lifecycle": 2,
+      "cert_lifecycle_unit": "YEAR",
+      "source_course_id": "1755",
+      "validity_months": 24
+    },
+    {
+      "source_row": 29,
+      "title": "NOODPROCEDURES",
+      "cert_lifecycle": 2,
+      "cert_lifecycle_unit": "YEAR",
+      "source_course_id": "1765",
+      "validity_months": 24
+    },
+    {
+      "source_row": 30,
+      "title": "Procedimentos de Emergência",
+      "cert_lifecycle": 2,
+      "cert_lifecycle_unit": "YEAR",
+      "source_course_id": "1769",
+      "validity_months": 24
+    },
+    {
+      "source_row": 31,
+      "title": "Workstation Safety 2.0",
+      "cert_lifecycle": 1,
+      "cert_lifecycle_unit": "YEAR",
+      "source_course_id": null,
+      "validity_months": 12
+    },
+    {
+      "source_row": 32,
+      "title": "Procedure Di Emergenza",
+      "cert_lifecycle": 2,
+      "cert_lifecycle_unit": "YEAR",
+      "source_course_id": "1860",
+      "validity_months": 24
+    },
+    {
+      "source_row": 33,
+      "title": "NOTFALL-PROZEDUREN",
+      "cert_lifecycle": 2,
+      "cert_lifecycle_unit": "YEAR",
+      "source_course_id": null,
+      "validity_months": 24
+    },
+    {
+      "source_row": 34,
+      "title": "Baler Safety",
+      "cert_lifecycle": 1,
+      "cert_lifecycle_unit": "YEAR",
+      "source_course_id": "1877",
+      "validity_months": 12
+    },
+    {
+      "source_row": 35,
+      "title": "Primark Fire Warden Training (US)",
+      "cert_lifecycle": 1,
+      "cert_lifecycle_unit": "YEAR",
+      "source_course_id": "1878",
+      "validity_months": 12
+    },
+    {
+      "source_row": 36,
+      "title": "Primark Induzione EHS (IT)",
+      "cert_lifecycle": 1,
+      "cert_lifecycle_unit": "YEAR",
+      "source_course_id": "2006",
+      "validity_months": 12
+    },
+    {
+      "source_row": 37,
+      "title": "Primark tečaj za uvajanje zaposlenih",
+      "cert_lifecycle": 2,
+      "cert_lifecycle_unit": "YEAR",
+      "source_course_id": null,
+      "validity_months": 24
+    },
+    {
+      "source_row": 38,
+      "title": "Home Workstation Self Assessment",
+      "cert_lifecycle": 1,
+      "cert_lifecycle_unit": "YEAR",
+      "source_course_id": null,
+      "validity_months": 12
+    },
+    {
+      "source_row": 39,
+      "title": "Home Safety Guide",
+      "cert_lifecycle": 1,
+      "cert_lifecycle_unit": "YEAR",
+      "source_course_id": null,
+      "validity_months": 12
+    },
+    {
+      "source_row": 40,
+      "title": "Preventing Workplace Violence",
+      "cert_lifecycle": 2,
+      "cert_lifecycle_unit": "YEAR",
+      "source_course_id": "2371",
+      "validity_months": 24
+    },
+    {
+      "source_row": 41,
+      "title": "Primark Night Shift Worker Training (IE)",
+      "cert_lifecycle": 1,
+      "cert_lifecycle_unit": "YEAR",
+      "source_course_id": "2379",
+      "validity_months": 12
+    },
+    {
+      "source_row": 42,
+      "title": "Induction Positive Workplace: Preventing Harassment in the Workplace (2hr)",
+      "cert_lifecycle": 1,
+      "cert_lifecycle_unit": "YEAR",
+      "source_course_id": "2470",
+      "validity_months": 12
+    },
+    {
+      "source_row": 43,
+      "title": "Part 1 - 2025 Annual Refresher Positive Workplace: Preventing Harassment in the Workplace",
+      "cert_lifecycle": 1,
+      "cert_lifecycle_unit": "YEAR",
+      "source_course_id": null,
+      "validity_months": 12
+    },
+    {
+      "source_row": 44,
+      "title": "Part 2 - 2025 Annual Refresher Positive Workplace: Preventing Harassment in the Workplace",
+      "cert_lifecycle": 1,
+      "cert_lifecycle_unit": "YEAR",
+      "source_course_id": null,
+      "validity_months": 12
+    },
+    {
+      "source_row": 45,
+      "title": "Part 3 - 2025 Annual Refresher Positive Workplace: Preventing Harassment in the Workplace",
+      "cert_lifecycle": 1,
+      "cert_lifecycle_unit": "YEAR",
+      "source_course_id": null,
+      "validity_months": 12
+    },
+    {
+      "source_row": 46,
+      "title": "2025 Annual Refresher Positive Workplace: Preventing Harassment in the Workplace (1hr)",
+      "cert_lifecycle": 1,
+      "cert_lifecycle_unit": "YEAR",
+      "source_course_id": "2487",
+      "validity_months": 12
+    },
+    {
+      "source_row": 47,
+      "title": "Prevención de la violencia en el lugar de trabajo",
+      "cert_lifecycle": 1,
+      "cert_lifecycle_unit": "YEAR",
+      "source_course_id": null,
+      "validity_months": 12
+    },
+    {
+      "source_row": 48,
+      "title": "Primark Manual Handling (IE)",
+      "cert_lifecycle": 2,
+      "cert_lifecycle_unit": "YEAR",
+      "source_course_id": "2509",
+      "validity_months": 24
+    },
+    {
+      "source_row": 49,
+      "title": "2026 Positive Workplace: Preventing Harassment in the Workplace (1hr)",
+      "cert_lifecycle": 1,
+      "cert_lifecycle_unit": "YEAR",
+      "source_course_id": "2520",
+      "validity_months": 12
+    },
+    {
+      "source_row": 50,
+      "title": "2026 Bystander Intervention (1hr)",
+      "cert_lifecycle": 1,
+      "cert_lifecycle_unit": "YEAR",
+      "source_course_id": "2521",
+      "validity_months": 12
+    },
+    {
+      "source_row": 51,
+      "title": "2026 Positive Workplace: Preventing Harassment in the Workplace (40min)",
+      "cert_lifecycle": 1,
+      "cert_lifecycle_unit": "YEAR",
+      "source_course_id": "2522",
+      "validity_months": 12
+    },
+    {
+      "source_row": 52,
+      "title": "2026 Positive Workplace: Preventing Harassment in the Workplace (2hr)",
+      "cert_lifecycle": 1,
+      "cert_lifecycle_unit": "YEAR",
+      "source_course_id": null,
+      "validity_months": 12
+    },
+    {
+      "source_row": 53,
+      "title": "2026 NY State Workplace Violence Prevention Training (1hr)",
+      "cert_lifecycle": 1,
+      "cert_lifecycle_unit": "YEAR",
+      "source_course_id": "2525",
+      "validity_months": 12
+    }
+  ]
+}

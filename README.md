@@ -163,6 +163,19 @@ courses, learners and progress. Re-running the seed skips existing source course
 The original titles, English titles, languages, categories, source IDs and historical
 assignment counts are retained. Historical counts do not create learner assignments.
 
+Migration `20261010030000_course-expiry-import` applies the supplied
+`course_entitlements-primark.xlsx` renewal periods: 34 one-year and 18 two-year
+source rows. The retained mapping is `data/imports/primark-course-expiry-2026-10-10.json`.
+All 34 originally imported courses match by their stable source IDs, including
+renamed titles. The remaining 18 titles are matched only by an exact trimmed,
+case-insensitive title if present. Missing titles are reported in migration notices
+and are not created. Ambiguous matches abort the import. Only the renewal period,
+edit revision and update timestamp change. Existing certificates keep their issued
+expiry; future certificates expire 12 or 24 calendar months after completion.
+The Italian induction remains one year and Irish manual handling remains two years,
+as specified in the spreadsheet. `node tests/course-expiry-import-check.mjs` checks
+the import, unchanged evidence and new certificate expiry.
+
 Admin **Course library → Course details** separates country library availability from
 direct audience assignments. The imported English induction (source ID 154) is the
 English fallback. Local initial inductions are linked to Germany, Spain, France, Italy,
