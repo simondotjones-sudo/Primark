@@ -14,3 +14,10 @@
 .employee-card .employee-dates{display:flex;flex-wrap:wrap;gap:.25rem 1rem;margin-top:.4rem}
 
 .user-selection .assignment-course-metadata{margin-top:8px;gap:6px 14px}
+
+.learner-import { display:grid; gap:16px; min-width:0; }
+.learner-import p { margin:0; }
+.learner-import-table { overflow:auto; max-height:60vh; }
+.learner-import table { width:100%; border-collapse:collapse; font-size:.875rem; }
+.learner-import th,.learner-import td { padding:12px; text-align:start; vertical-align:top; border-bottom:1px solid #ddd; overflow-wrap:anywhere; min-width:80px; }
+.learner-import th { position:sticky; top:0; background:white; }
