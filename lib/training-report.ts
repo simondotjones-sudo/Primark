@@ -3,7 +3,7 @@ import { db } from '@/lib/database';
 import { availableInCountry, inductionFor } from '@/lib/course-catalogue';
 import type { Course } from '@/lib/course-types';
 import { storeDirectory } from '@/lib/store-directory';
-import { ORIGINAL_INDUCTION, type ReportCourse, type ReportEmployee, type ReportSelection, type TrainingActivity, type TrainingOverview, type TrainingRecord, type TrainingReport } from '@/lib/training-report-types';
+import { ORIGINAL_INDUCTION, type ExpiringCertificates, type ReportCourse, type ReportEmployee, type ReportSelection, type TrainingActivity, type TrainingOverview, type TrainingRecord, type TrainingReport } from '@/lib/training-report-types';
 
 const allCourses:ReportSelection={category:'all',courseId:'all'};
 const PAGE_SIZE=25;
@@ -46,7 +46,7 @@ async function reportQuery(siteIds:string[]|null,selection=allCourses,search='')
       AND NOT EXISTS(SELECT 1 FROM assignment_exclusions x WHERE x.learner_id=l.id AND x.course_id=c.id)
       AND (jsonb_exists(c.audience->'countries',l.country) OR jsonb_exists(c.audience->'sites',l.store_id) OR jsonb_exists(c.audience->'users',l.id))
     UNION SELECT learner_id,course_id FROM saved
-    UNION SELECT l.id,c.id FROM people l JOIN certificates cert ON cert.learner_id=l.id AND cert.archived_at IS NULL JOIN ready c ON c.package_id=cert.package_id
+    UNION SELECT l.id,c.id FROM people l JOIN certificates cert ON cert.learner_id=l.id AND cert.archived_at IS NULL AND cert.cancelled_at IS NULL JOIN ready c ON c.package_id=cert.package_id
   ), evidence AS (
     SELECT a.learner_id,a.course_id,c.validity_months,c.sco_count,s.saved_count,s.score,
       (cert.package_id IS NOT NULL OR (c.sco_count>0 AND s.done_count=c.sco_count)) AS complete,
@@ -54,7 +54,7 @@ async function reportQuery(siteIds:string[]|null,selection=allCourses,search='')
       cert.package_id IS NOT NULL AS certified,cert.expires_at AS certificate_expiry
     FROM candidates a JOIN ready c ON c.id=a.course_id
     LEFT JOIN saved s ON s.learner_id=a.learner_id AND s.course_id=a.course_id
-    LEFT JOIN certificates cert ON cert.learner_id=a.learner_id AND cert.package_id=c.package_id AND cert.archived_at IS NULL
+    LEFT JOIN certificates cert ON cert.learner_id=a.learner_id AND cert.package_id=c.package_id AND cert.archived_at IS NULL AND cert.cancelled_at IS NULL
   ), dated AS (
     SELECT e.*,CASE WHEN certified THEN certificate_expiry WHEN completed_at IS NOT NULL AND validity_months IS NOT NULL THEN
       to_char((completed_at::timestamptz AT TIME ZONE 'UTC')+make_interval(months=>validity_months),'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') END AS expires_at FROM evidence e
@@ -69,10 +69,15 @@ async function reportQuery(siteIds:string[]|null,selection=allCourses,search='')
   ), records AS (
     SELECT r.* FROM all_records r LEFT JOIN ready c ON c.id=r."courseId"
     WHERE (?='all' OR CASE WHEN c.id IS NULL THEN 'Induction' ELSE COALESCE(NULLIF(c.category,''),'Uncategorised') END=?) AND (?='all' OR r."courseId"=?)
+  ), active_records AS MATERIALIZED (
+    SELECT r.* FROM records r JOIN people l ON l.id=r."learnerId" WHERE l.archived_at IS NULL
+  ), expiring_records AS MATERIALIZED (
+    SELECT * FROM active_records WHERE status='completed' AND "expiresAt"::timestamptz>?::timestamptz AND "expiresAt"::timestamptz<=?::timestamptz
   )`;
   const generatedAt=new Date().toISOString();
   // All caller values are bound.
-  args.push(generatedAt,ORIGINAL_INDUCTION,selection.category,selection.category,selection.courseId,selection.courseId);
+  args.push(generatedAt,ORIGINAL_INDUCTION,selection.category,selection.category,selection.courseId,selection.courseId,
+    generatedAt,new Date(Date.parse(generatedAt)+30*86400000).toISOString());
   const run=<T,>(sql:string,extra:unknown[]=[])=>db().prepare(cte+' '+sql).bind(...args,...extra).all<T>();
   function visibleCourses(ids:string[]):ReportCourse[]{
     const visible=new Set(ids);
@@ -92,7 +97,10 @@ export async function trainingOverview(siteIds:string[]|null,selection=allCourse
   const q=await reportQuery(siteIds,selection),legacy=legacyQuery(siteIds);
   const [{results:[row]},{results:historical}]=await Promise.all([
     q.run<{metrics:TrainingOverview['metrics'];completions:TrainingOverview['completions'];groups:TrainingOverview['groups'];courseIds:string[]}>(`SELECT
-      (SELECT json_build_object('employees',count(DISTINCT "learnerId"),'records',count(*),'inProgress',count(*) FILTER(WHERE status='in-progress'),'expired',count(*) FILTER(WHERE status='expired')) FROM records) AS metrics,
+      (SELECT json_build_object('employees',count(DISTINCT "learnerId"),'records',count(*),'inProgress',count(*) FILTER(WHERE status='in-progress'),'expired',count(*) FILTER(WHERE status='expired'),
+        'assigned',(SELECT count(*) FROM active_records),'completed',(SELECT count(*) FROM active_records WHERE status='completed'),
+        'compliance',(SELECT round(100.0*count(*) FILTER(WHERE status='completed')/NULLIF(count(*),0),1) FROM active_records),
+        'expiringPeople',(SELECT count(DISTINCT "learnerId") FROM expiring_records)) FROM records) AS metrics,
       COALESCE((SELECT json_agg(b) FROM (SELECT substring("completedAt",1,7) AS month,count(*)::int AS count FROM records WHERE "completedAt" IS NOT NULL GROUP BY 1 ORDER BY 1) b),'[]') AS completions,
       COALESCE((SELECT json_agg(g) FROM (SELECT l.country,l.store_id AS "storeId",count(*)::int AS total,count(*) FILTER(WHERE r.status='completed')::int AS completed,count(*) FILTER(WHERE r.status='expired')::int AS expired FROM records r JOIN people l ON l.id=r."learnerId" GROUP BY l.country,l.store_id) g),'[]') AS groups,
       COALESCE((SELECT json_agg(DISTINCT "courseId") FROM all_records),'[]') AS "courseIds"`),
@@ -107,6 +115,24 @@ export async function trainingActivity(siteIds:string[]|null,selection:ReportSel
   const {results}=await q.run<TrainingRecord&PersonRow>(`SELECT r.*,l.* FROM records r JOIN people l ON l.id=r."learnerId" ORDER BY lower(l.name),l.id,r."courseId" LIMIT ? OFFSET ?`,[PAGE_SIZE+1,(page-1)*PAGE_SIZE]);
   const rows=results.slice(0,PAGE_SIZE),ids=new Set(rows.map(r=>r.courseId));
   return {courses:q.visibleCourses([...ids]).filter(c=>ids.has(c.id)),employees:[...new Map(rows.map(r=>[r.id,person(r,q.stores)])).values()],records:rows.map(r=>({learnerId:r.learnerId,courseId:r.courseId,status:r.status,completedAt:r.completedAt,expiresAt:r.expiresAt,score:r.score})),generatedAt:q.generatedAt,page,pageSize:PAGE_SIZE,hasMore:results.length>PAGE_SIZE};
+}
+
+// Paginate people, keeping all their matching certificates together. The overview
+// count and this drill-down share the same active-record and expiry-window rules.
+export async function expiringCertificates(siteIds:string[]|null,selection:ReportSelection,search:string,page:number):Promise<ExpiringCertificates>{
+  const q=await reportQuery(siteIds,selection,search);
+  const {results:[data]}=await q.run<{employees:PersonRow[];records:TrainingRecord[];totalPeople:number}>(`, expiring_people AS (
+    SELECT "learnerId",min("expiresAt"::timestamptz) AS first_expiry FROM expiring_records GROUP BY "learnerId"
+  ), page_people AS (
+    SELECT l.*,e.first_expiry FROM expiring_people e JOIN people l ON l.id=e."learnerId"
+    ORDER BY e.first_expiry,lower(l.name),l.id LIMIT ? OFFSET ?
+  ) SELECT
+    COALESCE((SELECT json_agg(p ORDER BY p.first_expiry,lower(p.name),p.id) FROM page_people p),'[]') AS employees,
+    COALESCE((SELECT json_agg(r ORDER BY r."expiresAt"::timestamptz,r."courseId") FROM expiring_records r JOIN page_people p ON p.id=r."learnerId"),'[]') AS records,
+    (SELECT count(*)::int FROM expiring_people) AS "totalPeople"`,[PAGE_SIZE,(page-1)*PAGE_SIZE]);
+  const ids=[...new Set(data.records.map(r=>r.courseId))];
+  return {courses:q.visibleCourses(ids).filter(c=>ids.includes(c.id)),employees:data.employees.map(p=>person(p,q.stores)),records:data.records,
+    generatedAt:q.generatedAt,page,pageSize:PAGE_SIZE,hasMore:page*PAGE_SIZE<data.totalPeople,totalPeople:data.totalPeople};
 }
 
 // Full rows are fetched only for the selected store matrix or an explicit export.

@@ -10,12 +10,13 @@ export type TrainingReport = {
 export type ReportSelection = {category:string;courseId:string};
 export type TrainingOverview = {
   courses:ReportCourse[]; generatedAt:string;
-  metrics:{employees:number;records:number;inProgress:number;expired:number};
+  metrics:{employees:number;records:number;inProgress:number;expired:number;assigned:number;completed:number;compliance:number|null;expiringPeople:number};
   completions:{month:string;count:number}[];
   groups:{country:string;storeId:string;total:number;completed:number;expired:number}[];
   legacy:{month:string|null;count:number}[];
 };
 export type TrainingActivity = Pick<TrainingReport,'courses'|'employees'|'records'|'generatedAt'> & {page:number;pageSize:number;hasMore:boolean};
+export type ExpiringCertificates = TrainingActivity & {totalPeople:number};
 export const statusLabels:Record<TrainingStatus,string> = {completed:'Completed',expired:'Expired','in-progress':'In progress','not-started':'Not started'};
 // Clamp to the last day of the expiry month (31 January + 1 month = 28/29 February).
 export function completionExpiry(completedAt:string|null, months:number|null):string|null {
