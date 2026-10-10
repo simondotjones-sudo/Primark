@@ -1,4 +1,5 @@
 'use client';
+import LearnerImport from '@/components/learner-import';
 import {storeLabel} from '@/lib/store-label';
 import {useEffect,useState} from 'react';
 import {useLanguage} from '@/components/language-provider';
@@ -17,6 +18,7 @@ export default function UserDirectory({type,onAssign,onAssignAll,onPermissions}:
   const [loading,setLoading]=useState(true),[creating,setCreating]=useState(false),[editing,setEditing]=useState<UserPerson|null>(null),[archiving,setArchiving]=useState<UserPerson|null>(null);
   const [error,setError]=useState(''),[message,setMessage]=useState(''),[busy,setBusy]=useState(false);
   const [lifecycle,setLifecycle]=useState<{person:UserPerson;action:'transfer'|'leave'|'rejoin'}|null>(null);
+  const [importing,setImporting]=useState(false);
   const [details,setDetails]=useState<UserPerson|null>(null);
   useEffect(()=>{setPage(1);setCreating(false);setEditing(null);setDetails(null);setArchiving(null);},[type]);
   useEffect(()=>{
@@ -34,6 +36,7 @@ export default function UserDirectory({type,onAssign,onAssignAll,onPermissions}:
     finally{setBusy(false);}
   }
   const countries=[...new Set(data?.stores.map(s=>s.country)||[])].sort();
+  if(importing)return <LearnerImport onClose={()=>{setImporting(false);setRefresh(v=>v+1);}}/>;
   return <div className="user-directory">
     {!creating&&!editing&&!details&&data?.platformAdmin&&<AdminSummary items={[{label:t('Users'),value:data.summary.total,blue:true},{label:t('Stores'),value:data.summary.stores},{label:t('Countries'),value:data.summary.countries}]}/>}
     <section className="paper user-panel">
@@ -41,7 +44,7 @@ export default function UserDirectory({type,onAssign,onAssignAll,onPermissions}:
     {message&&<p className="admin-success" role="status">{t(message)}</p>}
     {lifecycle&&data?<Lifecycle person={lifecycle.person} action={lifecycle.action} options={data} onCancel={()=>setLifecycle(null)} onSaved={()=>changed('Employment change saved.')}/>:creating&&data?<AddUser initialType={type==='admin'?'admin':'learner'} options={data} onCancel={()=>setCreating(false)} onCreated={()=>{changed('Account created.');setStatus('active');setSearch('');setPage(1);}}/>:details?<EditDetails key={details.id} person={details} onCancel={()=>{setDetails(null);setRefresh(v=>v+1);}} onSaved={()=>changed('Details saved.')}/>:editing&&data?<EditAccess key={editing.id} person={editing} options={data} onCancel={()=>{setEditing(null);setRefresh(v=>v+1);}} onSaved={()=>changed('Access saved.')}/>:<>
       <div className="directory-toolbar"><Input type="search" aria-label={t('Search users')} placeholder={t('Name, email or Workday ID')} value={search} onChange={e=>{setSearch(e.target.value);setPage(1);}}/>
-        <div className="directory-actions">{data?.canAssign&&<Button variant="outline" onClick={onAssignAll}>{t('Assign courses')}</Button>}<Button className="blue-button" disabled={!data||loading} onClick={()=>{setMessage('');setCreating(true);}}>{t('Add user')}</Button></div></div>
+        <div className="directory-actions">{data?.access.scope==='organisation'&&<Button variant="outline" onClick={()=>setImporting(true)}>{t('Bulk learner import')}</Button>}{data?.canAssign&&<Button variant="outline" onClick={onAssignAll}>{t('Assign courses')}</Button>}<Button className="blue-button" disabled={!data||loading} onClick={()=>{setMessage('');setCreating(true);}}>{t('Add user')}</Button></div></div>
       <div className="directory-filters">
         {data?.access.scope==='organisation'&&<label>{t('Country')}<NativeSelect value={country} aria-label={t('Filter users by country')} onChange={e=>{setCountry(e.target.value);setStoreId('');setPage(1);}}><option value="">{t('All countries')}</option>{countries.map(c=><option key={c} value={c}>{countryLabel(c)}</option>)}</NativeSelect></label>}
         {data?.access.scope!=='site'&&<label>{t('Store')}<NativeSelect value={storeId} aria-label={t('Filter users by store')} onChange={e=>{setStoreId(e.target.value);setPage(1);}}><option value="">{t('All stores')}</option>{data?.stores.filter(s=>!country||s.country===country).map(s=><option key={s.id} value={s.id}>{storeLabel(s)}{!s.active?' · '+t('Archived'):''}</option>)}</NativeSelect></label>}

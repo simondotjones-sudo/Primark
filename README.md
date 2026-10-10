@@ -618,3 +618,17 @@ quiz/certificate gates, reporting, linked refreshers and inactivity archiving.
 - Each learner/pathway is atomic: unavailable courses, insufficient credits or cyclic prerequisites roll back the entire pathway and its charges. Administrators see failures and can retry immediately. Other successful assignments remain saved. Disabling/archiving a rule stops new assignments and retains existing evidence.
 - Rule changes and generated enrolments appear in the audit trail. No rules are enabled by this migration. New interface labels are translated across the existing 14 languages.
 - Additive migration: `20261010120000_pathway-rules`. Migration/API integration coverage includes targeting, joiners/movers, duplicate prevention, credit rollback and retries.
+
+### Bulk learner import and updates — release 1.10.10.26.52
+
+Organisation and platform admins: **Manage Users → Bulk learner import**. Download the CSV template, choose create-only, update-only or create-and-update, upload, review every proposed change and then Apply import. Up to 200 learner rows / 500 KB per file. Export a password-free results CSV to fix errors or retain the review.
+
+- `workday_id`: required stable matching key, case-insensitive, leading zeroes preserved. Format this and store codes as **Text** in Excel before saving as CSV. An email belonging to a different Workday ID is rejected, never used to merge accounts. Change incorrect Workday IDs individually in Edit details.
+- New learners: `name`, unique `email`, active `store_code`, and an individual `initial_password` (8–128 characters) are required. Optional `start_date` defaults to today. No invitation emails are sent; administrators distribute initial credentials securely. Existing learners must leave `initial_password` blank; passwords are never updated by import or included in previews/results/audit.
+- Existing learners: omitted/blank fields retain their saved values. Supports name, email, store and employment start-date updates. It cannot clear fields, modify legacy access codes or grant admin/assessor permissions. Admin-only accounts are rejected.
+- `status`: blank or `active` for new/existing active learners; `leaver` disables access; explicit `rejoin` restores an archived learner. A changed store code transfers the learner. Transfers/leavers/rejoiners require `effective_date` and `reason` (3–500 characters). Dates are `YYYY-MM-DD`, no later than today; changes apply immediately. Rejoining sets the employment start date to its effective date. A leaver cannot be transferred in the same row.
+- Every row must pass validation. Any database failure rolls back the whole batch, including audit and assignment changes. Concurrent learner/store changes invalidate the preview. Reapplying an old preview is rejected.
+- Existing training and certificates remain intact. New and changed active learners run the existing induction, audience and pathway assignment rules. Credits apply under existing configuration. Pathway failures are surfaced in the completion message and remain available for the existing retry process.
+- The existing immutable audit captures actor, time, before/after values, batch reference, row and lifecycle reason. No schema migration is required.
+
+Validation: `node tests/learner-import-check.mjs` uses an isolated PostgreSQL-compatible database and all current migrations; no live learner data is changed.
