@@ -68,3 +68,5 @@
 .compliance-pill{display:inline-block;border-radius:999px;padding:5px 10px;font-weight:600;white-space:nowrap}.rag-green{background:#e8f6ee!important;color:#14663c}.rag-amber{background:#fff4d8!important;color:#865800}.rag-red{background:#fdebee!important;color:#a92e3b}.rag-grey{background:#edf1f4!important;color:#526772}.metric[class*=rag-] strong{color:inherit}
 
 @media(min-width:1200px){.training-report .metrics{grid-template-columns:repeat(4,minmax(0,1fr))}}
+
+.training-dot.exempt{background:#7c72ae}.training-dot.recognised{background:#008a9a}

@@ -17,13 +17,13 @@ import type { CoursePanelDetails } from '@/lib/course-panel-details';
 import CourseCover from '@/components/course-cover';
 import type { CourseCoverKey } from '@/lib/course-covers';
 type AssignedCourse = CoursePanelDetails & {
-  id: string; title: string; description: string; coverKey: CourseCoverKey;
+  recognition?:{kind:string;expiresAt:string}|null;id: string; title: string; description: string; coverKey: CourseCoverKey;
   status: 'Not started' | 'In progress' | 'Completed';
   pathwayLocked:boolean;awaitingAssessment:boolean;assessorRequired:boolean;progressPercent: number | null;dueAt:string|null;quizRequired:boolean;quizPassed:boolean;lessonsComplete:boolean;
   renewal?:CourseRenewal;
   passport?: SafetyPassportRecord | null;
   certificate:{token:string;expiresAt:string|null;completedAt:string}|null;
-  scos: {id: string; title: string; status: string; score: string | null}[];
+  scos: {recognition?:{kind:string;expiresAt:string}|null;id: string; title: string; status: string; score: string | null}[];
 };
 
 export type CourseView = 'induction' | 'all' | 'todo' | 'completed' | 'certs';
@@ -67,6 +67,7 @@ export default function AssignedCourses({view = 'all', hasLegacyCourse = false}:
   const visibleCourses = courses?.filter(c => {
     if (view === 'induction') return c.category.trim().toLowerCase() === 'induction';
     if (view === 'completed') return c.status === 'Completed';
+    if (view === 'todo' && c.recognition && ['exempt','recognised'].includes(c.recognition.kind)) return false;
     if (view === 'todo') return c.status !== 'Completed' || c.renewal?.canRenew || (c.renewal?.refresher && c.renewal.refresher.status !== 'completed');
     return view === 'all';
   }) ?? [];
@@ -103,7 +104,8 @@ export default function AssignedCourses({view = 'all', hasLegacyCourse = false}:
           <h3><a href={`/learn/${c.id}/`}>{c.title}</a></h3>
           <CourseMetadata details={c}/>
           {c.description && <p>{c.description}</p>}
-          {c.dueAt&&c.status!=='Completed'&&<p className={Date.parse(c.dueAt)<=Date.now()?'error':'course-expiry'}>{t(Date.parse(c.dueAt)<=Date.now()?'Overdue':'Due')} {date(c.dueAt)}</p>}
+          {c.recognition&&<p className="course-expiry">{t(c.recognition.kind==='exempt'?'Exempt':c.recognition.kind==='recognised'?'Prior learning recognised':'Deadline extended')} · {date(c.recognition.expiresAt)}</p>}
+          {(!c.recognition||c.recognition.kind==='extension')&&c.dueAt&&c.status!=='Completed'&&<p className={Date.parse(c.dueAt)<=Date.now()?'error':'course-expiry'}>{t(Date.parse(c.dueAt)<=Date.now()?'Overdue':'Due')} {date(c.dueAt)}</p>}
           {c.quizRequired&&!c.quizPassed&&c.status!=='Completed'&&<p>{t(c.lessonsComplete?'Lessons complete — pass the quiz to finish.':'Complete the lessons, then pass the quiz.')}</p>}
           <p>{t(c.awaitingAssessment?"Theory complete — awaiting practical assessment":c.assessorRequired&&!c.certificate?"Practical assessor sign-off required before certification":"")}</p>
           <CourseProgress status={c.status} percent={c.progressPercent} title={c.title}/>

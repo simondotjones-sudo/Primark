@@ -787,3 +787,30 @@ Apply additive migration `20261010160000_scheduled-reports` before running relea
   and production build. The dedicated integration tests cover access control, scope,
   duplicate names/codes, concurrent edit revisions, archive/clear behavior, role changes,
   rule intersections, retained evidence, import mapping, scoped export and audit history.
+
+## Release 58 — training exemptions and recognised prior learning
+
+Settings → Reporting & compliance includes **Training exemptions and recognised prior learning**,
+initially optional and off. Platform policies govern organisation availability. Settings links to
+an organisation/platform-admin decision register with learner/course search and pagination.
+
+Decisions attach to the current assignment: temporary exemption, accepted prior learning, or
+an individual deadline extension. Reason, evidence reference (certificate identifier or secure
+external document location), approver and end date are retained. Recognition additionally records
+the qualification and award date. This release records evidence references; it does not upload
+external certificates. Decisions can be revoked with a reason, never edited or deleted. Existing
+approvals and revocation remain available when the toggle is off. Expiry automatically restores
+the ordinary course requirement. Renewals do not inherit decisions. No credit is charged/refunded.
+
+Reports, matrix exports and scheduled summaries distinguish Exempt / Prior learning recognised:
+exemptions are excluded from the compliance denominator; recognised learning counts as compliant,
+not completed. Course assignment/deadline notices respect active decisions and extensions;
+queued notices are revalidated by the existing worker. Learner cards display status and expiry; active exemptions/recognition leave the
+to-do list, without creating a certificate or changing SCORM progress. Deadline overrides remain
+visible after the new deadline passes; revocation restores the original due date. Prior certificate
+expiry remains authoritative. Course/pathway certificates and pathway stage requirements continue
+to require actual completion. Assessor-required courses permit deadline extensions only.
+
+Apply additive migration `20261010180000_training-recognition` before releasing the application.
+Dedicated PGlite integration checks cover access, toggle, validation, conflict handling, reporting,
+expiry, revocation, audit and practical-assessment protection. No production data is changed by tests.

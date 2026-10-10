@@ -21,6 +21,7 @@ try {
     CREATE TABLE learner_inductions(learner_id text,course_id text);
     CREATE TABLE assignment_exclusions(learner_id text,course_id text);
     CREATE TABLE assignment_history(id text,previous_id text,due_at timestamptz,quiz_json text,assessor_required boolean,package_id text,course_snapshot jsonb);
+    CREATE TABLE training_recognitions(assignment_id text,kind text,revoked_at timestamptz,valid_until timestamptz);
     CREATE TABLE certificates(token text,learner_id text,course_id text,package_id text,assignment_id text,completed_at text,expires_at text,archived_at text,cancelled_at text);
     CREATE TABLE course_refresher_assignments(certificate_token text,refresher_course_id text,assignment_id text);
     CREATE TABLE course_quiz_attempts(assignment_id text,passed boolean,correct_count int,question_count int,submitted_at text,id text);

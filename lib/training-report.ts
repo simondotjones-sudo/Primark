@@ -52,7 +52,7 @@ async function reportQuery(siteIds:string[]|null,selection=allCourses,search='')
     UNION SELECT l.id,c.id FROM people l JOIN certificates cert ON cert.learner_id=l.id AND cert.archived_at IS NULL AND cert.cancelled_at IS NULL JOIN ready c ON c.id=cert.course_id
   ), evidence AS (
     SELECT a.learner_id,a.course_id,c.validity_months,c.sco_count,s.saved_count,s.score,s.learning_seconds,
-      attempt.score AS quiz_score,h.due_at,COALESCE(previous.expires_at,source.expires_at) AS previous_expiry,
+      attempt.score AS quiz_score,CASE WHEN recognition.kind='extension' THEN recognition.valid_until ELSE h.due_at END AS due_at,recognition.kind AS recognition_kind,recognition.valid_until AS recognition_expiry,COALESCE(previous.expires_at,source.expires_at) AS previous_expiry,
       EXISTS(SELECT 1 FROM course_refresher_assignments replacement
         JOIN certificates source_cert ON source_cert.token=replacement.certificate_token
         JOIN course_assignments target ON target.learner_id=source_cert.learner_id AND target.course_id=replacement.refresher_course_id
@@ -63,6 +63,7 @@ async function reportQuery(siteIds:string[]|null,selection=allCourses,search='')
     FROM candidates a JOIN ready catalogue ON catalogue.id=a.course_id
     LEFT JOIN course_assignments current_assignment ON current_assignment.learner_id=a.learner_id AND current_assignment.course_id=a.course_id
     LEFT JOIN assignment_history h ON h.id=current_assignment.history_id
+    LEFT JOIN training_recognitions recognition ON recognition.assignment_id=h.id AND recognition.revoked_at IS NULL AND (recognition.valid_until>now() OR recognition.kind='extension')
     JOIN course_packages assigned_package ON assigned_package.id=COALESCE(h.package_id,catalogue.package_id)
     CROSS JOIN LATERAL (SELECT catalogue.id, (CASE WHEN h.course_snapshot IS NOT NULL THEN (h.course_snapshot->>'validity_months')::integer ELSE catalogue.validity_months END) AS validity_months,
       jsonb_array_length(assigned_package.scos_json::jsonb) AS sco_count,assigned_package.id AS package_id) c
@@ -78,8 +79,8 @@ async function reportQuery(siteIds:string[]|null,selection=allCourses,search='')
       to_char((completed_at::timestamptz AT TIME ZONE 'UTC')+make_interval(months=>validity_months),'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') END AS expires_at FROM evidence e
   ), all_records AS MATERIALIZED (
     SELECT learner_id AS "learnerId",course_id AS "courseId",
-      CASE WHEN complete THEN CASE WHEN expires_at<=? THEN 'expired' ELSE 'completed' END WHEN saved_count>0 THEN 'in-progress' ELSE 'not-started' END AS status,
-      completed_at AS "completedAt",expires_at AS "expiresAt",COALESCE(quiz_score,CASE WHEN sco_count=1 THEN score END) AS score,
+      CASE WHEN complete THEN CASE WHEN expires_at<=? THEN 'expired' ELSE 'completed' END WHEN recognition_kind IN ('exempt','recognised') THEN recognition_kind WHEN saved_count>0 THEN 'in-progress' ELSE 'not-started' END AS status,
+      completed_at AS "completedAt",CASE WHEN NOT COALESCE(complete,false) AND recognition_kind IN ('exempt','recognised') THEN to_char(recognition_expiry AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') ELSE expires_at END AS "expiresAt",COALESCE(quiz_score,CASE WHEN sco_count=1 THEN score END) AS score,
       to_char(LEAST(due_at,previous_expiry) AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') AS "dueAt",to_char(previous_expiry AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') AS "coveredUntil",replaced_by_refresher AS "replacedByRefresher",CASE WHEN feature_enabled('learning_time') THEN learning_seconds END AS "learningSeconds" FROM dated
     UNION ALL
     SELECT id,?::text,CASE WHEN completed_at IS NOT NULL THEN 'completed' WHEN started_at IS NOT NULL THEN 'in-progress' ELSE 'not-started' END,
@@ -91,10 +92,10 @@ async function reportQuery(siteIds:string[]|null,selection=allCourses,search='')
   ), active_records AS MATERIALIZED (
     SELECT r.* FROM records r JOIN people l ON l.id=r."learnerId" WHERE l.archived_at IS NULL
   ), compliance_records AS MATERIALIZED (
-    SELECT r.*,status='completed' OR (status<>'expired' AND COALESCE("coveredUntil"::timestamptz>clock.at,false)) AS compliant,
-      status NOT IN ('completed','expired') AND COALESCE("dueAt"::timestamptz>clock.at,false)
+    SELECT r.*,status IN ('completed','recognised') OR (status<>'expired' AND COALESCE("coveredUntil"::timestamptz>clock.at,false)) AS compliant,
+      status NOT IN ('completed','recognised','exempt','expired') AND COALESCE("dueAt"::timestamptz>clock.at,false)
       AND NOT COALESCE("coveredUntil"::timestamptz>clock.at,false) AS within_deadline
-    FROM active_records r CROSS JOIN (SELECT ?::timestamptz AS at) clock WHERE NOT "replacedByRefresher"
+    FROM active_records r CROSS JOIN (SELECT ?::timestamptz AS at) clock WHERE NOT "replacedByRefresher" AND status<>'exempt'
   ), expiring_records AS MATERIALIZED (
     SELECT * FROM active_records WHERE status='completed' AND "expiresAt"::timestamptz>?::timestamptz AND "expiresAt"::timestamptz<=?::timestamptz
   )`;
@@ -131,7 +132,7 @@ export async function trainingOverview(siteIds:string[]|null,selection=allCourse
         'compliance',(SELECT floor(1000.0*count(*) FILTER(WHERE compliant)/NULLIF(count(*) FILTER(WHERE ${assessed}),0))/10 FROM compliance_records),
         'expiringPeople',(SELECT count(DISTINCT "learnerId") FROM expiring_records)) FROM records) AS metrics,
       COALESCE((SELECT json_agg(b) FROM (SELECT substring("completedAt",1,7) AS month,count(*)::int AS count FROM records WHERE "completedAt" IS NOT NULL GROUP BY 1 ORDER BY 1) b),'[]') AS completions,
-      COALESCE((SELECT json_agg(g) FROM (SELECT l.country,l.store_id AS "storeId",count(*)::int AS total,count(*) FILTER(WHERE r.compliant)::int AS completed,count(*) FILTER(WHERE r.status='expired')::int AS expired,
+      COALESCE((SELECT json_agg(g) FROM (SELECT l.country,l.store_id AS "storeId",count(*)::int AS total,count(*) FILTER(WHERE r.compliant)::int AS completed,count(*) FILTER(WHERE r.status='completed')::int AS "completedCourses",count(*) FILTER(WHERE r.status='expired')::int AS expired,
         count(*) FILTER(WHERE ${assessed})::int AS assessed,count(*) FILTER(WHERE within_deadline)::int AS "withinDeadline"
         FROM compliance_records r JOIN people l ON l.id=r."learnerId" GROUP BY l.country,l.store_id) g),'[]') AS groups,
       COALESCE((SELECT json_agg(DISTINCT "courseId") FROM all_records),'[]') AS "courseIds"`),
@@ -183,7 +184,7 @@ export async function trainingReport(siteIds:string[]|null,selection=allCourses,
 export async function scheduledTrainingSummary(siteIds:string[],includeLearners:boolean){
  const q=await reportQuery(siteIds),settings=await organisationSettings();
  const assessed=settings.exclude_within_deadline?'NOT within_deadline':'true';
- const overdue=`status NOT IN ('completed','expired') AND "dueAt"::timestamptz<now() AND NOT compliant`;
+ const overdue=`status NOT IN ('completed','recognised','exempt','expired') AND "dueAt"::timestamptz<now() AND NOT compliant`;
  const {results:[r]}=await q.run<{compliance:number|null;assessed:number;compliant:number;withinDeadline:number;overdue:number;expired:number;expiring:number;assessment:number;rows:{name:string;course:string;due:string}[]}>(`SELECT
   (SELECT floor(1000.0*count(*) FILTER(WHERE compliant)/NULLIF(count(*) FILTER(WHERE ${assessed}),0))/10 FROM compliance_records) AS compliance,
   (SELECT count(*)::int FROM compliance_records WHERE ${assessed}) AS assessed,

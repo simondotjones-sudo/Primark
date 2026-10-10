@@ -73,7 +73,7 @@ try {
  await q("INSERT INTO reporting_access VALUES('org','organisation',NULL,NULL,'test','2026-01-01'),('country','country','Ireland',NULL,'test','2026-01-01')");
  await check('Only organisation and platform admins can read feature settings',async()=>{
   for(const user of ['','country','student'])assert.equal((await settings(user,false)).status,403);
-  const d=await (await settings('org',false)).json();assert.equal(d.platformAdmin,false);assert.equal(Object.keys(d.choices).length,23);
+  const d=await (await settings('org',false)).json();assert.equal(d.platformAdmin,false);assert.equal(Object.keys(d.choices).length,24);
   assert.equal(d.choices.pathways.enabled,false);assert.equal(d.choices.credits.enabled,true);assert.equal(d.choices.auto_archive.enabled,false);
  });
  await check('Platform access overrides organisation choice and cannot be forged',async()=>{

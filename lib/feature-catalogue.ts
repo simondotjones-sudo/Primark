@@ -16,6 +16,7 @@ export const featureCatalogue = [
  {id:'assignment_emails',category:'Communications',name:'Assignment emails',description:'Notify learners when courses or pathways are assigned.',parent:'email_notifications'},
  {id:'registration_reminders',category:'Communications',name:'Registration reminders',description:'Remind invitees and users who have not activated their account.',parent:'email_notifications'},
  {id:'expiry_reminders',category:'Communications',name:'Certificate expiry emails',description:'Send reminders before expiry and a course-expired email.',parent:'email_notifications'},
+ {id:'training_recognition',category:'Reporting & compliance',name:'Training exemptions and recognised prior learning',description:'A reason, evidence reference and expiry date are required.'},
  {id:'scheduled_reports',category:'Reporting & compliance',name:'Scheduled reports',description:'Email scheduled training reports to authorised administrators.',parent:'email_notifications'},
  {id:'weekly_store_reports',category:'Reporting & compliance',name:'Weekly store overdue reports',description:'Send store managers an overdue learner list and training summary.',parent:'scheduled_reports'},
  {id:'monthly_country_reports',category:'Reporting & compliance',name:'Monthly country compliance reports',description:'Send current country compliance summaries to organisation and country administrators.',parent:'scheduled_reports'},
