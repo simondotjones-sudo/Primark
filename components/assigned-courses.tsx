@@ -19,7 +19,7 @@ import type { CourseCoverKey } from '@/lib/course-covers';
 type AssignedCourse = CoursePanelDetails & {
   id: string; title: string; description: string; coverKey: CourseCoverKey;
   status: 'Not started' | 'In progress' | 'Completed';
-  progressPercent: number | null;
+  progressPercent: number | null;dueAt:string|null;quizRequired:boolean;quizPassed:boolean;lessonsComplete:boolean;
   renewal?:CourseRenewal;
   passport?: SafetyPassportRecord | null;
   certificate:{token:string;expiresAt:string|null;completedAt:string}|null;
@@ -33,6 +33,7 @@ export default function AssignedCourses({view = 'all', hasLegacyCourse = false}:
 
   const [courses, setCourses] = useState<AssignedCourse[] | null>(null);
   const [selected,setSelected]=useState<AssignedCourse|null>(null),[busy,setBusy]=useState(false),[renewalError,setRenewalError]=useState(''),[notice,setNotice]=useState('');
+  const [creditsEnabled,setCreditsEnabled]=useState(true);
   const [error, setError] = useState('');
   const [inductionPending, setInductionPending] = useState(false);
   const [certificates, setCertificates] = useState<Certificate[] | null>(null);
@@ -40,7 +41,7 @@ export default function AssignedCourses({view = 'all', hasLegacyCourse = false}:
   async function loadCourses(){
     const r=await fetch('/api/courses',{cache:'no-store'}),d=await r.json();
     if(!r.ok)throw new Error(d.error);
-    setCourses(d.courses);setInductionPending(!!d.inductionPending);setError('');
+    setCreditsEnabled(d.creditsEnabled!==false);setCourses(d.courses);setInductionPending(!!d.inductionPending);setError('');
   }
   useEffect(()=>{void loadCourses().catch(e=>setError(e.message));},[]);
   async function renew(){
@@ -73,7 +74,7 @@ export default function AssignedCourses({view = 'all', hasLegacyCourse = false}:
   return <section className="assigned-courses">
     {notice&&<p role="status">{t(notice)}</p>}
     <Dialog open={!!selected} onOpenChange={open=>{if(!open&&!busy)setSelected(null);}}><DialogContent><DialogHeader><DialogTitle>{t('Restart course')}</DialogTitle><DialogDescription>{selected?.title}</DialogDescription></DialogHeader>
-      <p>{t('A new assignment will use one credit. Previous training evidence is retained.')}</p>
+      <p>{t(creditsEnabled?'A new assignment will use one credit. Previous training evidence is retained.':'Credits are off. Previous training evidence is retained.')}</p>
       <p>{t('Your progress will reset. Your previous completion date and certificate will remain in your training history.')}</p>
       {renewalError&&<p role="alert" className="error">{t(renewalError)}</p>}
       <div className="editor-actions"><Button variant="outline" disabled={busy} onClick={()=>setSelected(null)}>{t('Cancel')}</Button><Button disabled={busy} onClick={()=>void renew()}>{t(busy?'Saving…':'Restart course')}</Button></div>
@@ -102,10 +103,12 @@ export default function AssignedCourses({view = 'all', hasLegacyCourse = false}:
           <h3><a href={`/learn/${c.id}/`}>{c.title}</a></h3>
           <CourseMetadata details={c}/>
           {c.description && <p>{c.description}</p>}
+          {c.dueAt&&c.status!=='Completed'&&<p className={Date.parse(c.dueAt)<=Date.now()?'error':'course-expiry'}>{t(Date.parse(c.dueAt)<=Date.now()?'Overdue':'Due')} {date(c.dueAt)}</p>}
+          {c.quizRequired&&!c.quizPassed&&c.status!=='Completed'&&<p>{t(c.lessonsComplete?'Lessons complete — pass the quiz to finish.':'Complete the lessons, then pass the quiz.')}</p>}
           <CourseProgress status={c.status} percent={c.progressPercent} title={c.title}/>
           {c.certificate&&<><span className={'certificate-status is-'+certificateStatus(c.certificate.expiresAt).toLowerCase().replaceAll(' ','-')}>{t(certificateStatus(c.certificate.expiresAt))}</span><p className="course-expiry">{c.certificate.expiresAt?t('Expires {date}',{date:date(c.certificate.expiresAt)}):t('No expiry')}</p></>}
           <CourseRenewalNotice certificate={c.certificate} renewal={c.renewal} onRenew={()=>{setRenewalError('');setSelected(c);}}/>
-          <div className="assigned-course-actions"><a href={`/learn/${c.id}/`}>{t(c.status === 'Completed' ? 'Review course' : c.status === 'In progress' ? 'Continue course' : 'Start course')}</a>{c.certificate&&<a href={'/certificates/'+c.certificate.token+'/'}>{t("View certificate")}</a>}</div>
+          <div className="assigned-course-actions">{c.quizRequired&&!c.quizPassed&&c.lessonsComplete&&<a href={`/learn/${c.id}/quiz/`}>{t('Take quiz')}</a>}<a href={`/learn/${c.id}/`}>{t(c.status === 'Completed' ? 'Review course' : c.status === 'In progress' ? 'Continue course' : 'Start course')}</a>{c.certificate&&<a href={'/certificates/'+c.certificate.token+'/'}>{t("View certificate")}</a>}</div>
           </div>
         </article>;
         return c.status==='Completed'&&c.category.trim().toLowerCase()==='induction'&&c.passport

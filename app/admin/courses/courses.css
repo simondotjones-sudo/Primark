@@ -15,3 +15,8 @@
 
 .refresher-rule{display:grid;grid-template-columns:minmax(140px,1fr) minmax(180px,2fr) auto;align-items:end;gap:12px;margin:16px 0}.refresher-rule label{min-width:0}.refresher-rule select{width:100%}
 @media(max-width:700px){.refresher-rule{grid-template-columns:1fr}.refresher-rule>button{justify-self:start}}
+
+.quiz-toggle,.organisation-settings label{display:flex;align-items:center;gap:10px}.quiz-question{padding:20px;border:1px solid #dce7ed;border-radius:12px;margin:16px 0}.quiz-question legend{font-weight:600;padding:0 8px}.organisation-settings fieldset>div{margin:18px 0}.organisation-settings p{font-size:14px;color:#536d7d;max-width:760px}.organisation-settings input[type=checkbox]{width:18px;height:18px;flex-shrink:0}
+
+.course-admin .course-editor.organisation-settings label,.course-admin .course-editor .quiz-toggle{display:flex;align-items:center;gap:10px;line-height:1.5}
+.course-admin .course-editor .quiz-toggle input[type=checkbox],.course-admin .course-editor.organisation-settings input[type=checkbox]{appearance:auto;width:18px;min-width:18px;height:18px;min-height:18px;padding:0;flex:0 0 18px;margin:0}

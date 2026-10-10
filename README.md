@@ -530,3 +530,47 @@ features. Email uniqueness ignores case and surrounding whitespace and includes
 archived accounts. The database enforces uniqueness for simultaneous requests.
 Saving the email preserves learner identity and learning history and replaces
 all prior sessions. This collects an address; it does not verify mailbox ownership.
+
+### Organisation learning controls (October 2026)
+
+`20261010060000_learning-controls` adds settings for this deployment's client
+organisation. This application still has one organisation per deployment; these
+controls do not introduce shared-database multi-tenancy.
+
+- Platform admins can switch credit charging on/off under Organisation settings.
+  Off permits new assignments and renewals with no balance or charge; history,
+  prior charges and eligible refunds remain intact. Automatic top-ups pause while
+  off. Re-enabling does not bill assignments made while off. The Period report
+  remains a billing report; unbilled learning appears in training reporting.
+- Platform/organisation admins can enable the three-year inactivity rule; it is
+  off initially. The hourly job processes at most 500 inactive learner accounts,
+  retaining training evidence and audit entries while revoking sessions. All
+  admin roles are excluded. Unknown historical logins start their observation
+  window at migration; manual restore starts a fresh window. No accounts are
+  archived by the migration itself.
+- Platform admins can set an optional 1–3,650 day assignment deadline and add
+  a 1–50 question, single-answer multiple-choice quiz with a 1–100% pass mark.
+  Both are snapshotted on new assignments, including renewals. Existing
+  assignments retain their existing requirements and issued evidence.
+- Quiz submission requires completed lessons, an active learner and the current
+  assignment. Correct answers are never in learner responses. Attempts and scores
+  are retained, repeated submissions are idempotent, and retries use no credits.
+  The certificate function requires the assignment's quiz pass. Reports do not
+  count lesson-only completion as course completion where a quiz is required.
+- Compliance defaults to excluding unfinished assignments before their deadline.
+  Organisation admins may select strict counting instead. No-deadline work counts
+  immediately; expired certificates do not get grace from a renewal/refresher.
+  A still-valid previous certificate continues to provide compliance until expiry.
+  Active replacement refreshers replace the source requirement once in the score;
+  original evidence remains available in activity, certificates and exports.
+  Archived users and admin-only users are excluded from current compliance.
+- Compliance is valid completions divided by assessed requirements, with separate
+  within-deadline counts and matching country/store rollups. Green is at least 90%,
+  amber is 50% to below 90%, red is below 50%, and no assessed requirements is grey.
+  Display percentages are truncated to one decimal so rounding never crosses a
+  RAG threshold. Existing assignment status indicators continue to show status.
+
+Validation: `npm test`, `npm run typecheck`, and `npm run build`. New integration
+coverage lives in `tests/learning-controls-checks.mjs` (run by course-check), with
+isolated PostgreSQL assertions for permissions, credits, immutable requirements,
+quiz/certificate gates, reporting, linked refreshers and inactivity archiving.

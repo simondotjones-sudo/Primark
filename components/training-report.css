@@ -34,7 +34,7 @@
 @media(max-width:700px){.activity-filters .report-reset{grid-row:2}}
 @media(min-width:701px) and (max-width:760px){.training-report .report-scope{grid-template-columns:1fr}.report-scope .scope-buttons{grid-column:1;grid-row:2;width:100%}.training-report .report-location{grid-column:1;grid-row:3}.training-report .report-view-tabs{width:100%;max-width:none}.training-report .report-view-tabs button{min-width:0}}
 
-/* Six summary cards retain a compact row on wide screens. */
+/* Summary cards wrap without squeezing their labels. */
 .training-report .metrics{grid-template-columns:repeat(3,minmax(0,1fr))}
 .training-report .metric{min-width:0;align-content:start}
 .training-report .metric strong{font-variant-numeric:tabular-nums}
@@ -64,3 +64,7 @@
 @media(min-width:1200px){.training-report .metrics{grid-template-columns:repeat(6,minmax(0,1fr))}.training-report .metric{padding:20px 18px}}
 @media(max-width:700px){.training-report .metrics{grid-template-columns:repeat(2,minmax(0,1fr))}.expiry-dialog{padding:22px 16px}.expiry-person{padding:14px}.expiry-person-heading{display:block}.expiry-person-heading>p{text-align:start;max-width:none;margin-top:7px}.expiry-person-heading>p span{display:inline;margin-inline-start:8px}.expiry-person li{flex-direction:column;gap:4px}.expiry-person li>span{text-align:start}.expiry-dialog .activity-pagination{gap:8px}}
 @media(prefers-reduced-motion:reduce){.training-report .metric-expiring{transition:none}}
+
+.compliance-pill{display:inline-block;border-radius:999px;padding:5px 10px;font-weight:600;white-space:nowrap}.rag-green{background:#e8f6ee!important;color:#14663c}.rag-amber{background:#fff4d8!important;color:#865800}.rag-red{background:#fdebee!important;color:#a92e3b}.rag-grey{background:#edf1f4!important;color:#526772}.metric[class*=rag-] strong{color:inherit}
+
+@media(min-width:1200px){.training-report .metrics{grid-template-columns:repeat(4,minmax(0,1fr))}}

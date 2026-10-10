@@ -1,3 +1,4 @@
+import {organisationSettings} from '@/lib/organisation-settings';
 import { learnerOnlySql } from '@/lib/account-type';
 import { db } from '@/lib/database';
 import { availableInCountry, inductionFor } from '@/lib/course-catalogue';
@@ -49,10 +50,22 @@ async function reportQuery(siteIds:string[]|null,selection=allCourses,search='')
     UNION SELECT l.id,c.id FROM people l JOIN certificates cert ON cert.learner_id=l.id AND cert.archived_at IS NULL AND cert.cancelled_at IS NULL JOIN ready c ON c.package_id=cert.package_id
   ), evidence AS (
     SELECT a.learner_id,a.course_id,c.validity_months,c.sco_count,s.saved_count,s.score,
-      (cert.package_id IS NOT NULL OR (c.sco_count>0 AND s.done_count=c.sco_count)) AS complete,
-      COALESCE(cert.completed_at,CASE WHEN s.done_count=c.sco_count AND s.date_count=c.sco_count AND c.sco_count>0 THEN s.completed_at END) AS completed_at,
+      attempt.score AS quiz_score,h.due_at,COALESCE(previous.expires_at,source.expires_at) AS previous_expiry,
+      EXISTS(SELECT 1 FROM course_refresher_assignments replacement
+        JOIN certificates source_cert ON source_cert.token=replacement.certificate_token
+        JOIN course_assignments target ON target.learner_id=source_cert.learner_id AND target.course_id=replacement.refresher_course_id
+        WHERE source_cert.learner_id=a.learner_id AND source_cert.course_id=a.course_id AND source_cert.archived_at IS NULL AND source_cert.cancelled_at IS NULL) AS replaced_by_refresher,
+      (cert.package_id IS NOT NULL OR (c.sco_count>0 AND s.done_count=c.sco_count AND (h.quiz_json IS NULL OR EXISTS(SELECT 1 FROM course_quiz_attempts q WHERE q.assignment_id=h.id AND q.passed)))) AS complete,
+      COALESCE(cert.completed_at,CASE WHEN s.done_count=c.sco_count AND s.date_count=c.sco_count AND c.sco_count>0 AND (h.quiz_json IS NULL OR EXISTS(SELECT 1 FROM course_quiz_attempts q WHERE q.assignment_id=h.id AND q.passed)) THEN s.completed_at END) AS completed_at,
       cert.package_id IS NOT NULL AS certified,cert.expires_at AS certificate_expiry
     FROM candidates a JOIN ready c ON c.id=a.course_id
+    LEFT JOIN course_assignments current_assignment ON current_assignment.learner_id=a.learner_id AND current_assignment.course_id=a.course_id
+    LEFT JOIN assignment_history h ON h.id=current_assignment.history_id
+    LEFT JOIN LATERAL (SELECT cert.expires_at::timestamptz FROM certificates cert WHERE cert.assignment_id=h.previous_id AND cert.cancelled_at IS NULL ORDER BY cert.completed_at DESC LIMIT 1) previous ON true
+    LEFT JOIN LATERAL (SELECT cert.expires_at::timestamptz FROM course_refresher_assignments link JOIN certificates cert ON cert.token=link.certificate_token
+      WHERE link.assignment_id=h.id AND cert.cancelled_at IS NULL ORDER BY cert.expires_at LIMIT 1) source ON true
+    LEFT JOIN LATERAL (SELECT to_char(floor(1000.0*q.correct_count/q.question_count)/10,'FM990.0')||'%' AS score
+      FROM course_quiz_attempts q WHERE q.assignment_id=h.id ORDER BY q.passed DESC,q.submitted_at DESC,q.id LIMIT 1) attempt ON h.quiz_json IS NOT NULL
     LEFT JOIN saved s ON s.learner_id=a.learner_id AND s.course_id=a.course_id
     LEFT JOIN certificates cert ON cert.learner_id=a.learner_id AND cert.package_id=c.package_id AND cert.archived_at IS NULL AND cert.cancelled_at IS NULL
   ), dated AS (
@@ -61,23 +74,29 @@ async function reportQuery(siteIds:string[]|null,selection=allCourses,search='')
   ), all_records AS MATERIALIZED (
     SELECT learner_id AS "learnerId",course_id AS "courseId",
       CASE WHEN complete THEN CASE WHEN expires_at<=? THEN 'expired' ELSE 'completed' END WHEN saved_count>0 THEN 'in-progress' ELSE 'not-started' END AS status,
-      completed_at AS "completedAt",expires_at AS "expiresAt",CASE WHEN sco_count=1 THEN score END AS score FROM dated
+      completed_at AS "completedAt",expires_at AS "expiresAt",COALESCE(quiz_score,CASE WHEN sco_count=1 THEN score END) AS score,
+      to_char(LEAST(due_at,previous_expiry) AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') AS "dueAt",to_char(previous_expiry AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') AS "coveredUntil",replaced_by_refresher AS "replacedByRefresher" FROM dated
     UNION ALL
     SELECT id,?::text,CASE WHEN completed_at IS NOT NULL THEN 'completed' WHEN started_at IS NOT NULL THEN 'in-progress' ELSE 'not-started' END,
-      completed_at,NULL,CASE WHEN best_score IS NOT NULL THEN best_score::text||'/20' END FROM people
+      completed_at,NULL,CASE WHEN best_score IS NOT NULL THEN best_score::text||'/20' END,NULL::text,NULL::text,false FROM people
       WHERE NOT induction_enrolled OR started_at IS NOT NULL OR completed_at IS NOT NULL
   ), records AS (
     SELECT r.* FROM all_records r LEFT JOIN ready c ON c.id=r."courseId"
     WHERE (?='all' OR CASE WHEN c.id IS NULL THEN 'Induction' ELSE COALESCE(NULLIF(c.category,''),'Uncategorised') END=?) AND (?='all' OR r."courseId"=?)
   ), active_records AS MATERIALIZED (
     SELECT r.* FROM records r JOIN people l ON l.id=r."learnerId" WHERE l.archived_at IS NULL
+  ), compliance_records AS MATERIALIZED (
+    SELECT r.*,status='completed' OR (status<>'expired' AND COALESCE("coveredUntil"::timestamptz>clock.at,false)) AS compliant,
+      status NOT IN ('completed','expired') AND COALESCE("dueAt"::timestamptz>clock.at,false)
+      AND NOT COALESCE("coveredUntil"::timestamptz>clock.at,false) AS within_deadline
+    FROM active_records r CROSS JOIN (SELECT ?::timestamptz AS at) clock WHERE NOT "replacedByRefresher"
   ), expiring_records AS MATERIALIZED (
     SELECT * FROM active_records WHERE status='completed' AND "expiresAt"::timestamptz>?::timestamptz AND "expiresAt"::timestamptz<=?::timestamptz
   )`;
   const generatedAt=new Date().toISOString();
   // All caller values are bound.
   args.push(generatedAt,ORIGINAL_INDUCTION,selection.category,selection.category,selection.courseId,selection.courseId,
-    generatedAt,new Date(Date.parse(generatedAt)+30*86400000).toISOString());
+    generatedAt,generatedAt,new Date(Date.parse(generatedAt)+30*86400000).toISOString());
   const run=<T,>(sql:string,extra:unknown[]=[])=>db().prepare(cte+' '+sql).bind(...args,...extra).all<T>();
   function visibleCourses(ids:string[]):ReportCourse[]{
     const visible=new Set(ids);
@@ -94,15 +113,22 @@ function legacyQuery(siteIds:string[]|null){
 }
 
 export async function trainingOverview(siteIds:string[]|null,selection=allCourses):Promise<TrainingOverview>{
-  const q=await reportQuery(siteIds,selection),legacy=legacyQuery(siteIds);
+  const q=await reportQuery(siteIds,selection),legacy=legacyQuery(siteIds),settings=await organisationSettings();
+  const assessed=settings.exclude_within_deadline?'NOT within_deadline':'true';
   const [{results:[row]},{results:historical}]=await Promise.all([
     q.run<{metrics:TrainingOverview['metrics'];completions:TrainingOverview['completions'];groups:TrainingOverview['groups'];courseIds:string[]}>(`SELECT
       (SELECT json_build_object('employees',count(DISTINCT "learnerId"),'records',count(*),'inProgress',count(*) FILTER(WHERE status='in-progress'),'expired',count(*) FILTER(WHERE status='expired'),
         'assigned',(SELECT count(*) FROM active_records),'completed',(SELECT count(*) FROM active_records WHERE status='completed'),
-        'compliance',(SELECT round(100.0*count(*) FILTER(WHERE status='completed')/NULLIF(count(*),0),1) FROM active_records),
+        'assessed',(SELECT count(*) FROM compliance_records WHERE ${assessed}),
+        'compliant',(SELECT count(*) FROM compliance_records WHERE compliant),
+        'withinDeadline',(SELECT count(*) FROM compliance_records WHERE within_deadline),
+        'excludeWithinDeadline',${settings.exclude_within_deadline},
+        'compliance',(SELECT floor(1000.0*count(*) FILTER(WHERE compliant)/NULLIF(count(*) FILTER(WHERE ${assessed}),0))/10 FROM compliance_records),
         'expiringPeople',(SELECT count(DISTINCT "learnerId") FROM expiring_records)) FROM records) AS metrics,
       COALESCE((SELECT json_agg(b) FROM (SELECT substring("completedAt",1,7) AS month,count(*)::int AS count FROM records WHERE "completedAt" IS NOT NULL GROUP BY 1 ORDER BY 1) b),'[]') AS completions,
-      COALESCE((SELECT json_agg(g) FROM (SELECT l.country,l.store_id AS "storeId",count(*)::int AS total,count(*) FILTER(WHERE r.status='completed')::int AS completed,count(*) FILTER(WHERE r.status='expired')::int AS expired FROM records r JOIN people l ON l.id=r."learnerId" GROUP BY l.country,l.store_id) g),'[]') AS groups,
+      COALESCE((SELECT json_agg(g) FROM (SELECT l.country,l.store_id AS "storeId",count(*)::int AS total,count(*) FILTER(WHERE r.compliant)::int AS completed,count(*) FILTER(WHERE r.status='expired')::int AS expired,
+        count(*) FILTER(WHERE ${assessed})::int AS assessed,count(*) FILTER(WHERE within_deadline)::int AS "withinDeadline"
+        FROM compliance_records r JOIN people l ON l.id=r."learnerId" GROUP BY l.country,l.store_id) g),'[]') AS groups,
       COALESCE((SELECT json_agg(DISTINCT "courseId") FROM all_records),'[]') AS "courseIds"`),
     db().prepare(`SELECT substring(c.completed_at,1,7) AS month,count(*)::int AS count ${legacy.sql} GROUP BY 1`).bind(...legacy.args).all<TrainingOverview['legacy'][number]>(),
   ]);
@@ -114,7 +140,7 @@ export async function trainingActivity(siteIds:string[]|null,selection:ReportSel
   const q=await reportQuery(siteIds,selection,search);
   const {results}=await q.run<TrainingRecord&PersonRow>(`SELECT r.*,l.* FROM records r JOIN people l ON l.id=r."learnerId" ORDER BY lower(l.name),l.id,r."courseId" LIMIT ? OFFSET ?`,[PAGE_SIZE+1,(page-1)*PAGE_SIZE]);
   const rows=results.slice(0,PAGE_SIZE),ids=new Set(rows.map(r=>r.courseId));
-  return {courses:q.visibleCourses([...ids]).filter(c=>ids.has(c.id)),employees:[...new Map(rows.map(r=>[r.id,person(r,q.stores)])).values()],records:rows.map(r=>({learnerId:r.learnerId,courseId:r.courseId,status:r.status,completedAt:r.completedAt,expiresAt:r.expiresAt,score:r.score})),generatedAt:q.generatedAt,page,pageSize:PAGE_SIZE,hasMore:results.length>PAGE_SIZE};
+  return {courses:q.visibleCourses([...ids]).filter(c=>ids.has(c.id)),employees:[...new Map(rows.map(r=>[r.id,person(r,q.stores)])).values()],records:rows.map(r=>({learnerId:r.learnerId,courseId:r.courseId,status:r.status,completedAt:r.completedAt,expiresAt:r.expiresAt,score:r.score,dueAt:r.dueAt,replacedByRefresher:r.replacedByRefresher})),generatedAt:q.generatedAt,page,pageSize:PAGE_SIZE,hasMore:results.length>PAGE_SIZE};
 }
 
 // Paginate people, keeping all their matching certificates together. The overview

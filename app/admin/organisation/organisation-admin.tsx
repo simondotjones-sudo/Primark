@@ -1,5 +1,6 @@
 'use client';
 import {useEffect,useState,useRef} from 'react';
+import OrganisationSettings from '@/components/organisation-settings';
 import AdminSummary from '@/components/admin-summary';
 import PageHeader from '@/components/page-header';
 import {useLanguage} from '@/components/language-provider';
@@ -43,7 +44,7 @@ export default function OrganisationAdmin(){
  return <div className="shell course-admin"><PageHeader title={t('Organisation')} view="organisation"/><main className="main">
  <div ref={feedback} aria-live="polite">{error&&<p className="error" role="alert">{t(error)}</p>}{notice&&<p className="admin-success" role="status">{t(notice)}</p>}</div>
  {loaded&&<><AdminSummary items={[{label:t('Stores'),value:stores.length},{label:t('Active'),value:stores.filter(s=>s.active).length,blue:true},{label:t('Countries'),value:new Set(stores.filter(s=>s.active).map(s=>s.country)).size},{label:t('Archived'),value:stores.filter(s=>!s.active).length}]}/>
- <section className="paper course-editor"><h2>{t('Add store')}</h2><form className="organisation-form organisation-setup" onSubmit={e=>{e.preventDefault();void change({action:'add',name,country:country==='__new__'?newCountry:country,newCountry:country==='__new__',storeCode,adminEmail,adminPassword});}}>
+ <OrganisationSettings/><section className="paper course-editor"><h2>{t('Add store')}</h2><form className="organisation-form organisation-setup" onSubmit={e=>{e.preventDefault();void change({action:'add',name,country:country==='__new__'?newCountry:country,newCountry:country==='__new__',storeCode,adminEmail,adminPassword});}}>
  <fieldset disabled={busy}>
  <label>{t('Country')}<NativeSelect required value={country} disabled={!!fixedCountry} onChange={e=>setCountry(e.target.value)}><option value="">{t('Choose a country')}</option>{countries.map(c=><option key={c} value={c}>{countryLabel(c)}</option>)}{canAddCountry&&<option value="__new__">{t('Add new country')}</option>}</NativeSelect></label>
  {country==='__new__'&&<label>{t('New country')}<Input required maxLength={80} value={newCountry} onChange={e=>setNewCountry(e.target.value)}/></label>}

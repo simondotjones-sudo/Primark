@@ -6,7 +6,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { AlertCircle, Check, LoaderCircle, Maximize2, Minimize2 } from 'lucide-react';
 import type { Sco } from '@/lib/course-types';
 
-type Launch = { token: string; title: string; scos: Sco[]; scoId: string; url: string; preview: boolean };
+type Launch = { quizRequired:boolean; token: string; title: string; scos: Sco[]; scoId: string; url: string; preview: boolean };
 type SaveState = 'idle' | 'saving' | 'saved' | 'error';
 
 export default function Player({ courseId, preview }: { courseId: string; preview: boolean }) {
@@ -190,6 +190,7 @@ export default function Player({ courseId, preview }: { courseId: string; previe
           aria-label={t(fullscreen ? 'Exit full screen' : 'Full screen')} title={t(fullscreen ? 'Exit full screen' : 'Full screen')} aria-pressed={fullscreen}>
           {fullscreen ? <Minimize2 aria-hidden="true" /> : <Maximize2 aria-hidden="true" />}
         </button>}
+        {launch?.quizRequired&&!preview&&<button type="button" className="player-exit" disabled={busy} onClick={async()=>{setBusy(true);if(await flush()){approvedExit.current=true;location.assign(`/learn/${courseId}/quiz/`);}else setBusy(false);}}>{t('Take quiz')}</button>}
         <button type="button" className="player-exit" disabled={busy} onClick={exit}>{t(preview ? 'Exit preview' : 'Save & exit')}</button>
       </div>
     </header>

@@ -1,3 +1,4 @@
+import {validateQuiz} from '@/lib/course-quiz';
 import {inTransaction} from '@/lib/database';
 import {creditError} from '@/lib/credits';
 import { activeLearnerSql } from '@/lib/account-type';
@@ -28,7 +29,7 @@ export async function GET() { try {
 export async function POST(request: NextRequest) { try {
   await requireAdmin(request);
  const stores=await storeDirectory(false);const storeById=new Map(stores.map(s=>[s.id,s]));
-  const b=await bodyJson(request); const title=typeof b.title==='string'?b.title.trim():''; const description=typeof b.description==='string'?b.description.trim():'';
+  const b=await bodyJson(request,250000); const title=typeof b.title==='string'?b.title.trim():''; const description=typeof b.description==='string'?b.description.trim():'';
   if (!title || title.length>150 || description.length>2000) throw new CourseError('Add a course title (up to 150 characters) and a description of up to 2,000 characters.');
   if (!['draft','published'].includes(b.status)) throw new CourseError('Invalid course status.');
   const audience=await validateAudience(b.audience);
@@ -38,6 +39,8 @@ export async function POST(request: NextRequest) { try {
   if(!Array.isArray(rules)||rules.length>30||rules.some(r=>!r||typeof r.country!=='string'||!stores.some(s=>s.country===r.country)||typeof r.courseId!=='string'||r.courseId===b.id)||new Set(rules.map(r=>r.country)).size!==rules.length)throw new CourseError('Choose valid refresher rules.');
   const targets=await db().prepare('SELECT id FROM courses').all<{id:string}>();
   if(rules.some(r=>!targets.results.some(c=>c.id===r.courseId)))throw new CourseError('Choose valid refresher rules.');
+  const deadlineDays=optionalPositiveInteger(b.deadlineDays,existing?.deadline_days,'Deadline',3650);
+  let quiz;try{quiz=validateQuiz(b.quiz===undefined?existing?.quiz_json??null:b.quiz);}catch(e){throw new CourseError((e as Error).message);}
   const validityMonths=optionalPositiveInteger(b.validityMonths,existing?.validity_months,'Validity',120);
   const duration=optionalPositiveInteger(b.estimatedDurationMinutes,existing?.estimated_duration_minutes,'Estimated duration',10080);
   const lessonCount=optionalPositiveInteger(b.lessonCount,existing?.lesson_count,'Lesson count',1000);
@@ -68,6 +71,7 @@ export async function POST(request: NextRequest) { try {
     const result=await statement.execute(client);
     if (!result.rowCount) throw new CourseError('This course changed in another session. Reload it before saving.',409);
   } else await db().prepare('INSERT INTO courses(id,title,description,status,audience_json,created_at,updated_at,english_title,category,language_code,catalogue_scope,available_countries_json,induction_role,estimated_duration_minutes,lesson_count,validity_months) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)').bind(id,title,description,b.status,JSON.stringify(audience),date,date,englishTitle,category,languageCode,catalogueScope,JSON.stringify(linkedCountries),inductionRole,duration,lessonCount,validityMonths).execute(client);
+  await client.query('UPDATE courses SET deadline_days=$2,quiz_json=$3 WHERE id=$1',[id,deadlineDays,quiz===null?null:JSON.stringify(quiz)]);
   await client.query('DELETE FROM course_refresher_rules WHERE source_course_id=$1',[id]);
   for(const rule of rules)await client.query('INSERT INTO course_refresher_rules(source_course_id,country,refresher_course_id) VALUES($1,$2,$3)',[id,rule.country,rule.courseId]);
   if(b.status==='published')await client.query('SELECT sync_credit_assignments()');
