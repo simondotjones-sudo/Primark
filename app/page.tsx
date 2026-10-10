@@ -78,6 +78,7 @@ export default function Home() {
   const refreshMe=useCallback(async()=>{
     const data=await api("?view=me");
     const access:ReportingAccess|null=data.reportingAccess||null;
+    if(data.account?.assessor&&data.account.adminOnly&&!data.account.platformAdmin&&!data.account.reportingAccess&&!data.account.managerStoreId){location.replace('/assessor');return;}
     setRequiresEmail(!!data.requiresEmail);setPlatformAdmin(!!data.platformAdmin);setLearner(data.learner);setAccount(data.account||null);
     // Keep the same access object when a profile/focus refresh confirms the same permissions.
     // The dashboard reloads only when its scope or filters actually change.

@@ -56,8 +56,8 @@ async function reportQuery(siteIds:string[]|null,selection=allCourses,search='')
         JOIN certificates source_cert ON source_cert.token=replacement.certificate_token
         JOIN course_assignments target ON target.learner_id=source_cert.learner_id AND target.course_id=replacement.refresher_course_id
         WHERE source_cert.learner_id=a.learner_id AND source_cert.course_id=a.course_id AND source_cert.archived_at IS NULL AND source_cert.cancelled_at IS NULL) AS replaced_by_refresher,
-      (cert.package_id IS NOT NULL OR (c.sco_count>0 AND s.done_count=c.sco_count AND (h.quiz_json IS NULL OR EXISTS(SELECT 1 FROM course_quiz_attempts q WHERE q.assignment_id=h.id AND q.passed)))) AS complete,
-      COALESCE(cert.completed_at,CASE WHEN s.done_count=c.sco_count AND s.date_count=c.sco_count AND c.sco_count>0 AND (h.quiz_json IS NULL OR EXISTS(SELECT 1 FROM course_quiz_attempts q WHERE q.assignment_id=h.id AND q.passed)) THEN s.completed_at END) AS completed_at,
+      (cert.package_id IS NOT NULL OR (NOT COALESCE(h.assessor_required,false) AND c.sco_count>0 AND s.done_count=c.sco_count AND (h.quiz_json IS NULL OR EXISTS(SELECT 1 FROM course_quiz_attempts q WHERE q.assignment_id=h.id AND q.passed)))) AS complete,
+      COALESCE(cert.completed_at,CASE WHEN NOT COALESCE(h.assessor_required,false) AND s.done_count=c.sco_count AND s.date_count=c.sco_count AND c.sco_count>0 AND (h.quiz_json IS NULL OR EXISTS(SELECT 1 FROM course_quiz_attempts q WHERE q.assignment_id=h.id AND q.passed)) THEN s.completed_at END) AS completed_at,
       cert.package_id IS NOT NULL AS certified,cert.expires_at AS certificate_expiry
     FROM candidates a JOIN ready c ON c.id=a.course_id
     LEFT JOIN course_assignments current_assignment ON current_assignment.learner_id=a.learner_id AND current_assignment.course_id=a.course_id

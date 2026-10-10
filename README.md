@@ -574,3 +574,14 @@ Validation: `npm test`, `npm run typecheck`, and `npm run build`. New integratio
 coverage lives in `tests/learning-controls-checks.mjs` (run by course-check), with
 isolated PostgreSQL assertions for permissions, credits, immutable requirements,
 quiz/certificate gates, reporting, linked refreshers and inactivity archiving.
+
+## Release 1.10.10.26.46 — practical assessor sign-off
+
+- Platform admins can require practical sign-off in Course Library or Assessor settings for this deployment's client organisation. Requirements are snapshotted for new assignments; existing assignments and certificates are unchanged.
+- Assessor is an additive permission for existing accounts. External assessor-only accounts cannot learn or administer users. Authorisations specify course, all organisation sites or one site, qualification reference and optional expiry. Add multiple grants for multiple sites/courses; disable old grants to withdraw access.
+- Assessor page lists theory-complete learners and retained assessment attempts, with learner/course/site filters. Record Pass or Not yet competent, assessment date, declaration and notes/evidence references. Unsuccessful attempts require a reason, and reassessment uses no course credit. Evidence is recorded as notes/references in this release, not uploaded attachments.
+- Database checks reject self-assessment, expired/out-of-scope authorisations, incomplete theory, invalid dates and duplicate passes. A pass issues a certificate with the assessor identity snapshot and assessment date. Validity starts on the practical assessment date (UTC). Recording timestamp remains separate.
+- Theory-complete learners stay outstanding in compliance reporting, subject to the existing deadline/grace policy. Platform admins can revoke a sign-off with a reason; the certificate/QR is marked revoked and the assignment awaits reassessment. History is retained.
+- Before enabling a course, agree its practical assessment criteria and authorise the qualified assessors. This workflow records competence decisions; it does not validate qualifications against an external register.
+- Assessment interface copy is included in all supported languages; evidence uploads are follow-up work. Pending/history views show up to 1,000 records.
+- Migration `20261010080000_assessor-signoff` runs through the existing Netlify database deployment workflow. `tests/assessor-check.mjs` exercises the actual APIs and PostgreSQL procedures with isolated data, including reporting and learner certificate gating.

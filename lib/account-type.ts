@@ -4,7 +4,7 @@ import { db } from '@/lib/database';
 // without rewriting or deleting their historical learning records.
 export function learnerOnlySql(alias = 'l') {
   if (!/^[a-z_]+$/.test(alias)) throw new Error('Invalid account alias');
-  return `NOT EXISTS(SELECT 1 FROM platform_admins pa WHERE pa.learner_id=${alias}.id)
+  return `NOT EXISTS(SELECT 1 FROM assessor_accounts aa WHERE aa.learner_id=${alias}.id AND aa.assessor_only) AND NOT EXISTS(SELECT 1 FROM platform_admins pa WHERE pa.learner_id=${alias}.id)
     AND NOT EXISTS(SELECT 1 FROM reporting_access ra WHERE ra.learner_id=${alias}.id)
     AND NOT EXISTS(SELECT 1 FROM store_managers sm WHERE sm.learner_id=${alias}.id)`;
 }

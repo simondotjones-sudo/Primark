@@ -7,19 +7,19 @@ import {activeLearnerSql} from '@/lib/account-type';
 import {markQuiz,type CourseQuiz} from '@/lib/course-quiz';
 import {issueCourseCertificate} from '@/lib/certificate-server';
 export const dynamic='force-dynamic';
-const quizQuery=`SELECT h.id AS assignment_id,h.quiz_json,c.title,c.package_id,
+const quizQuery=`SELECT h.id AS assignment_id,h.assessor_required,h.quiz_json,c.title,c.package_id,
  EXISTS(SELECT 1 FROM course_quiz_attempts q WHERE q.assignment_id=h.id AND q.passed) AS passed,
  jsonb_array_length(p.scos_json::jsonb)>0 AND NOT EXISTS(SELECT 1 FROM jsonb_array_elements(p.scos_json::jsonb) item
   WHERE NOT EXISTS(SELECT 1 FROM scorm_progress s WHERE s.learner_id=a.learner_id AND s.package_id=c.package_id AND s.sco_id=item->>'id' AND s.completed_at IS NOT NULL AND s.status IN ('completed','passed'))) AS lessons_complete
  FROM course_assignments a JOIN assignment_history h ON h.id=a.history_id JOIN courses c ON c.id=a.course_id
  JOIN course_packages p ON p.id=c.package_id AND p.status='ready'
  WHERE a.learner_id=? AND a.course_id=? AND c.status='published'`;
-type QuizRow={assignment_id:string;quiz_json:CourseQuiz|null;title:string;package_id:string;passed:boolean;lessons_complete:boolean};
+type QuizRow={assessor_required:boolean;assignment_id:string;quiz_json:CourseQuiz|null;title:string;package_id:string;passed:boolean;lessons_complete:boolean};
 export async function GET(request:NextRequest){try{
  const learner=await currentLearner(request);if(!learner||learner.admin_only)throw new CourseError('Learner sign-in is required.',403);
  const row=await db().prepare(quizQuery).bind(learner.id,request.nextUrl.searchParams.get('courseId')).first<QuizRow>();
  if(!row?.quiz_json)throw new CourseError('No quiz is assigned for this course.',404);
- return json({assignmentId:row.assignment_id,title:row.title,passed:row.passed,lessonsComplete:row.lessons_complete,passPercent:row.quiz_json.passPercent,
+ return json({assessorRequired:row.assessor_required,assignmentId:row.assignment_id,title:row.title,passed:row.passed,lessonsComplete:row.lessons_complete,passPercent:row.quiz_json.passPercent,
   questions:row.lessons_complete?row.quiz_json.questions.map(q=>({prompt:q.prompt,options:q.options})):[]});
 }catch(e){return failed(e);}}
 export async function POST(request:NextRequest){try{

@@ -19,7 +19,7 @@ import type { CourseCoverKey } from '@/lib/course-covers';
 type AssignedCourse = CoursePanelDetails & {
   id: string; title: string; description: string; coverKey: CourseCoverKey;
   status: 'Not started' | 'In progress' | 'Completed';
-  progressPercent: number | null;dueAt:string|null;quizRequired:boolean;quizPassed:boolean;lessonsComplete:boolean;
+  awaitingAssessment:boolean;assessorRequired:boolean;progressPercent: number | null;dueAt:string|null;quizRequired:boolean;quizPassed:boolean;lessonsComplete:boolean;
   renewal?:CourseRenewal;
   passport?: SafetyPassportRecord | null;
   certificate:{token:string;expiresAt:string|null;completedAt:string}|null;
@@ -105,6 +105,7 @@ export default function AssignedCourses({view = 'all', hasLegacyCourse = false}:
           {c.description && <p>{c.description}</p>}
           {c.dueAt&&c.status!=='Completed'&&<p className={Date.parse(c.dueAt)<=Date.now()?'error':'course-expiry'}>{t(Date.parse(c.dueAt)<=Date.now()?'Overdue':'Due')} {date(c.dueAt)}</p>}
           {c.quizRequired&&!c.quizPassed&&c.status!=='Completed'&&<p>{t(c.lessonsComplete?'Lessons complete — pass the quiz to finish.':'Complete the lessons, then pass the quiz.')}</p>}
+          <p>{t(c.awaitingAssessment?"Theory complete — awaiting practical assessment":c.assessorRequired&&!c.certificate?"Practical assessor sign-off required before certification":"")}</p>
           <CourseProgress status={c.status} percent={c.progressPercent} title={c.title}/>
           {c.certificate&&<><span className={'certificate-status is-'+certificateStatus(c.certificate.expiresAt).toLowerCase().replaceAll(' ','-')}>{t(certificateStatus(c.certificate.expiresAt))}</span><p className="course-expiry">{c.certificate.expiresAt?t('Expires {date}',{date:date(c.certificate.expiresAt)}):t('No expiry')}</p></>}
           <CourseRenewalNotice certificate={c.certificate} renewal={c.renewal} onRenew={()=>{setRenewalError('');setSelected(c);}}/>

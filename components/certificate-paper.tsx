@@ -11,7 +11,7 @@ export default function CertificatePaper({record,sample=false}:{record:Certifica
   const {t,lang,country:countryLabel,date}=useLanguage();
 
   const [qr,setQr]=useState(''),[qrError,setQrError]=useState(false);
-  const status=certificateStatus(record.expires_at);
+  const status=record.cancelled_at?'Revoked':certificateStatus(record.expires_at);
   const verifyPath='/verify/'+record.token+'/?lang='+lang;
   useEffect(()=>{
     if(sample)return;
@@ -32,6 +32,7 @@ export default function CertificatePaper({record,sample=false}:{record:Certifica
         <h2 dir="auto">{record.course_title}</h2>
         <p className="certificate-location">{stores.find(s=>s.id===record.store_id)?.name||record.store_id} · {countryLabel(record.country)}</p>
         <dl className="certificate-dates"><div><dt>{t("Completed")}</dt><dd>{date(record.completed_at)}</dd></div><div><dt>{t("Expires")}</dt><dd>{record.expires_at?date(record.expires_at):t('No expiry')}</dd></div></dl>
+        {record.assessor_name&&<p>{t("Practical assessment:")} {record.assessor_name} · {date(record.assessed_at||record.completed_at)}</p>}
         <div className="certificate-footer">
           <div><span className={'certificate-status is-'+status.toLowerCase().replaceAll(' ','-')}>{t(sample?'Sample certificate':status)}</span><p className="certificate-id">{t("Certificate ID")}<br/><bdi>{certificateId(record.certificate_number)}</bdi></p></div>
           {!sample&&<a className="certificate-verification" href={verifyPath}>{qr&&<img src={qr} width={90} height={90} alt={t("QR code to verify this certificate")}/>}<span>{t("Scan to verify")}<br/><small>{t("View the live record")}</small></span></a>}

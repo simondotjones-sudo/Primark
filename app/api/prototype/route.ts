@@ -35,9 +35,10 @@ async function learnerState(request: NextRequest) {
     : learner ? await reportingAccessFor(learner.id) : null;
   const adminPerson = admin ? await db().prepare('SELECT name FROM learners WHERE email=?').bind(admin.email).first<{name:string}>() : null;
   const managerStore = learner ? await managerStoreFor(learner.id) : null;
+  const assessor=!!learner&&!!await db().prepare('SELECT learner_id FROM assessor_accounts WHERE learner_id=?').bind(learner.id).first();
   const account: ProfileAccount | null = learner ? {
-    name: learner.name, email: learner.email, adminOnly: learner.admin_only,
-    role: platformAdmin ? 'Platform admin' : managerStore ? 'Store Manager' : !reportingAccess ? 'Learner' : reportingAccess.scope === 'site' ? 'Site reporting admin' : reportingAccess.scope === 'country' ? 'Country reporting admin' : 'Primark reporting admin',
+    name: learner.name, email: learner.email, adminOnly: learner.admin_only, assessor,
+    role: platformAdmin ? 'Platform admin' : managerStore ? 'Store Manager' : !reportingAccess ? (assessor&&learner.admin_only?'Assessor':'Learner') : reportingAccess.scope === 'site' ? 'Site reporting admin' : reportingAccess.scope === 'country' ? 'Country reporting admin' : 'Primark reporting admin',
     managerStoreId: platformAdmin ? null : managerStore?.id || null,
     site: platformAdmin || reportingAccess?.scope === 'organisation' ? 'All Primark' : reportingAccess?.scope === 'country' ? reportingAccess.country || '' : storeById.get(reportingAccess?.siteId || learner.store_id)?.name || learner.store_id, platformAdmin, reportingAccess,
   } : admin ? { name: adminPerson?.name || admin.email, email: admin.email, role: 'Platform admin', site: 'All Primark', platformAdmin: true, adminOnly: true, reportingAccess } : null;
@@ -192,6 +193,8 @@ export async function POST(request: NextRequest) {
       const correct = await verifyPassword(password, learner?.password_hash || null);
       if (!learner || !correct) return fail('Those details did not match.',401);
       if (!learner.email?.trim()) return withSession(request,learner.id,{ok:true,requiresEmail:true},true);
+      const assessorOnly=await db().prepare('SELECT learner_id FROM assessor_accounts WHERE learner_id=? AND assessor_only').bind(learner.id).first();
+      if(assessorOnly)return withSession(request,learner.id,{ok:true,returnTo:'/assessor'});
       return withSession(request,learner.id,{ ok: true, ...(learner.platform_admin ? {returnTo:body.returnTo ? safeReturnTo(body.returnTo) : "/?view=report"} : {}) });
     }
     if (action === 'set-password') {
