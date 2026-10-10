@@ -18,7 +18,7 @@ export async function GET(request:NextRequest){try{
  const stores=await storeDirectory();
  if(!admin)return json({admin:false,pending:pending.results,history:history.results,stores:stores.filter(s=>pending.results.some(p=>p.store_id===s.id)||history.results.some(p=>p.store_id===s.id))});
  const [courses,people,grants]=await Promise.all([
- db().prepare('SELECT id,title,assessor_required FROM courses ORDER BY title').all(),
+ db().prepare('SELECT id,title,assessor_required FROM courses WHERE assessor_required=true ORDER BY title').all(),
  db().prepare('SELECT id,name,email FROM learners WHERE archived_at IS NULL ORDER BY name').all(),
  db().prepare('SELECT g.*,l.name,c.title FROM assessor_grants g JOIN learners l ON l.id=g.learner_id JOIN courses c ON c.id=g.course_id ORDER BY l.name,c.title').all()]);
  return json({admin:true,pending:pending.results,history:history.results,courses:courses.results,people:people.results,grants:grants.results,stores});
