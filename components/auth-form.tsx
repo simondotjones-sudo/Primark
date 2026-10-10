@@ -76,7 +76,7 @@ export default function AuthForm({lang,busy,error,onClearError,onAuthenticate}:P
         {errorNotice}
         <Button className="blue-button auth-submit" size="lg" disabled={busy}>{busy?t('Please wait…'):t(legacy?'Save password & login':'Login')}</Button>
       </form>
-      <div className="auth-login-help">{!legacy&&<a className="auth-help" href={`/forgot-password/?lang=${lang}`}>{t('Forgot password?')}</a>}<button type="button" className="auth-help auth-legacy-help" disabled={busy} onClick={()=>{clearError();setLegacy(!legacy);setLoginPassword('');}}>{t(legacy?'Back to Login':'Already have a pass code?')}</button></div>
+      <div className="auth-login-help">{!legacy&&<a className="auth-help" href={`/forgot-password/?lang=${lang}`}>{t('Forgot password?')}</a>}</div>
     </div></TabsContent>
   </Tabs></div>;
 }
