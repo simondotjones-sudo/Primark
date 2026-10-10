@@ -11,6 +11,7 @@ import {getReportingAccess,reportingFilter} from '@/lib/reporting-access';
 import {storeDirectory} from '@/lib/store-directory';
 import {pathwayEnrolments,validatePathway,validatePathwayRule} from '@/lib/pathways';
 import {creditError} from '@/lib/credits';
+import {jobRoles} from '@/lib/job-roles';
 import type {Pathway,PathwayItem} from '@/lib/pathway-types';
 export const dynamic='force-dynamic';
 async function manager(request?:NextRequest){const a=await requireUserAdministrator(request);if(!a.platformAdmin&&a.access.scope!=='organisation')throw new CourseError('Organisation or platform admin access is required.',403);return a;}
@@ -21,7 +22,7 @@ export async function GET(request:NextRequest){try{
   const actor=await manager(),settings=await organisationSettings();
   if(!settings.pathways_enabled)return json({enabled:false,platformAdmin:actor.platformAdmin});
   const [pathways,courses]=await Promise.all([db().prepare('SELECT * FROM learning_pathways ORDER BY archived,name').all(),db().prepare("SELECT c.id,c.title,c.status,c.catalogue_scope,c.available_countries_json FROM courses c JOIN course_packages p ON p.id=c.package_id WHERE c.status='published' AND p.status='ready' ORDER BY title").all()]);
-  return json({enabled:true,pathways:pathways.results,courses:courses.results,platformAdmin:actor.platformAdmin,stores:await storeDirectory(false),failures:(await db().prepare(`SELECT f.*,l.name AS learner_name,p.name AS pathway_name FROM pathway_assignment_failures f JOIN learners l ON l.id=f.learner_id JOIN learning_pathways p ON p.id=f.pathway_id WHERE ${activeLearnerSql()} AND l.employment_ended_on IS NULL AND NOT p.archived AND p.assignment_rule->>'enabled'='true' ORDER BY f.attempted_at DESC LIMIT 100`).all()).results});
+  return json({enabled:true,jobRoles:await jobRoles(),pathways:pathways.results,courses:courses.results,platformAdmin:actor.platformAdmin,stores:await storeDirectory(false),failures:(await db().prepare(`SELECT f.*,l.name AS learner_name,p.name AS pathway_name FROM pathway_assignment_failures f JOIN learners l ON l.id=f.learner_id JOIN learning_pathways p ON p.id=f.pathway_id WHERE ${activeLearnerSql()} AND l.employment_ended_on IS NULL AND NOT p.archived AND p.assignment_rule->>'enabled'='true' ORDER BY f.attempted_at DESC LIMIT 100`).all()).results});
  }
  if(mode==='people'){
   await manager();if(!(await organisationSettings()).pathways_enabled)throw new CourseError('Pathways are not enabled.',403);

@@ -1,4 +1,4 @@
-export type PathwayRule={enabled:boolean;scope:'all'|'countries'|'sites';countries:string[];sites:string[];startedFrom:string|null;startedTo:string|null};
+export type PathwayRule={jobRoles?:string[];enabled:boolean;scope:'all'|'countries'|'sites';countries:string[];sites:string[];startedFrom:string|null;startedTo:string|null};
 export type PathwayItem={courseId:string;stage:number};
 export type Pathway={id:string;name:string;description:string;items:PathwayItem[];deadline_days:number|null;award_certificate:boolean;archived:boolean;revision:number;assignment_rule?:PathwayRule};
 export type PathwayCourse={courseId:string;title:string;stage:number;completedAt:string|null;startedAt:string|null;awaitingAssessment:boolean;locked:boolean;expired:boolean;available:boolean};

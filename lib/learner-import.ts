@@ -10,7 +10,7 @@ import {storeDirectory} from '@/lib/store-directory';
 import type {UserAdministrator} from '@/lib/user-administration';
 import {parseLearnerCsv,type ImportPreviewRow} from '@/lib/learner-import-csv';
 
-type Person={id:string;name:string;email:string|null;workday_id:string;store_id:string;country:string;archived_at:string|null;employment_started_on:string|null;employment_ended_on:string|null;admin_only:boolean};
+type Person={job_role_id:string|null;id:string;name:string;email:string|null;workday_id:string;store_id:string;country:string;archived_at:string|null;employment_started_on:string|null;employment_ended_on:string|null;admin_only:boolean};
 const dateValue=(value:unknown)=>value instanceof Date?value.toISOString().slice(0,10):String(value||'').slice(0,10);
 export async function importLearners(actor:UserAdministrator,csv:string,mode:string,revision?:string){
  if(!actor.platformAdmin&&actor.access.scope!=='organisation')throw new CourseError('Organisation admin access is required.',403);
@@ -28,7 +28,8 @@ export async function importLearners(actor:UserAdministrator,csv:string,mode:str
   const stores=await storeDirectory();
   const ids=rows.map(r=>normalizeWorkdayId(r.record.workday_id)).filter(Boolean);
   const emails=rows.map(r=>r.record.email.toLowerCase()).filter(Boolean);
-  const people=(await client.query(`SELECT l.id,l.name,l.email,l.workday_id,l.store_id,l.country,l.archived_at,l.employment_started_on,l.employment_ended_on,NOT (${learnerOnlySql()}) AS admin_only FROM learners l WHERE l.workday_id=ANY($1::text[]) OR lower(l.email)=ANY($2::text[]) ORDER BY l.id`,[ids,emails])).rows as unknown as Person[];
+  const roles=(await client.query('SELECT * FROM job_roles WHERE organisation_id=1 ORDER BY id FOR SHARE')).rows;
+  const people=(await client.query(`SELECT l.job_role_id,l.id,l.name,l.email,l.workday_id,l.store_id,l.country,l.archived_at,l.employment_started_on,l.employment_ended_on,NOT (${learnerOnlySql()}) AS admin_only FROM learners l WHERE l.workday_id=ANY($1::text[]) OR lower(l.email)=ANY($2::text[]) ORDER BY l.id`,[ids,emails])).rows as unknown as Person[];
   const seenIds=new Set<string>(),seenEmails=new Set<string>();
   const today=new Date().toISOString().slice(0,10);
   const dateOk=(v:string)=>/^\d{4}-\d{2}-\d{2}$/.test(v)&&Number.isFinite(Date.parse(v))&&new Date(v).toISOString().slice(0,10)===v&&v<=today;
@@ -68,13 +69,19 @@ export async function importLearners(actor:UserAdministrator,csv:string,mode:str
    if(lifecycle&&start&&effective<start)error('The effective date cannot be before the employment start date.');
    if(!target&&!validPassword(r.initial_password))error('New learners need an initial password with 8–128 characters.');
    if(target&&r.initial_password)error('Leave initial password blank for existing learners.');
-   const after={name,email:email||null,store_id:store?.id||'',country:store?.country||'',employment_started_on:start||null};
-   for(const [field,value] of Object.entries(after)){const before=target?(field==='employment_started_on'?dateValue(target[field]):String(target[field as keyof Person]||'')):'';if(before!==String(value||''))out.changes.push({field,before,after:String(value||'')});}
+   let jobRoleId=target?.job_role_id||null;
+   if(r.job_role){
+    const matches=roles.filter(role=>[role.id,role.name,role.external_code].some(v=>typeof v==='string'&&v.toLowerCase()===r.job_role.toLowerCase()));
+    if(matches.length!==1||(matches[0].archived&&matches[0].id!==jobRoleId))error('Choose an unambiguous active job role name, ID or payroll code.');
+    else jobRoleId=String(matches[0].id);
+   }
+   const after={job_role_id:jobRoleId,name,email:email||null,store_id:store?.id||'',country:store?.country||'',employment_started_on:start||null};
+   for(const [field,value] of Object.entries(after)){const before=target?(field==='employment_started_on'?dateValue(target[field]):String(target[field as keyof Person]||'')):'';if(before!==String(value||''))out.changes.push(field==='job_role_id'?{field:'job_role',before:String(roles.find(r=>r.id===before)?.name||''),after:String(roles.find(r=>r.id===value)?.name||'')}:{field,before,after:String(value||'')});}
    if(lifecycle){out.action=status==='leaver'?'Mark as leaver':status==='rejoin'?'Rejoin':'Transfer';out.changes.push({field:'status',before:target?.archived_at?'Archived':'Active',after:status==='leaver'?'Archived':'Active'},{field:'effective_date',before:'',after:effective},{field:'reason',before:'',after:r.reason});}
    if(target&&!out.changes.length)out.action='Unchanged';
    return {out,target,after,status,lifecycle,transfer,record:r};
   });
-  const fingerprint=createHash('sha256').update(JSON.stringify({actor:actor.email,csv,mode,people,stores:stores.map(s=>[s.id,s.country,s.active,s.storeCode]),today})).digest('hex');
+  const fingerprint=createHash('sha256').update(JSON.stringify({actor:actor.email,csv,mode,people,roles,stores:stores.map(s=>[s.id,s.country,s.active,s.storeCode]),today})).digest('hex');
   const preview={rows:plans.map(p=>p.out),revision:fingerprint,valid:plans.every(p=>!p.out.errors.length),changed:plans.filter(p=>p.out.action!=='Unchanged').length};
   if(!revision)return preview;
   if(revision!==fingerprint)throw new CourseError('The file or learner records changed. Preview the file again.',409);
@@ -84,9 +91,9 @@ export async function importLearners(actor:UserAdministrator,csv:string,mode:str
    rowNumber=p.out.row;if(p.out.action==='Unchanged')continue;
    const id=p.target?.id||crypto.randomUUID(),a=p.after;
    await client.query("SELECT set_config('app.audit_actor',$1,true),set_config('app.audit_reason',$2,true)",[actor.email,`Bulk import ${batch}; row ${rowNumber}`+(p.lifecycle?`; ${p.record.reason} (effective ${p.record.effective_date})`:'')]);
-   if(!p.target){await client.query('INSERT INTO learners(id,name,email,workday_id,store_id,country,entered_at,code_hash,password_hash,induction_enrolled,employment_started_on) VALUES($1,$2,$3,$4,$5,$6,now(),$7,$8,true,$9)',[id,a.name,a.email,p.out.workdayId,a.store_id,a.country,await hash(randomToken()),passwords.get(rowNumber),a.employment_started_on]);}
+   if(!p.target){await client.query('INSERT INTO learners(id,name,email,workday_id,store_id,country,entered_at,code_hash,password_hash,induction_enrolled,employment_started_on,job_role_id) VALUES($1,$2,$3,$4,$5,$6,now(),$7,$8,true,$9,$10)',[id,a.name,a.email,p.out.workdayId,a.store_id,a.country,await hash(randomToken()),passwords.get(rowNumber),a.employment_started_on,a.job_role_id]);}
    else{
-    await client.query('UPDATE learners SET name=$2,email=$3,store_id=$4,country=$5,employment_started_on=$6 WHERE id=$1',[id,a.name,a.email,a.store_id,a.country,a.employment_started_on]);
+    await client.query('UPDATE learners SET name=$2,email=$3,store_id=$4,country=$5,employment_started_on=$6,job_role_id=$7 WHERE id=$1',[id,a.name,a.email,a.store_id,a.country,a.employment_started_on,a.job_role_id]);
     if(p.lifecycle){await client.query('UPDATE learners SET archived_at=CASE WHEN $2 THEN now() ELSE NULL END,employment_ended_on=CASE WHEN $2 THEN $3::date ELSE NULL END,lifecycle_reason=$4 WHERE id=$1',[id,p.status==='leaver',p.record.effective_date,p.record.reason]);await client.query('UPDATE assessor_grants SET active=false WHERE learner_id=$1',[id]);if(p.status==='rejoin')await client.query('DELETE FROM assessor_accounts WHERE learner_id=$1',[id]);}
     if(p.target.country!==a.country)await client.query('DELETE FROM learner_inductions WHERE learner_id=$1',[id]);
     if(p.lifecycle||p.target.email!==a.email){await client.query('DELETE FROM sessions WHERE learner_id=$1',[id]);await client.query('DELETE FROM scorm_launches WHERE learner_id=$1',[id]);await client.query("DELETE FROM password_resets WHERE account_type='learner' AND account_id=$1",[id]);}

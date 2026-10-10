@@ -7,7 +7,7 @@ import stores from "@/lib/stores.json";
 import { isSecureRequest } from '@/lib/request-origin';
 
 export type Learner = {
-  id: string; name: string; email: string; store_id: string; country: string;
+  job_role_name?:string|null; id: string; name: string; email: string; store_id: string; country: string;
   entered_at: string; started_at: string | null; completed_at: string | null;
   best_score: number | null; certificate_token: string | null;
   induction_enrolled: boolean; admin_only: boolean;
@@ -36,7 +36,7 @@ export async function currentLearner(request: NextRequest): Promise<Learner | nu
 export async function learnerForSession(token: string | undefined): Promise<Learner | null> {
   if (!token) return null;
   return (await db().prepare(`
-    SELECT l.id,l.name,l.email,l.store_id,l.country,l.entered_at,l.started_at,l.completed_at,l.best_score,l.certificate_token,l.induction_enrolled,NOT (${learnerOnlySql()}) AS admin_only
+    SELECT (SELECT name FROM job_roles WHERE id=l.job_role_id) AS job_role_name,l.id,l.name,l.email,l.store_id,l.country,l.entered_at,l.started_at,l.completed_at,l.best_score,l.certificate_token,l.induction_enrolled,NOT (${learnerOnlySql()}) AS admin_only
     FROM sessions s JOIN learners l ON l.id=s.learner_id
     WHERE s.token_hash=? AND s.expires_at>? AND l.archived_at IS NULL AND s.email_pending=false AND NULLIF(btrim(l.email),'') IS NOT NULL
   `).bind(await hash(token), now()).first<Learner>()) ?? null;

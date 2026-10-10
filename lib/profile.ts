@@ -4,7 +4,7 @@ import type { ReportingAccess } from '@/lib/reporting-types';
 
 export type ProfileView = 'learn' | 'report' | 'courses' | 'access' | 'shots' | 'store' | 'organisation' | 'assessor' | 'pathways' | 'audit' | 'emails' | 'settings';
 export type ProfileAccount = {
-  name: string; email: string; role: string; site: string;
+  jobRole?: string|null; name: string; email: string; role: string; site: string;
   platformAdmin: boolean; reportingAccess: ReportingAccess | null;
   managerStoreId?: string | null;
   adminOnly?: boolean; assessor?:boolean;

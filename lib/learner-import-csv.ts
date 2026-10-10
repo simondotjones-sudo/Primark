@@ -1,4 +1,4 @@
-export const importColumns=['workday_id','name','email','store_code','start_date','status','effective_date','reason','initial_password'] as const;
+export const importColumns=['workday_id','name','email','store_code','start_date','status','effective_date','reason','initial_password','job_role'] as const;
 export type ImportRecord=Record<typeof importColumns[number],string>;
 export type ImportRow={row:number;record:ImportRecord};
 export type ImportPreviewRow={row:number;workdayId:string;name:string;action:string;changes:{field:string;before:string;after:string}[];errors:string[]};

@@ -1,9 +1,9 @@
 import type {ReportingAccess} from '@/lib/reporting-types';
 import type {DirectoryStore} from '@/lib/store-directory';
-export type UserPerson={employment_started_on?:string|null;employment_ended_on?:string|null;lifecycle_reason?:string|null;id:string;name:string;email:string;workday_id:string|null;legacy_access_code:string|null;country:string;store_id:string;archived_at:string|null;entered_at:string;last_login_at:string|null;admin_only:boolean;
+export type UserPerson={job_role_id?:string|null;job_role_name?:string|null;employment_started_on?:string|null;employment_ended_on?:string|null;lifecycle_reason?:string|null;id:string;name:string;email:string;workday_id:string|null;legacy_access_code:string|null;country:string;store_id:string;archived_at:string|null;entered_at:string;last_login_at:string|null;admin_only:boolean;
   scope:ReportingAccess['scope']|null;reporting_country:string|null;reporting_site_id:string|null;manager_store_id:string|null;platform_admin:boolean;
   revision:string;canEdit:boolean;canArchive:boolean;canEditDetails:boolean};
-export type UserOptions={roles:string[];stores:DirectoryStore[];access:ReportingAccess;platformAdmin:boolean;canAssign:boolean;canEdit:boolean};
+export type UserOptions={jobRoles:import("@/lib/job-role-types").JobRole[];roles:string[];stores:DirectoryStore[];access:ReportingAccess;platformAdmin:boolean;canAssign:boolean;canEdit:boolean};
 export type UserDirectoryData=UserOptions&{people:UserPerson[];total:number;page:number;pageSize:number;summary:{total:number;stores:number;countries:number}};
 export type UserRole='learner'|'site'|'manager'|'country'|'organisation'|'platform';
 export const userRole=(person:UserPerson):UserRole=>person.platform_admin?'platform':person.scope==='organisation'?'organisation':person.scope==='country'?'country':person.manager_store_id?'manager':person.scope==='site'?'site':'learner';

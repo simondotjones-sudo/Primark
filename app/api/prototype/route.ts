@@ -34,15 +34,15 @@ async function learnerState(request: NextRequest) {
   const platformAdmin = !!admin;
   const reportingAccess: ReportingAccess | null = platformAdmin ? { scope: 'organisation', country: null, siteId: null }
     : learner ? await reportingAccessFor(learner.id) : null;
-  const adminPerson = admin ? await db().prepare('SELECT name FROM learners WHERE email=?').bind(admin.email).first<{name:string}>() : null;
+  const adminPerson = admin ? await db().prepare('SELECT name,(SELECT name FROM job_roles WHERE id=learners.job_role_id) AS job_role_name FROM learners WHERE email=?').bind(admin.email).first<{name:string;job_role_name:string|null}>() : null;
   const managerStore = learner ? await managerStoreFor(learner.id) : null;
   const assessor=!!learner&&!!await db().prepare('SELECT learner_id FROM assessor_accounts WHERE learner_id=?').bind(learner.id).first();
   const account: ProfileAccount | null = learner ? {
-    name: learner.name, email: learner.email, adminOnly: learner.admin_only, assessor,
+    jobRole:learner.job_role_name,name: learner.name, email: learner.email, adminOnly: learner.admin_only, assessor,
     role: platformAdmin ? 'Platform admin' : managerStore ? 'Store Manager' : !reportingAccess ? (assessor&&learner.admin_only?'Assessor':'Learner') : reportingAccess.scope === 'site' ? 'Site reporting admin' : reportingAccess.scope === 'country' ? 'Country reporting admin' : 'Primark reporting admin',
     managerStoreId: platformAdmin ? null : managerStore?.id || null,
     site: platformAdmin || reportingAccess?.scope === 'organisation' ? 'All Primark' : reportingAccess?.scope === 'country' ? reportingAccess.country || '' : storeById.get(reportingAccess?.siteId || learner.store_id)?.name || learner.store_id, platformAdmin, reportingAccess,
-  } : admin ? { name: adminPerson?.name || admin.email, email: admin.email, role: 'Platform admin', site: 'All Primark', platformAdmin: true, adminOnly: true, reportingAccess } : null;
+  } : admin ? { jobRole:adminPerson?.job_role_name,name: adminPerson?.name || admin.email, email: admin.email, role: 'Platform admin', site: 'All Primark', platformAdmin: true, adminOnly: true, reportingAccess } : null;
   const identity = { platformAdmin, reportingAccess, account };
   if (!learner || learner.admin_only) return NextResponse.json({ learner: null, viewed: [], ...identity }, { headers: privateHeaders });
   const viewed = await progressFor(learner.id);

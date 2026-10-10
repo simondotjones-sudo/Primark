@@ -1,3 +1,4 @@
+import {validateJobRole} from '@/lib/job-roles';
 import {requireFeature} from '@/lib/features';
 import {credentials} from '@/lib/admin-auth';
 import {CourseError} from '@/lib/course-admin';
@@ -80,8 +81,10 @@ export async function changeUserAccess(originalActor:UserAdministrator,body:Reco
       if(rawId!==null&&typeof rawId!=='string')throw new CourseError('Check your Workday ID, or leave it blank.');
       const workdayId=normalizeWorkdayId(rawId);
       if(typeof rawId==='string'&&rawId.trim()&&!workdayId)throw new CourseError('Check your Workday ID, or leave it blank.');
-      try{await client.query('UPDATE learners SET name=$1,email=$2,workday_id=$3 WHERE id=$4',[name,email,workdayId,target.id]);}
+      const jobRoleId=body.jobRoleId===undefined?target.job_role_id:await validateJobRole(body.jobRoleId,target.job_role_id,client);
+      try{await client.query('UPDATE learners SET name=$1,email=$2,workday_id=$3,job_role_id=$5 WHERE id=$4',[name,email,workdayId,target.id,jobRoleId]);}
       catch(error){if((error as {code?:string}).code==='23505')throw new CourseError((error as {constraint?:string}).constraint?.includes('workday')?'This Employee ID is already linked to an account.':'This email is already registered.',409);throw error;}
+      if(jobRoleId!==target.job_role_id)await client.query('SELECT sync_pathway_assignments($1)',[target.id]);
       invalidateSessions=email!==target.email||workdayId!==target.workday_id;
     }else if(body.action==='password-reset'){
       if(target.archived_at)throw new CourseError('Restore this account before sending a password reset email.');

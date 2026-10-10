@@ -761,3 +761,29 @@ Weekly reports go to active store-manager accounts for their assigned store. The
 Organisation/platform administrators can preview current reports for a selected store or country without queueing or sending. Delivery results appear in the existing Delivery log; schedule changes enter the email and main audit trails. Period-specific durable event keys prevent duplicate sends; uncertain provider responses retain the existing no-auto-retry policy. Activation skips past scheduled runs; an eligible run has a 24-hour delivery window.
 
 Apply additive migration `20261010160000_scheduled-reports` before running release 56. Isolated integration checks in `tests/email-notifications-check.mjs` and `tests/feature-settings-check.mjs` cover permissions, feature gates, schedule validation/revisions, DST, recipient scope changes, dashboard parity, preview safety, deduplication and dispatch revalidation. No live email is sent by these checks.
+
+## Release 57 — organisation job roles
+
+- Settings includes an organisation-managed job-role list, initially Staff, Supervisor,
+  Manager and Night Worker. Role names and optional payroll codes are unique ignoring case.
+- Roles use stable IDs, belong to this installation's existing single organisation, and
+  can be renamed, archived and restored. A future multi-organisation platform must add
+  tenant selection and learner tenant membership before sharing this database.
+- Manage Users supports one optional role on creation/edit, role filters and a filtered,
+  scope-protected CSV export (maximum 10,000 users). Users see their role in their profile;
+  there is no self-service role editing. Employment roles never grant permissions.
+- Automatic pathway rules can filter by one or more job roles in combination with location
+  and start date. An empty role selection includes all roles. Admin changes and imports
+  sync newly matching pathways; existing enrolments, course assignments and evidence stay
+  intact. Existing failure/retry and credit handling applies.
+- Archived roles cannot be newly assigned; existing users, rules and history retain them.
+- Bulk CSV imports accept optional `job_role` matching an existing name, stable ID or payroll
+  code. Ambiguous/unknown/newly assigned archived roles fail preview. Blank preserves an
+  existing role; clear it in Edit details. Imports do not create role definitions.
+- Role definitions and user changes are audited. Payroll integration is not connected;
+  stable IDs and external codes provide the mapping fields for future API work.
+- Database migration: `20261010170000_job-roles`; existing users remain unassigned.
+- Validation: `node tests/job-roles-check.mjs`, existing import/pathway suites, TypeScript
+  and production build. The dedicated integration tests cover access control, scope,
+  duplicate names/codes, concurrent edit revisions, archive/clear behavior, role changes,
+  rule intersections, retained evidence, import mapping, scoped export and audit history.

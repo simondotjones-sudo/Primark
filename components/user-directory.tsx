@@ -1,4 +1,5 @@
 'use client';
+import JobRoleSelect from '@/components/job-role-select';
 import {useFeatures} from '@/hooks/use-features';
 import LearnerImport from '@/components/learner-import';
 import {storeLabel} from '@/lib/store-label';
@@ -16,6 +17,7 @@ export default function UserDirectory({type,onAssign,onAssignAll,onPermissions}:
   const {t,date,country:countryLabel}=useLanguage();
   const features=useFeatures();
   const [data,setData]=useState<UserDirectoryData|null>(null),[search,setSearch]=useState(''),[page,setPage]=useState(1),[refresh,setRefresh]=useState(0);
+  const [jobRole,setJobRole]=useState('');
   const [country,setCountry]=useState(''),[storeId,setStoreId]=useState(''),[status,setStatus]=useState('active');
   const [loading,setLoading]=useState(true),[creating,setCreating]=useState(false),[editing,setEditing]=useState<UserPerson|null>(null),[archiving,setArchiving]=useState<UserPerson|null>(null);
   const [error,setError]=useState(''),[message,setMessage]=useState(''),[busy,setBusy]=useState(false);
@@ -25,12 +27,17 @@ export default function UserDirectory({type,onAssign,onAssignAll,onPermissions}:
   useEffect(()=>{setPage(1);setCreating(false);setEditing(null);setDetails(null);setArchiving(null);},[type]);
   useEffect(()=>{
     const controller=new AbortController();setLoading(true);setError('');
-    const timer=setTimeout(()=>{fetch('/api/users?'+new URLSearchParams({search,page:String(page),type,status,country,storeId}),{cache:'no-store',signal:controller.signal}).then(async r=>{
+    const timer=setTimeout(()=>{fetch('/api/users?'+new URLSearchParams({search,page:String(page),type,status,country,storeId,jobRole}),{cache:'no-store',signal:controller.signal}).then(async r=>{
       const result=await r.json();if(!r.ok)throw new Error(result.error);return result;
     }).then(result=>{if(controller.signal.aborted)return;const last=Math.max(1,Math.ceil(result.total/result.pageSize));if(page>last){setPage(last);return;}setData(result);onPermissions(result);setLoading(false);}).catch(e=>{if(e.name!=='AbortError'){setData(null);setError(e.message);setLoading(false);}});},200);
     return()=>{clearTimeout(timer);controller.abort();};
-  },[search,page,type,status,country,storeId,refresh,onPermissions]);
+  },[search,page,type,status,country,storeId,jobRole,refresh,onPermissions]);
   function changed(message:string){setLifecycle(null);setCreating(false);setEditing(null);setDetails(null);setArchiving(null);setMessage(message);setRefresh(v=>v+1);}
+  async function exportUsers(){
+    setBusy(true);setError('');
+    try{const response=await fetch('/api/users?'+new URLSearchParams({export:'1',search,type,status,country,storeId,jobRole}),{cache:'no-store'});if(!response.ok)throw new Error((await response.json()).error);const url=URL.createObjectURL(await response.blob());const link=document.createElement('a');link.href=url;link.download='users.csv';link.click();setTimeout(()=>URL.revokeObjectURL(url),1000);}
+    catch(e){setError(e instanceof Error?e.message:'Please try again.');}finally{setBusy(false);}
+  }
   async function archive(){
     if(!archiving)return;setBusy(true);setError('');
     try{const response=await fetch('/api/users',{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:archiving.id,revision:archiving.revision,action:archiving.archived_at?'restore':'archive'})});const result=await response.json();if(!response.ok)throw new Error(result.error);changed(archiving.archived_at?'Account restored.':'Account archived.');}
@@ -44,17 +51,18 @@ export default function UserDirectory({type,onAssign,onAssignAll,onPermissions}:
     <section className="paper user-panel">
     {error&&!archiving&&<p className="error" role="alert">{t(error)}</p>}
     {message&&<p className="admin-success" role="status">{t(message)}</p>}
-    {lifecycle&&data?<Lifecycle person={lifecycle.person} action={lifecycle.action} options={data} onCancel={()=>setLifecycle(null)} onSaved={()=>changed('Employment change saved.')}/>:creating&&data?<AddUser initialType={type==='admin'?'admin':'learner'} options={data} onCancel={()=>setCreating(false)} onCreated={()=>{changed('Account created.');setStatus('active');setSearch('');setPage(1);}}/>:details?<EditDetails key={details.id} person={details} onCancel={()=>{setDetails(null);setRefresh(v=>v+1);}} onSaved={()=>changed('Details saved.')}/>:editing&&data?<EditAccess key={editing.id} person={editing} options={data} onCancel={()=>{setEditing(null);setRefresh(v=>v+1);}} onSaved={()=>changed('Access saved.')}/>:<>
+    {lifecycle&&data?<Lifecycle person={lifecycle.person} action={lifecycle.action} options={data} onCancel={()=>setLifecycle(null)} onSaved={()=>changed('Employment change saved.')}/>:creating&&data?<AddUser initialType={type==='admin'?'admin':'learner'} options={data} onCancel={()=>setCreating(false)} onCreated={()=>{changed('Account created.');setStatus('active');setSearch('');setPage(1);}}/>:details?<EditDetails key={details.id} person={details} options={data!} onCancel={()=>{setDetails(null);setRefresh(v=>v+1);}} onSaved={()=>changed('Details saved.')}/>:editing&&data?<EditAccess key={editing.id} person={editing} options={data} onCancel={()=>{setEditing(null);setRefresh(v=>v+1);}} onSaved={()=>changed('Access saved.')}/>:<>
       <div className="directory-toolbar"><Input type="search" aria-label={t('Search users')} placeholder={t('Name, email or Workday ID')} value={search} onChange={e=>{setSearch(e.target.value);setPage(1);}}/>
-        <div className="directory-actions">{features.bulk_import&&data?.access.scope==='organisation'&&<Button variant="outline" onClick={()=>setImporting(true)}>{t('Bulk learner import')}</Button>}{data?.canAssign&&<Button variant="outline" onClick={onAssignAll}>{t('Assign courses')}</Button>}<Button className="blue-button" disabled={!data||loading} onClick={()=>{setMessage('');setCreating(true);}}>{t('Add user')}</Button></div></div>
+        <div className="directory-actions"><Button variant="outline" disabled={!data||loading||busy} onClick={()=>void exportUsers()}>{t('Export users')}</Button>{features.bulk_import&&data?.access.scope==='organisation'&&<Button variant="outline" onClick={()=>setImporting(true)}>{t('Bulk learner import')}</Button>}{data?.canAssign&&<Button variant="outline" onClick={onAssignAll}>{t('Assign courses')}</Button>}<Button className="blue-button" disabled={!data||loading} onClick={()=>{setMessage('');setCreating(true);}}>{t('Add user')}</Button></div></div>
       <div className="directory-filters">
         {data?.access.scope==='organisation'&&<label>{t('Country')}<NativeSelect value={country} aria-label={t('Filter users by country')} onChange={e=>{setCountry(e.target.value);setStoreId('');setPage(1);}}><option value="">{t('All countries')}</option>{countries.map(c=><option key={c} value={c}>{countryLabel(c)}</option>)}</NativeSelect></label>}
         {data?.access.scope!=='site'&&<label>{t('Store')}<NativeSelect value={storeId} aria-label={t('Filter users by store')} onChange={e=>{setStoreId(e.target.value);setPage(1);}}><option value="">{t('All stores')}</option>{data?.stores.filter(s=>!country||s.country===country).map(s=><option key={s.id} value={s.id}>{storeLabel(s)}{!s.active?' · '+t('Archived'):''}</option>)}</NativeSelect></label>}
+        <label>{t('Job role')}<NativeSelect value={jobRole} onChange={e=>{setJobRole(e.target.value);setPage(1);}}><option value="">{t('All job roles')}</option><option value="none">{t('Not assigned')}</option>{data?.jobRoles.map(r=><option key={r.id} value={r.id}>{r.name}{r.archived?' · '+t('Archived'):''}</option>)}</NativeSelect></label>
         <label>{t('Account status')}<NativeSelect value={status} onChange={e=>{setStatus(e.target.value);setPage(1);setMessage('');}}><option value="active">{t('Active')}</option><option value="archived">{t('Archived')}</option></NativeSelect></label>
       </div>
       {loading?<p className="empty" role="status">{t('Loading accounts…')}</p>:data&&<>
         <div className="employee-cards">{data.people.map(person=><article className="employee-card" key={person.id}><div><strong>{person.name}</strong><small>{person.email}</small>
-          <small>{t(userRoleLabels[userRole(person)])}{person.archived_at?' · '+t('Archived'):''}</small>
+          <small>{t('Job role')}: {person.job_role_name||t('Not assigned')}</small><small>{t(userRoleLabels[userRole(person)])}{person.archived_at?' · '+t('Archived'):''}</small>
           <small>{data.stores.find(s=>s.id===(person.manager_store_id||person.reporting_site_id||person.store_id))?.name||countryLabel(person.reporting_country||person.country)||t('All Primark')}</small>
           <small>{person.employment_started_on&&<span>{t('Employment start date')}: {date(person.employment_started_on)} </span>}{person.employment_ended_on&&<span>{t('Leaving date')}: {date(person.employment_ended_on)}</span>}</small><small className="employee-dates"><span>{t('Created')}: <time dateTime={person.entered_at}>{date(person.entered_at)}</time></span><span>{t('Last login')}: {person.last_login_at?<time dateTime={person.last_login_at}>{date(person.last_login_at)}</time>:t('No login recorded')}</span></small></div>
           <div className="employee-actions">
@@ -76,20 +84,22 @@ export default function UserDirectory({type,onAssign,onAssignAll,onPermissions}:
   </div>;
 }
 
-function EditDetails({person,onCancel,onSaved}:{person:UserPerson;onCancel:()=>void;onSaved:()=>void}){
+function EditDetails({person,options,onCancel,onSaved}:{person:UserPerson;options:UserOptions;onCancel:()=>void;onSaved:()=>void}){
   const {t,lang}=useLanguage();
   const [name,setName]=useState(person.name),[email,setEmail]=useState(person.email);
   const [workdayId,setWorkdayId]=useState(person.workday_id||'');
+  const [jobRoleId,setJobRoleId]=useState(person.job_role_id||'');
   const [busy,setBusy]=useState(''),[error,setError]=useState(''),[message,setMessage]=useState('');
-  const dirty=name!==person.name||email!==person.email||workdayId!==(person.workday_id||'');
+  const dirty=jobRoleId!==(person.job_role_id||'')||name!==person.name||email!==person.email||workdayId!==(person.workday_id||'');
   async function act(action:'details'|'password-reset'){
     setBusy(action);setError('');setMessage('');
-    try{const response=await fetch('/api/users',{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:person.id,revision:person.revision,action,name,email,workdayId,lang})});const result=await response.json();if(!response.ok)throw new Error(result.error);if(action==='details')onSaved();else setMessage('Password reset email sent.');}
+    try{const response=await fetch('/api/users',{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:person.id,revision:person.revision,action,name,email,workdayId,jobRoleId,lang})});const result=await response.json();if(!response.ok)throw new Error(result.error);if(action==='details')onSaved();else setMessage('Password reset email sent.');}
     catch(e){setError(e instanceof Error?e.message:'Please try again.');}finally{setBusy('');}
   }
   return <form className="add-user-form" onSubmit={event=>{event.preventDefault();void act('details');}}>
     <h2>{t('Edit details')}</h2>{error&&<p className="error" role="alert">{t(error)}</p>}{message&&<p className="admin-success" role="status">{t(message)}</p>}
-    <fieldset disabled={!!busy}><label>{t('Name')}<Input value={name} onChange={e=>setName(e.target.value)} required minLength={2} maxLength={101}/></label><label>{t('Email')}<Input type="email" value={email} onChange={e=>setEmail(e.target.value)} required maxLength={254}/></label><label>{t('Employee ID')}<Input value={workdayId} onChange={e=>setWorkdayId(e.target.value)} maxLength={50} placeholder={t('Optional')}/></label><label>{t('Legacy access code')}<Input value={person.legacy_access_code||''} readOnly aria-readonly="true" placeholder={t('Not recorded')} autoComplete="off"/></label></fieldset>
+    <fieldset disabled={!!busy}><label>{t('Name')}<Input value={name} onChange={e=>setName(e.target.value)} required minLength={2} maxLength={101}/></label><label>{t('Email')}<Input type="email" value={email} onChange={e=>setEmail(e.target.value)} required maxLength={254}/></label><label>{t('Employee ID')}<Input value={workdayId} onChange={e=>setWorkdayId(e.target.value)} maxLength={50} placeholder={t('Optional')}/></label><JobRoleSelect roles={options.jobRoles} value={jobRoleId} onChange={setJobRoleId}/><label>{t('Legacy access code')}<Input value={person.legacy_access_code||''} readOnly aria-readonly="true" placeholder={t('Not recorded')} autoComplete="off"/></label></fieldset>
+    <p className="access-note">{t('Changing job role applies matching pathway rules. Existing training is retained.')}</p>
     <p className="access-note">{t('Changing the email or Employee ID signs the user out. Use the updated details to sign in.')}</p>
     <div className="editor-actions"><Button type="button" variant="outline" disabled={!!busy} onClick={onCancel}>{t('Cancel')}</Button><Button className="blue-button" disabled={!!busy||!dirty}>{t(busy==='details'?'Saving…':'Save details')}</Button></div>
     <div className="user-recovery"><h3>{t('Password')}</h3><p className="access-note">{t('Send a secure reset link to the saved email address. Email delivery must be configured.')}</p>{dirty&&<p className="access-note">{t('Save your changes before sending a reset email.')}</p>}<Button type="button" variant="outline" disabled={!!busy||dirty} onClick={()=>void act('password-reset')}>{t(busy==='password-reset'?'Sending…':'Send password reset email')}</Button></div>
@@ -123,7 +133,7 @@ function AddUser({options,initialType,onCancel,onCreated}:{options:UserOptions;i
   const needsCountry=needsStore||role==='country';
   async function submit(event:React.FormEvent<HTMLFormElement>){
     event.preventDefault();const form=new FormData(event.currentTarget);setBusy(true);setError('');
-    try{const response=await fetch('/api/users',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:form.get('name'),email:form.get('email'),password:form.get('password'),workdayId:form.get('workdayId'),startDate:form.get('startDate'),accountType:type,role,country,storeId})});const result=await response.json();if(!response.ok)throw new Error(result.error);onCreated();}
+    try{const response=await fetch('/api/users',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:form.get('name'),email:form.get('email'),password:form.get('password'),jobRoleId:form.get('jobRoleId'),workdayId:form.get('workdayId'),startDate:form.get('startDate'),accountType:type,role,country,storeId})});const result=await response.json();if(!response.ok)throw new Error(result.error);onCreated();}
     catch(e){setError(e instanceof Error?e.message:'Please try again.');}finally{setBusy(false);}
   }
   return <form className="add-user-form" onSubmit={submit}>
@@ -135,7 +145,7 @@ function AddUser({options,initialType,onCancel,onCreated}:{options:UserOptions;i
       {type==='admin'&&<label>{t('Access')}<NativeSelect value={role} onChange={e=>setRole(e.target.value)}>{options.roles.map(value=><option value={value} key={value}>{t(value==='site'?'Store Manager':value==='country'?'Country reporting admin':value==='organisation'?'Primark reporting admin':'Platform admin')}</option>)}</NativeSelect></label>}
       {needsCountry&&<label>{t('Country')}<NativeSelect required value={country} disabled={!!options.access.country} onChange={e=>{setCountry(e.target.value);setStoreId('');}}><option value="">{t('Choose a country')}</option>{countries.map(c=><option key={c} value={c}>{countryLabel(c)}</option>)}</NativeSelect></label>}
       {needsStore&&<label>{t('Store')}<NativeSelect required value={storeId} disabled={!!options.access.siteId||!country} onChange={e=>setStoreId(e.target.value)}><option value="">{t('Choose a store')}</option>{options.stores.filter(s=>s.active&&s.country===country).map(s=><option key={s.id} value={s.id}>{storeLabel(s)}</option>)}</NativeSelect></label>}
-      <label>{t("Employment start date")}<Input type="date" name="startDate" max={new Date().toISOString().slice(0,10)} defaultValue={new Date().toISOString().slice(0,10)}/></label>{type==='learner'&&<label>{t('Workday ID')}<Input name="workdayId" maxLength={50} placeholder={t('Optional')}/></label>}
+      <JobRoleSelect roles={options.jobRoles} name="jobRoleId"/><label>{t("Employment start date")}<Input type="date" name="startDate" max={new Date().toISOString().slice(0,10)} defaultValue={new Date().toISOString().slice(0,10)}/></label>{type==='learner'&&<label>{t('Workday ID')}<Input name="workdayId" maxLength={50} placeholder={t('Optional')}/></label>}
       <label>{t('Password')}<Input name="password" type="password" autoComplete="new-password" required minLength={type==='admin'?16:8} maxLength={128}/></label>
     </fieldset>
     <p className="access-note">{t(type==='admin'?'Admin passwords need 16–128 characters.':'Create a password with 8–128 characters.')}</p>

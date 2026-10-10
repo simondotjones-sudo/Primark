@@ -1,3 +1,5 @@
+import {csvDownload} from '@/lib/learner-import-csv';
+import {jobRoles,validateJobRole} from '@/lib/job-roles';
 import {syncAssignments,creditError} from '@/lib/credits';
 import type { NextRequest } from 'next/server';
 import { credentials } from '@/lib/admin-auth';
@@ -16,7 +18,7 @@ export async function GET(request:NextRequest) {try {
   const actor=await requireUserAdministrator();
   const directory=await storeDirectory();
   const stores=directory.filter(s=>actor.access.scope==='organisation'||(actor.access.scope==='country'?s.country===actor.access.country:s.id===actor.access.siteId));
-  const options={roles:allowedAdminRoles(actor),stores,access:actor.access,platformAdmin:actor.platformAdmin,canAssign:actor.platformAdmin||!!actor.managerStoreId,canEdit:canEditUsers(actor)};
+  const options={jobRoles:await jobRoles(),roles:allowedAdminRoles(actor),stores,access:actor.access,platformAdmin:actor.platformAdmin,canAssign:actor.platformAdmin||!!actor.managerStoreId,canEdit:canEditUsers(actor)};
   const params=request.nextUrl.searchParams;
   if(params.get('options')==='1')return json(options);
   const search=(params.get('search')||'').trim().slice(0,150).toLowerCase();
@@ -31,6 +33,15 @@ export async function GET(request:NextRequest) {try {
   if(country){where+=' AND (l.country=? OR r.country=? OR m.store_id=ANY(?::text[]))';args.push(country,country,stores.filter(s=>s.country===country).map(s=>s.id));}
   if(storeId){where+=' AND (l.store_id=? OR r.site_id=? OR m.store_id=?)';args.push(storeId,storeId,storeId);}
   where+=" AND (?='' OR strpos(lower(l.name || ' ' || COALESCE(l.email,'') || ' ' || COALESCE(l.workday_id,'') || ' ' || COALESCE(l.legacy_access_code,'')),?)>0)";args.push(search,search);
+  const jobRole=request.nextUrl.searchParams.get('jobRole')||'';
+  if(jobRole==='none')where+=' AND l.job_role_id IS NULL';
+  else if(jobRole){where+=' AND l.job_role_id=?';args.push(jobRole);}
+  if(params.get('export')==='1'){
+    const result=await db().prepare(`SELECT l.name,l.email,l.workday_id,l.country,l.store_id,l.archived_at,l.job_role_id,j.name AS job_role,j.external_code AS job_role_code ${userJoins} LEFT JOIN job_roles j ON j.id=l.job_role_id WHERE ${where} ORDER BY lower(l.name),l.id LIMIT 10001`).bind(...args).all<Record<string,unknown>>();
+    if(result.results.length>10000)throw new CourseError('Narrow the filters to export at most 10,000 users.');
+    const columns=['workday_id','name','email','store_code','country','job_role','job_role_id','job_role_code','status'];
+    return new Response(csvDownload([columns,...result.results.map(p=>[p.workday_id,p.name,p.email,stores.find(s=>s.id===p.store_id)?.storeCode||'',p.country,p.job_role,p.job_role_id,p.job_role_code,p.archived_at?'archived':'active'])]),{headers:{'Content-Type':'text/csv;charset=utf-8','Content-Disposition':'attachment; filename="users.csv"','Cache-Control':'private, no-store'}});
+  }
   const pageSize=25;
   const [people,count]=await Promise.all([
     db().prepare(`SELECT ${userColumns},NOT (${learnerOnlySql()}) AS admin_only ${userJoins} WHERE ${where} ORDER BY lower(l.name),l.id LIMIT ? OFFSET ?`).bind(...args,pageSize,(page-1)*pageSize).all<UserPerson>(),
@@ -72,11 +83,12 @@ export async function POST(request:NextRequest) {try {
   if(!adminOnly&&body.workdayId&& !workdayId)throw new CourseError('Check your Workday ID, or leave it blank.');
   if(email===credentials()?.email || await db().prepare('SELECT id FROM learners WHERE email=?').bind(email).first())throw new CourseError('This email is already registered.',409);
   if(workdayId&&await db().prepare('SELECT id FROM learners WHERE workday_id=?').bind(workdayId).first())throw new CourseError('This Workday ID is already linked to an account. Log in, or leave it blank to continue with email.',409);
+  const jobRoleId=await validateJobRole(body.jobRoleId);
   const id=crypto.randomUUID(),date=now();
   const start=body.startDate;
   if(start!==undefined&&start!==''&&(typeof start!=='string'||!/^\d{4}-\d{2}-\d{2}$/.test(start)||!Number.isFinite(Date.parse(start))||new Date(start).toISOString().slice(0,10)!==start||start>date.slice(0,10)))throw new CourseError('Choose a start date no later than today.');
-  const changes:PreparedStatement[]=[db().prepare("SELECT set_config('app.audit_actor',?,true)").bind(actor.email),db().prepare(`INSERT INTO learners(id,name,email,code_hash,password_hash,store_id,country,entered_at,induction_enrolled,workday_id)
-    VALUES(?,?,?,?,?,?,?,?,true,?)`).bind(id,name,email,await hash(randomToken()),await hashPassword(body.password),storeId,country||'',date,workdayId)];
+  const changes:PreparedStatement[]=[db().prepare("SELECT set_config('app.audit_actor',?,true)").bind(actor.email),db().prepare(`INSERT INTO learners(id,name,email,code_hash,password_hash,store_id,country,entered_at,induction_enrolled,workday_id,job_role_id)
+    VALUES(?,?,?,?,?,?,?,?,true,?,?)`).bind(id,name,email,await hash(randomToken()),await hashPassword(body.password),storeId,country||'',date,workdayId,jobRoleId)];
   changes.push(db().prepare('UPDATE learners SET employment_started_on=? WHERE id=?').bind(start||date.slice(0,10),id));
   if(role==='platform')changes.push(db().prepare('INSERT INTO platform_admins(learner_id,assigned_by,updated_at) VALUES(?,?,?)').bind(id,actor.email,date));
   else if(adminOnly){

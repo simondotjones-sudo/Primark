@@ -18,6 +18,7 @@ export default function LearnerImport({onClose}:{onClose:()=>void}){
  <p>{t('Match by Workday ID. Blank fields keep existing values. Maximum 200 learners per CSV.')}</p>
  <p>{t('New learners need name, email, store code and initial password. Dates use YYYY-MM-DD. No emails are sent.')}</p>
  <p>{t('Use active, leaver or rejoin for status. Transfers, leavers and rejoiners require effective_date and reason.')}</p>
+ <p>{t('Use job_role for an existing role name, ID or payroll code. Blank keeps the current role; use Edit details to clear it.')}</p>
  <p>{t('Training history is preserved. Automatic assignments may use credits.')}</p>
  <div className="editor-actions"><Button variant="outline" disabled={busy} onClick={()=>download('learner-import-template.csv',[Array.from(importColumns)])}>{t('Download template')}</Button><Button variant="outline" disabled={busy} onClick={onClose}>{t('← Back to accounts')}</Button></div>
  <fieldset disabled={busy||!!result?.applied} className="directory-filters"><label>{t('Import mode')}<NativeSelect value={mode} onChange={e=>{setMode(e.target.value);setResult(null);setError('');}}><option value="upsert">{t('Create and update')}</option><option value="create">{t('Create only')}</option><option value="update">{t('Update only')}</option></NativeSelect></label><label>{t('CSV file')}<Input type="file" accept=".csv,text/csv" onChange={e=>void read(e.target.files?.[0])}/></label></fieldset>

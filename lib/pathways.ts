@@ -32,5 +32,10 @@ export async function validatePathwayRule(input:unknown){
  const {storeDirectory}=await import('@/lib/store-directory');const stores=await storeDirectory(false);
  if(r.enabled&&(r.scope==='countries'&&r.countries.some(c=>!stores.some(s=>s.country===c))||r.scope==='sites'&&r.sites.some(id=>!stores.some(s=>s.id===id))))throw new CourseError('Choose active countries and stores.');
  if(r.enabled&&(r.scope==='countries'&&!r.countries.length||r.scope==='sites'&&!r.sites.length))throw new CourseError('Choose at least one country or store.');
- return {enabled:r.enabled,scope:r.scope,countries:r.scope==='countries'?[...new Set(r.countries)]:[],sites:r.scope==='sites'?[...new Set(r.sites)]:[],startedFrom:r.startedFrom,startedTo:r.startedTo};
+ const jobRoles=r.jobRoles??[];
+ if(!Array.isArray(jobRoles)||jobRoles.length>500||jobRoles.some(v=>typeof v!=='string'))throw new CourseError('Choose valid job roles.');
+ const available=(await import('@/lib/job-roles')).jobRoles;
+ const roles=await available();
+ if(jobRoles.some(id=>!roles.some(role=>role.id===id)))throw new CourseError('Choose valid job roles.');
+ return {jobRoles:[...new Set(jobRoles)],enabled:r.enabled,scope:r.scope,countries:r.scope==='countries'?[...new Set(r.countries)]:[],sites:r.scope==='sites'?[...new Set(r.sites)]:[],startedFrom:r.startedFrom,startedTo:r.startedTo};
 }
