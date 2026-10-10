@@ -4,6 +4,8 @@ import { credentialFingerprint, credentials, sessionCredentialFingerprint } from
 import { hashPassword, validPassword } from '@/lib/learner-auth';
 import { tr } from '@/lib/ui-copy';
 import { isLanguage, type Language } from '@/lib/i18n';
+import {passwordResetHtml} from '@/lib/email-templates';
+import {emailConnection} from '@/lib/email-delivery';
 import { runtimeEnv } from '@/lib/runtime-env';
 
 const digest = (value: string) => createHash('sha256').update(value).digest('hex');
@@ -17,7 +19,7 @@ function mailSettings() {
   let origin: URL;
   try { origin = new URL(runtimeEnv('PRIMARK_APP_URL')); }
   catch { throw new RecoveryError('Password recovery is not available yet. Please contact your administrator.'); }
-  if (!token || !from || origin.protocol !== 'https:' || origin.username || origin.password) {
+  if (!emailConnection().ready || !token || !from || origin.protocol !== 'https:' || origin.username || origin.password) {
     throw new RecoveryError('Password recovery is not available yet. Please contact your administrator.');
   }
   return {token, from, origin: origin.origin};
@@ -49,7 +51,7 @@ export async function requestPasswordReset(email: string, requestedLanguage: Lan
     const response = await fetch('https://api.postmarkapp.com/email', {
       method:'POST', signal:AbortSignal.timeout(10000),
       headers:{'Content-Type':'application/json','Accept':'application/json','X-Postmark-Server-Token':settings.token},
-      body:JSON.stringify({From:settings.from,To:email,Subject:tr(lang,'Reset your Primark password'),
+      body:JSON.stringify({From:settings.from,To:email,HtmlBody:passwordResetHtml(lang,links),Subject:tr(lang,'Reset your Primark password'),
         TextBody:`${tr(lang,'Reset your Primark Safety Passport password using the link below. Each link expires in 30 minutes and can be used once.')}\n\n${links.join('\n\n')}\n\n${tr(lang,'If you did not request this, you can ignore this email. Your password has not changed.')}`,
         MessageStream:runtimeEnv('POSTMARK_MESSAGE_STREAM') || 'outbound',TrackOpens:false,TrackLinks:'None'}),
     });

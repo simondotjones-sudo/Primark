@@ -112,12 +112,12 @@ export async function userAdministrationChecks({m,check,query,invoke,loginAdmin,
     await query('DELETE FROM auth_limits').run();
   });
   await check('Admin password reset is scoped, honest about configuration/delivery, and throttled',async()=>{
-    const person=await find(accounts.learner.id),keys=['POSTMARK_SERVER_TOKEN','POSTMARK_FROM_EMAIL','PRIMARK_APP_URL'],env=keys.map(k=>process.env[k]),fetch=globalThis.fetch;let mails=[];
+    const person=await find(accounts.learner.id),keys=['PRIMARK_EMAIL_DELIVERY','CONTEXT','POSTMARK_SERVER_TOKEN','POSTMARK_FROM_EMAIL','PRIMARK_APP_URL'],env=keys.map(k=>process.env[k]),fetch=globalThis.fetch;let mails=[];
     try{
       keys.forEach(k=>delete process.env[k]);
       assert.equal((await update(accounts.store.cookie,person,{action:'password-reset'})).status,503);
       assert.equal((await query('SELECT * FROM password_resets WHERE account_id=?',person.id).all()).results.length,0);
-      process.env.POSTMARK_SERVER_TOKEN='fixture';process.env.POSTMARK_FROM_EMAIL='fixture@example.test';process.env.PRIMARK_APP_URL='https://test.invalid';
+      process.env.PRIMARK_EMAIL_DELIVERY='enabled';process.env.CONTEXT='production';process.env.POSTMARK_SERVER_TOKEN='fixture';process.env.POSTMARK_FROM_EMAIL='fixture@example.test';process.env.PRIMARK_APP_URL='https://test.invalid';
       globalThis.fetch=async(url,options)=>{mails.push(JSON.parse(options.body));return Response.json({ErrorCode:0});};
       assert.equal((await update(accounts.store.cookie,await find(accounts.uk.id),{action:'password-reset'})).status,403);assert.equal(mails.length,0);
       assert.equal((await update(accounts.store.cookie,person,{action:'password-reset',email:accounts.uk.email})).status,200);assert.equal(mails.length,1);assert.equal(mails[0].To,person.email);assert(mails[0].TextBody.includes('#token='));
@@ -194,8 +194,8 @@ export async function userAdministrationChecks({m,check,query,invoke,loginAdmin,
     const roster=await (await invoke(m.manager,'GET','/api/store',undefined,accounts.store.cookie)).json();assert(!roster.people.some(p=>p.id===person.id));
     const report=await (await invoke(m.reporting,'GET','/api/reporting?view=activity&search='+person.email,undefined,accounts.country.cookie)).json();assert(report.employees.find(p=>p.id===person.id).archivedAt);assert(report.records.some(r=>r.status==='completed'));
     assert.deepEqual(await query('SELECT * FROM scorm_progress WHERE learner_id=?',person.id).all(),progress);assert.deepEqual(await query('SELECT * FROM certificates WHERE learner_id=?',person.id).all(),certs);
-    const keys=['POSTMARK_SERVER_TOKEN','POSTMARK_FROM_EMAIL','PRIMARK_APP_URL'],env=keys.map(k=>process.env[k]),fetch=globalThis.fetch;let mails=0;
-    try{process.env.POSTMARK_SERVER_TOKEN='fixture';process.env.POSTMARK_FROM_EMAIL='fixture@example.test';process.env.PRIMARK_APP_URL='https://test.invalid';globalThis.fetch=async()=>{mails++;return Response.json({ErrorCode:0});};assert.equal((await invoke(m.recovery,'POST','/api/password-recovery',{action:'request',email:person.email})).status,200);assert.equal(mails,0);}finally{globalThis.fetch=fetch;keys.forEach((k,i)=>{if(env[i]===undefined)delete process.env[k];else process.env[k]=env[i];});}
+    const keys=['PRIMARK_EMAIL_DELIVERY','CONTEXT','POSTMARK_SERVER_TOKEN','POSTMARK_FROM_EMAIL','PRIMARK_APP_URL'],env=keys.map(k=>process.env[k]),fetch=globalThis.fetch;let mails=0;
+    try{process.env.PRIMARK_EMAIL_DELIVERY='enabled';process.env.CONTEXT='production';process.env.POSTMARK_SERVER_TOKEN='fixture';process.env.POSTMARK_FROM_EMAIL='fixture@example.test';process.env.PRIMARK_APP_URL='https://test.invalid';globalThis.fetch=async()=>{mails++;return Response.json({ErrorCode:0});};assert.equal((await invoke(m.recovery,'POST','/api/password-recovery',{action:'request',email:person.email})).status,200);assert.equal(mails,0);}finally{globalThis.fetch=fetch;keys.forEach((k,i)=>{if(env[i]===undefined)delete process.env[k];else process.env[k]=env[i];});}
     const archived=await find(person.id,'archived');assert.equal((await update(accounts.country.cookie,archived,{action:'restore'})).status,200);
     assert.equal((await login(person)).status,200);assert.equal((await invoke(m.courses,'GET','/api/courses',undefined,person.cookie)).status,401);
     assert.deepEqual(await query('SELECT * FROM certificates WHERE learner_id=?',person.id).all(),certs);

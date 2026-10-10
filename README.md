@@ -632,3 +632,88 @@ Organisation and platform admins: **Manage Users → Bulk learner import**. Down
 - The existing immutable audit captures actor, time, before/after values, batch reference, row and lifecycle reason. No schema migration is required.
 
 Validation: `node tests/learner-import-check.mjs` uses an isolated PostgreSQL-compatible database and all current migrations; no live learner data is changed.
+
+
+### Email notifications and invitations — release 1.10.10.26.53
+
+Organisation and platform admins: **Profile → Email notifications**. The migration
+starts in **Off** mode. **Preview** displays branded HTML/plain-text examples using
+fictional data; it never contacts Postmark, creates invitation tokens, or writes the
+live outbox. The controls are translated into the existing 14 interface languages.
+New learning notification templates are initially in English; password recovery
+retains its existing language-specific text and now includes branded HTML.
+
+Prepared email types:
+
+- Course-certificate reminders **30, 14 and 3 days before expiry**, followed by one
+  **expired** notice. The issued certificate expiry is authoritative. Starting a
+  renewal does not silence a still-relevant warning; completing a replacement or
+  valid linked refresher does. Revoked certificates, cancelled assignments,
+  archived learners and admin-only accounts do not receive these learner notices.
+- Invitations for people without an account, followed by one reminder **48 hours
+  after Postmark accepts the invitation**, only while they remain unregistered.
+  Preparing an invitation does not create an account or send mail. Queue it
+  explicitly after live email is enabled. The invitation fixes the email/store;
+  the recipient supplies their Workday ID and password. Normal induction and
+  pathway rules then apply. Links contain random tokens in the URL fragment;
+  only hashes are stored, each link lasts seven days, and acceptance is atomic
+  with registration. Cancellation invalidates outstanding links. If an invitation
+  expires, cancel it and prepare a new one. Existing accounts cannot be invited
+  as new users.
+- Account-ready emails for newly admin-created/imported learners, and a separate
+  first-sign-in reminder after 48 hours if they still have not signed in. These
+  emails never include passwords; they link to Login/Forgot password.
+- Course/pathway assignment emails, deadline reminders at **7 and 1 days**, a
+  single overdue notice, certificate-ready emails and practical-assessment next
+  steps after theory completion. Pathway assignment notices suppress duplicate
+  course-assignment notices. Certificates remain gated by the existing quiz and
+  practical assessment rules.
+- A **Monday 08:00 Europe/London** summary for each active Store Manager, showing
+  only their current store's overdue course assignments, certificates expiring
+  within 30 days and courses awaiting practical assessment. The schedule follows
+  London daylight-saving time. It is a scoped summary, not a configurable report
+  scheduling product.
+
+Admins can enable/disable types, edit expiry/deadline reminder offsets, and change
+48 hours to another invitation/first-login delay (1–168 hours). Settings and
+invitation actions are recorded in the immutable audit history. The delivery log
+is paginated and records the actual recipient, attempts, provider message ID and
+status, without storing message bodies or secret links. “Accepted by email
+provider” does not claim delivery to the inbox; bounce/delivery webhooks are not
+included in this release.
+
+The scheduled function checks every 15 minutes, with a bounded batch and runtime.
+A unique event key and atomic claim prevent repeated jobs from sending the same
+notification. Eligibility is rechecked immediately before sending. Only explicit
+rate-limit rejection is retried automatically, with backoff; timeouts, ambiguous
+provider errors and interrupted sends are marked **Delivery uncertain** for
+reconciliation in Postmark, never automatically resent. Permanent rejection is
+recorded as failed. Reminder windows are 24 hours; new assignment/certificate
+notices have a 48-hour window. Stale events are skipped, not backfilled. An
+invitation's 48-hour reminder is measured from actual provider acceptance, not
+when its draft was prepared. Re-enabling a type starts from that time; switching
+modes cancels the previous queue and starts a fresh activation boundary.
+
+#### Connecting Postmark later
+
+1. Verify the sender/domain in Postmark and set `POSTMARK_SERVER_TOKEN`,
+   `POSTMARK_FROM_EMAIL`, `POSTMARK_MESSAGE_STREAM` (normally `outbound`), and
+   `PRIMARK_APP_URL` in the production Functions environment.
+2. Keep `PRIMARK_EMAIL_DELIVERY=disabled` until ready for controlled delivery
+   verification. Setting it to **`enabled`** and redeploying authorises the
+   production transport, including password recovery. Deploy previews and local
+   builds cannot send through it; `POSTMARK_API_TEST` is rejected for live use.
+3. Review previews and enabled types; set **Email notifications → Live** when
+   notifications should begin. Only events from this activation onward qualify.
+   Prepared invitations remain drafts until individually queued. No test queue
+   is promoted into live delivery. Turning notification mode Off stops automated
+   notifications; the environment switch disables all application email,
+   including password recovery.
+4. Use controlled test recipients to verify real delivery and links before
+   starting a wider invitation rollout. No external mail is sent by local tests.
+
+Migration: `20261010133000_email-notifications`. Apply through the usual Netlify
+release migration workflow. No hosted database changes are made during development.
+Verification includes the complete regression suite, 17 additional migration/API/
+worker integration checks, TypeScript, translation coverage and the production
+build. A real Postmark delivery check remains part of activation.
